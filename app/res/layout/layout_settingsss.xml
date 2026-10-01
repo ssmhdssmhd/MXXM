@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <RelativeLayout android:gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_425" />
+    <RelativeLayout android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_marginLeft="@dimen/sm_40">
+        <FrameLayout android:id="@id/setting_fl_re_0" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:layout_marginLeft="@dimen/sm_200">
+            <ImageView android:id="@id/setting_bg_0" android:visibility="visible" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:src="@drawable/setting_bbg" android:scaleType="centerInside" />
+            <ImageView android:layout_gravity="center" android:id="@id/setting_iv_remote" android:focusable="true" android:nextFocusUp="@id/rb_settings" android:clickable="true" android:layout_width="@dimen/sm_199" android:layout_height="@dimen/sm_201" android:src="@drawable/play" android:scaleType="fitXY" />
+        </FrameLayout>
+        <FrameLayout android:id="@id/setting_fl_re_1" android:visibility="gone" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:layout_marginLeft="@dimen/sm_200" android:layout_marginTop="@dimen/sm_197">
+            <ImageView android:id="@id/setting_bg_1" android:visibility="visible" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:src="@drawable/setting_bbg" android:scaleType="fitXY" />
+            <ImageView android:layout_gravity="center" android:id="@id/setting_iv_network" android:focusable="true" android:nextFocusDown="@id/rb_bm_tvplay" android:clickable="true" android:layout_width="@dimen/sm_199" android:layout_height="@dimen/sm_201" android:src="@drawable/network" android:scaleType="fitXY" />
+        </FrameLayout>
+        <FrameLayout android:id="@id/setting_fl_re_2" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:layout_marginLeft="@dimen/sm_395">
+            <ImageView android:id="@id/setting_bg_2" android:visibility="visible" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:src="@drawable/setting_bbg" android:scaleType="fitXY" />
+            <ImageView android:layout_gravity="center" android:id="@id/setting_iv_play" android:focusable="true" android:nextFocusUp="@id/rb_settings" android:clickable="true" android:layout_width="@dimen/sm_199" android:layout_height="@dimen/sm_201" android:src="@drawable/clean" android:scaleType="fitXY" />
+        </FrameLayout>
+        <FrameLayout android:id="@id/setting_fl_re_3" android:visibility="gone" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:layout_marginLeft="@dimen/sm_395" android:layout_marginTop="@dimen/sm_197">
+            <ImageView android:id="@id/setting_bg_3" android:visibility="visible" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:src="@drawable/setting_bbg" android:scaleType="fitXY" />
+            <ImageView android:layout_gravity="center" android:id="@id/setting_iv_clean" android:focusable="true" android:nextFocusDown="@id/rb_bm_tvplay" android:clickable="true" android:layout_width="@dimen/sm_199" android:layout_height="@dimen/sm_201" android:src="@drawable/clean" android:scaleType="fitXY" />
+        </FrameLayout>
+        <FrameLayout android:id="@id/setting_fl_re_4" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:layout_marginLeft="@dimen/sm_590">
+            <ImageView android:id="@id/setting_bg_4" android:visibility="visible" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:src="@drawable/setting_bbg" android:scaleType="fitXY" />
+            <ImageView android:layout_gravity="center" android:id="@id/setting_iv_wallpaper" android:focusable="true" android:nextFocusUp="@id/rb_settings" android:clickable="true" android:layout_width="@dimen/sm_199" android:layout_height="@dimen/sm_201" android:src="@drawable/huodong" android:scaleType="fitXY" />
+        </FrameLayout>
+        <FrameLayout android:id="@id/setting_fl_re_5" android:visibility="gone" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:layout_marginLeft="@dimen/sm_590" android:layout_marginTop="@dimen/sm_197">
+            <ImageView android:id="@id/setting_bg_5" android:visibility="visible" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:src="@drawable/setting_bbg" android:scaleType="fitXY" />
+            <ImageView android:layout_gravity="center" android:id="@id/setting_iv_other" android:focusable="true" android:nextFocusDown="@id/rb_bm_tvplay" android:clickable="true" android:layout_width="@dimen/sm_199" android:layout_height="@dimen/sm_201" android:src="@drawable/settings" android:scaleType="fitXY" />
+        </FrameLayout>
+        <FrameLayout android:id="@id/setting_fl_re_6" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:layout_marginLeft="@dimen/sm_785">
+            <ImageView android:id="@id/setting_bg_6" android:visibility="visible" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:src="@drawable/setting_bbg" android:scaleType="fitXY" />
+            <ImageView android:layout_gravity="center" android:id="@id/setting_iv_act" android:focusable="true" android:nextFocusUp="@id/rb_settings" android:clickable="true" android:layout_width="@dimen/sm_199" android:layout_height="@dimen/sm_201" android:src="@drawable/about" android:scaleType="fitXY" />
+        </FrameLayout>
+        <FrameLayout android:id="@id/setting_fl_re_7" android:visibility="gone" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:layout_marginLeft="@dimen/sm_785" android:layout_marginTop="@dimen/sm_197">
+            <ImageView android:id="@id/setting_bg_7" android:visibility="visible" android:layout_width="@dimen/sm_239" android:layout_height="@dimen/sm_241" android:src="@drawable/setting_bbg" android:scaleType="fitXY" />
+            <ImageView android:layout_gravity="center" android:id="@id/setting_iv_about" android:focusable="true" android:nextFocusDown="@id/rb_bm_tvplay" android:clickable="true" android:layout_width="@dimen/sm_199" android:layout_height="@dimen/sm_201" android:src="@drawable/about" android:scaleType="fitXY" />
+        </FrameLayout>
+    </RelativeLayout>
+</FrameLayout>

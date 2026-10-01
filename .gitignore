@@ -1,0 +1,20 @@
+# 缓存与运行时
+runtime/
+Cache/
+*.log
+
+# 备份与污染文件
+*.bak*
+*~$
+*.swp
+
+# 本地环境
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 敏感配置（如需提交请自行斟酌）
+.env
+*.key
+*.pem

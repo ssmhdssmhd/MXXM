@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="horizontal" android:background="@drawable/media_controler_background" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="horizontal" android:id="@id/filter_rank" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_282" android:layout_height="fill_parent">
+        <LinearLayout android:orientation="vertical" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_280" android:layout_height="fill_parent">
+            <ListView android:id="@id/media_controler_menu_left" android:nextFocusRight="@id/filter_list_type" android:nextFocusUp="@id/filter_list_seach" android:layout_width="fill_parent" android:layout_height="fill_parent" android:listSelector="@drawable/menu_list_selector" android:divider="@color/black" />
+        </LinearLayout>
+        <ImageView android:focusable="false" android:layout_width="@dimen/sm_1" android:layout_height="fill_parent" android:src="@drawable/filter_line_ver" android:scaleType="fitXY" />
+    </LinearLayout>
+    <LinearLayout android:orientation="horizontal" android:id="@id/filter_type" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_401" android:layout_height="fill_parent">
+        <LinearLayout android:orientation="vertical" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_400" android:layout_height="fill_parent">
+            <ListView android:id="@id/media_controler_menu_right" android:nextFocusLeft="@id/filter_list_seach" android:nextFocusRight="@id/filter_list_year" android:nextFocusUp="@id/filter_list_type" android:layout_width="fill_parent" android:layout_height="fill_parent" android:listSelector="@drawable/menu_list_selector" android:divider="@color/black" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

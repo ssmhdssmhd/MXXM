@@ -1,0 +1,40 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>远程安装</title>
+<script src="./js/jquery.min.js" type="text/javascript"></script>
+<script src="./js/jquery.uploadify.js" type="text/javascript"></script>
+<script src="./js/common.js" type="text/javascript"></script>
+<script src="./js/index.js" type="text/javascript"></script>
+<link rel="stylesheet" type="text/css" href="./css/uploadify.css">
+</head>
+<body onload="loadFun()">
+	<div style="width: 100%;height: auto;min-width: 1024px;margin-top: 10%;">
+		<!-- 上传 -->
+		<div id="filedrag" style="width: 529px;height: 316px;margin: 0 auto;background: url('./images/kuang_bg.png');overflow: hidden;">
+			<div style="margin-top:150px;width: 100%;overflow: hidden;height: auto;">
+			</div>
+			<div style="width: 100%;text-align: center;color: #999999;font-size: 18px; font-family:微软雅黑;">
+				拖拽或选择文件进行上传,请使用非中文名称的Apk文件
+				<form id="upload" action="upload.jsp" enctype="multipart/form-data" method="post" onsubmit="return upLoad();">
+					<div id="queue"></div>
+					<input multiple type="file" id="fileselect" name="fileselect[]"  />
+				</form>
+
+			</div>
+		</div>
+        <div style="width: 529px;height: 300px;margin: 0 auto;overflow: hidden;">
+		</div>
+		
+		<!-- 上传进度 -->
+		<div id="bg2" style="width: 153px;height: 174px;margin-left: 5%;margin-top: -316px;background: url('./images/yuanchengcaok1.png');display: none;overflow: hidden;">
+			<div id="okImg" onclick="okAction()" style="width: 42px;height: 42px;position: absolute;margin-left:125px;margin-top: -15px;display:none;cursor: pointer;">
+				<img id="dImg" src="./images/yuanchengcaokPC-dui.png" style="width: 42px;height: 42px;" />
+			</div>
+			<div id="progressBg" style="width: 100%;height: 10px;">
+			</div>
+		</div>
+	</div>
+</body>
+</html>

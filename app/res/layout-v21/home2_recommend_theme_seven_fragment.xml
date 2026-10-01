@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:id="@id/vod" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <com.shenma.tvlauncher.view.MyNoPaddingTextView android:textSize="70.0sp" android:textStyle="bold" android:textColor="@color/white" android:gravity="center_vertical" android:id="@id/tv_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="10.0dip" android:layout_marginTop="4.0dip" android:text="21:21" android:includeFontPadding="false" android:layout_alignLeft="@id/ll_setting" android:layout_alignParentTop="true" />
+    <com.view.RecyclerViewAtViewPager2 android:orientation="horizontal" android:id="@id/view_movie_list" android:layout_width="fill_parent" android:layout_height="90.0dip" android:layout_marginRight="15.0dip" android:layout_marginBottom="5.0dip" android:layout_alignParentBottom="true" android:nestedScrollingEnabled="false" />
+    <LinearLayout android:orientation="horizontal" android:id="@id/ll_setting" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="12.0dip" android:layout_below="@id/tv_time">
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/history" android:background="@drawable/menu_item_bg_selector_nopressed" android:paddingTop="9.0dip" android:paddingBottom="9.0dip" android:focusable="true" android:layout_width="100.0dip" android:layout_height="wrap_content" android:layout_marginLeft="10.0dip">> <ImageView android:layout_width="30.0dip" android:layout_height="30.0dip" android:src="@drawable/pj" />
+            <TextView android:textSize="13.0sp" android:textStyle="bold" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="7.0dip" android:text="最近观看" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/collect" android:background="@drawable/menu_item_bg_selector_nopressed" android:paddingTop="9.0dip" android:paddingBottom="9.0dip" android:focusable="true" android:layout_width="100.0dip" android:layout_height="wrap_content" android:layout_marginLeft="10.0dip">> <ImageView android:layout_width="30.0dip" android:layout_height="30.0dip" android:src="@drawable/collect_pic" />
+            <TextView android:textSize="13.0sp" android:textStyle="bold" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="7.0dip" android:text="收藏" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/search" android:background="@drawable/menu_item_bg_selector_nopressed" android:paddingTop="9.0dip" android:paddingBottom="9.0dip" android:focusable="true" android:layout_width="100.0dip" android:layout_height="wrap_content" android:layout_marginLeft="10.0dip">> <ImageView android:layout_width="30.0dip" android:layout_height="30.0dip" android:src="@drawable/search_pic" />
+            <TextView android:textSize="13.0sp" android:textStyle="bold" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="7.0dip" android:text="搜索" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/ll_zb" android:background="@drawable/menu_item_bg_selector_nopressed" android:paddingTop="9.0dip" android:paddingBottom="9.0dip" android:focusable="true" android:layout_width="100.0dip" android:layout_height="wrap_content" android:layout_marginLeft="10.0dip">> <ImageView android:layout_width="30.0dip" android:layout_height="30.0dip" android:src="@drawable/home2_live_broadcast" />
+            <TextView android:textSize="13.0sp" android:textStyle="bold" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="7.0dip" android:text="直播" />
+        </LinearLayout>
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/mine" android:background="@drawable/menu_item_bg_selector_nopressed" android:paddingTop="9.0dip" android:paddingBottom="9.0dip" android:focusable="true" android:layout_width="100.0dip" android:layout_height="wrap_content" android:layout_marginLeft="10.0dip">
+            <ImageView android:layout_width="30.0dip" android:layout_height="30.0dip" android:src="@drawable/mine_pic" />
+            <TextView android:textSize="13.0sp" android:textStyle="bold" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8.0dip" android:text="我的" />
+        </LinearLayout>
+    </LinearLayout>
+</RelativeLayout>

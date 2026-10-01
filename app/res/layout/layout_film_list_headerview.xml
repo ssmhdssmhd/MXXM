@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:id="@id/film_list_headerview" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <com.view.SingleChoiceMenuView android:id="@id/types_menu" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+    <com.view.SingleChoiceMenuView android:id="@id/areas_menu" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+    <com.view.SingleChoiceMenuView android:id="@id/years_menu" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+    <com.view.SingleChoiceMenuView android:id="@id/sort_menu" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+</LinearLayout>

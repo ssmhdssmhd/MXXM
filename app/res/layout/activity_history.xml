@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:id="@id/vod_histiry" android:background="#ff3b4b73" android:clipChildren="false" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <RelativeLayout android:orientation="vertical" android:id="@id/type_details" android:background="#ff3b4b73" android:paddingLeft="@dimen/sm_35" android:paddingTop="@dimen/sm_10" android:paddingRight="@dimen/sm_35" android:clipChildren="false" android:clipToPadding="false" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/ll_type_details" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:textSize="@dimen/sm_38" android:textColor="@color/white" android:id="@id/type_details_sum" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/sm_2" android:text="@string/activity_history" />
+            <TextView android:textSize="@dimen/sm_32" android:textColor="@color/white" android:id="@id/history_details_sum" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/sm_2" android:layout_marginTop="@dimen/sm_5" android:text="@string/type_details_sum" />
+            <TextView android:textSize="@dimen/sm_24" android:textColor="#ffffffff" android:gravity="right" android:paddingRight="@dimen/sm_20" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/str_user_description" android:layout_weight="1.0" />
+        </LinearLayout>
+        <ImageView android:id="@id/iv_line760" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="@dimen/sm_5" android:layout_marginTop="@dimen/sm_5" android:layout_marginBottom="@dimen/sm_5" android:src="@drawable/vod_line761" android:scaleType="fitXY" android:layout_below="@id/ll_type_details" />
+        <TextView android:textSize="@dimen/sm_40" android:textColor="@color/white" android:gravity="center" android:id="@id/tv_no_data" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_below="@id/iv_line760" android:layout_centerInParent="true" />
+        <androidx.recyclerview.widget.RecyclerView android:layout_gravity="center" android:id="@id/history_grid" android:clipChildren="false" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_marginTop="@dimen/sm_15" android:layout_below="@id/iv_line760" />
+    </RelativeLayout>
+</FrameLayout>

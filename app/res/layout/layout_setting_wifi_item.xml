@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:paddingLeft="@dimen/sm_15" android:paddingRight="@dimen/sm_15" android:layout_width="fill_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sm_20" android:textColor="@color/white" android:ellipsize="marquee" android:gravity="center_vertical" android:id="@id/wifi_item_ssid_tv" android:layout_width="@dimen/sm_250" android:layout_height="@dimen/sm_45" android:text="AirPort" android:singleLine="true" />
+    <TextView android:textSize="@dimen/sm_20" android:textColor="@color/white" android:ellipsize="marquee" android:gravity="center_vertical" android:id="@id/wifi_item_info_tv" android:layout_width="@dimen/sm_400" android:layout_height="@dimen/sm_45" android:layout_marginLeft="@dimen/sm_10" android:text="通过WPA/WPA2进行保护" android:singleLine="true" android:layout_toRightOf="@id/wifi_item_ssid_tv" />
+    <ImageView android:id="@id/wifi_item_signal_iv" android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/wifi_signal_o_0" android:layout_alignParentRight="true" android:layout_centerVertical="true" />
+</RelativeLayout>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <FrameLayout android:id="@id/fl_main" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <RelativeLayout android:id="@id/rl_bg" android:layout_width="fill_parent" android:layout_height="fill_parent">
+            <LinearLayout android:gravity="center" android:orientation="horizontal" android:id="@id/mains" android:layout_width="fill_parent" android:layout_height="@dimen/sm_70">
+                <LinearLayout android:gravity="center" android:layout_width="wrap_content" android:layout_height="@dimen/sm_54" android:layout_marginLeft="@dimen/sm_5" android:layout_marginTop="@dimen/sm_5" android:layout_alignParentLeft="true">
+                    <LinearLayout android:id="@id/home_top_records" android:visibility="gone" style="@style/home_top_LinearLayouts2">
+                        <ImageView android:layout_width="@dimen/sm_30" android:layout_height="@dimen/sm_30" android:layout_marginTop="3.0dip" android:src="@mipmap/kmls" />
+                    </LinearLayout>
+                    <LinearLayout android:gravity="center" android:id="@id/home_top_searchs" android:layout_marginRight="10.0dip" style="@style/home_top_LinearLayouts2">
+                        <ImageView android:gravity="center" android:layout_width="@dimen/sm_30" android:layout_height="@dimen/sm_30" android:src="@mipmap/kmss" />
+                    </LinearLayout>
+                    <LinearLayout android:gravity="center" android:id="@id/home_collect" android:layout_marginRight="10.0dip" style="@style/home_top_LinearLayouts2">
+                        <ImageView android:layout_width="@dimen/sm_38" android:layout_height="@dimen/sm_38" android:src="@mipmap/kmsz" />
+                    </LinearLayout>
+                    <LinearLayout android:gravity="center" android:id="@id/home_play_set" android:layout_marginRight="10.0dip" style="@style/home_top_LinearLayouts2">
+                        <ImageView android:layout_width="@dimen/sm_30" android:layout_height="@dimen/sm_30" android:src="@mipmap/bfsz" />
+                    </LinearLayout>
+                    <LinearLayout android:gravity="center" android:id="@id/home_clear" android:layout_marginRight="10.0dip" style="@style/home_top_LinearLayouts2">
+                        <ImageView android:layout_width="@dimen/sm_30" android:layout_height="@dimen/sm_30" android:src="@mipmap/qchc" />
+                    </LinearLayout>
+                    <LinearLayout android:gravity="center" android:id="@id/home_wallpaper" android:layout_marginRight="10.0dip" style="@style/home_top_LinearLayouts2">
+                        <ImageView android:layout_width="@dimen/sm_35" android:layout_height="@dimen/sm_35" android:src="@mipmap/gywm" />
+                    </LinearLayout>
+                </LinearLayout>
+                <LinearLayout android:gravity="center" android:id="@id/home_user" android:tag="dianxin" android:layout_marginTop="4.0dip" android:layout_marginRight="10.0dip" style="@style/home_top_LinearLayouts2">
+                    <ImageView android:layout_width="@dimen/sm_38" android:layout_height="@dimen/sm_38" android:src="@mipmap/kmhy" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="@dimen/sm_550" android:layout_height="@dimen/sm_46" android:layout_marginTop="@dimen/sm_5">
+                    <LinearLayout android:id="@id/gonggao_root" android:background="@drawable/gonggao_root_bg" android:layout_width="@dimen/sm_550" android:layout_height="@dimen/sm_33" android:layout_marginTop="5.0dip">
+                        <ImageView android:layout_width="@dimen/sm_30" android:layout_height="@dimen/sm_30" android:layout_marginLeft="@dimen/sm_5" android:layout_marginRight="@dimen/sm_10" android:src="@mipmap/kmgg" />
+                        <com.shenma.tvlauncher.view.AlwaysMarqueeTextView android:textSize="12.0dip" android:textColor="#ffb1acac" android:ellipsize="marquee" android:gravity="center_vertical" android:id="@id/gonggao" android:layout_width="@dimen/sm_580" android:layout_height="40.0px" android:layout_marginTop="@dimen/sm_1" android:layout_marginRight="@dimen/sm_30" android:text="" android:singleLine="true" android:marqueeRepeatLimit="marquee_forever" />
+                    </LinearLayout>
+                </LinearLayout>
+                <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/main" android:layout_width="wrap_content" android:layout_height="@dimen/sm_76" android:layout_marginLeft="@dimen/sm_5" android:layout_alignParentTop="true">
+                    <ImageView android:id="@id/iv_net_state" android:layout_width="@dimen/sm_30" android:layout_height="@dimen/sm_30" android:layout_marginTop="@dimen/sm_5" android:layout_marginRight="@dimen/sm_10" android:src="@mipmap/kmff" />
+                    <RelativeLayout android:layout_gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_5">
+                        <TextView android:textSize="@dimen/sm_25" android:textStyle="normal" android:textColor="#ffb1acac" android:id="@id/tv_main_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/def_time" android:layout_centerHorizontal="true" android:layout_centerVertical="true" />
+                        <TextView android:textSize="@dimen/sm_25" android:textColor="@color/detail_main_text" android:gravity="center" android:id="@id/time_colon" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxHeight="@dimen/sm_76" android:text="@string/time_colon" android:layout_centerHorizontal="true" android:layout_centerVertical="true" />
+                    </RelativeLayout>
+                    <ImageView android:id="@id/iv_main_line" android:layout_width="@dimen/sm_25" android:layout_height="@dimen/sm_50" android:layout_marginTop="@dimen/sm_5" android:src="@drawable/home_line" />
+                    <TextView android:textSize="@dimen/sm_18" android:id="@id/tv_main_date" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/def_date" />
+                    <ImageView android:id="@id/logo" android:layout_width="@dimen/sm_152" android:layout_height="@dimen/sm_45" android:layout_marginTop="@dimen/sm_5" android:src="@drawable/sm_logo" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout android:orientation="vertical" android:id="@id/ll_rb" android:paddingLeft="@dimen/sm_185" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="@dimen/sm_50" android:layout_marginTop="@dimen/sm_20" android:layout_below="@id/mains">
+                <RadioGroup android:orientation="horizontal" android:id="@id/title_group" android:layout_width="fill_parent" android:layout_height="wrap_content">
+                    <RadioButton android:gravity="center" android:id="@id/rb_recommend" android:focusable="true" android:nextFocusLeft="@id/rb_settings" android:nextFocusRight="@id/rb_video_type" android:nextFocusDown="@id/iv_re_0" android:layout_width="0.0px" android:layout_height="wrap_content" android:button="@null" android:text="@string/recommend" android:layout_weight="0.5" style="@style/TitleButton" />
+                    <RadioButton android:gravity="center" android:id="@id/rb_video_type" android:focusable="true" android:nextFocusLeft="@id/rb_recommend" android:nextFocusRight="@id/rb_settings" android:nextFocusDown="@id/topic_iv_0" android:layout_width="0.0px" android:layout_height="wrap_content" android:button="@null" android:text="@string/video_type" android:layout_weight="0.5" style="@style/TitleButton" />
+                    <RadioButton android:gravity="center" android:id="@id/rb_settings" android:focusable="true" android:nextFocusLeft="@id/rb_video_type" android:nextFocusRight="@id/rb_recommend" android:layout_width="0.0px" android:layout_height="wrap_content" android:button="@null" android:text="@string/settings" android:layout_weight="0.5" style="@style/TitleButton" />
+                </RadioGroup>
+                <ImageView android:id="@id/iv_titile" android:layout_width="@dimen/sm_120" android:layout_height="@dimen/sm_10" android:layout_marginLeft="@dimen/sm_125" android:layout_marginBottom="@dimen/sm_2" android:src="@drawable/titile_top" android:layout_alignParentBottom="true" />
+            </LinearLayout>
+            <LinearLayout android:id="@id/rg_video_type_bottoms" android:layout_width="fill_parent" android:layout_height="@dimen/sm_60" android:layout_marginLeft="@dimen/sm_43" android:layout_marginTop="@dimen/sm_0" android:layout_marginRight="@dimen/sm_42" android:layout_below="@id/mains">
+                <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content">
+                    <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="@dimen/sm_70" android:layout_marginTop="@dimen/sm_4" android:layout_marginBottom="@dimen/sm_5" android:layout_below="@id/pager" />
+                    <HorizontalScrollView android:scrollbars="none" android:layout_width="fill_parent" android:layout_height="@dimen/sm_60">
+                        <RadioGroup android:orientation="horizontal" android:id="@id/rg_video_type_bottom" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    </HorizontalScrollView>
+                </LinearLayout>
+            </LinearLayout>
+            <ScrollView android:scrollbars="none" android:layout_width="fill_parent" android:layout_height="fill_parent" android:fillViewport="true" android:layout_below="@id/rg_video_type_bottoms">
+                <LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="fill_parent">
+                    <androidx.viewpager.widget.ViewPager android:id="@id/pager" android:layout_width="wrap_content" android:layout_height="fill_parent" android:layout_marginTop="@dimen/sm_4" android:layout_below="@id/rg_video_type_bottoms" />
+                </LinearLayout>
+            </ScrollView>
+            <RelativeLayout android:gravity="center" android:id="@id/notice" android:background="@android:color/transparent" android:visibility="visible" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_centerInParent="true">
+                <ImageView android:id="@id/notice_iamge_url" android:layout_width="@dimen/sm_750" android:layout_height="@dimen/sm_500" android:scaleType="fitXY" android:layout_centerInParent="true" />
+                <TextView android:textSize="@dimen/sm_20" android:textColor="@color/white" android:id="@id/notice_button" android:background="@drawable/button_1" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginRight="@dimen/sm_10" android:layout_marginBottom="@dimen/sm_10" android:text="@string/returns" android:layout_alignRight="@id/notice_iamge_url" android:layout_alignBottom="@id/notice_iamge_url" />
+            </RelativeLayout>
+        </RelativeLayout>
+    </FrameLayout>
+    <TextView android:textSize="@dimen/sm_18" android:textColor="@color/detail_point" android:layout_gravity="center_horizontal" android:id="@id/tv_update_msg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_80" />
+</FrameLayout>

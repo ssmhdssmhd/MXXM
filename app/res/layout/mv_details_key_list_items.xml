@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:layout_width="fill_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sm_24" android:textColor="@color/black" android:ellipsize="marquee" android:gravity="center" android:id="@id/lv_text" android:background="@drawable/wifi_dialog_bt_selector" android:paddingLeft="@dimen/sm_5" android:layout_width="fill_parent" android:layout_height="@dimen/sm_55" android:layout_margin="@dimen/sm_3" android:singleLine="true" android:marqueeRepeatLimit="marquee_forever" />
+</RelativeLayout>

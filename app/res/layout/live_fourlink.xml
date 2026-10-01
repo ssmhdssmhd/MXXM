@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="horizontal" android:descendantFocusability="blocksDescendants" android:layout_width="wrap_content" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <RelativeLayout android:gravity="center_vertical" android:background="@drawable/live_channel_list_item_bg" android:layout_width="fill_parent" android:layout_height="@dimen/sm_55">
+        <TextView android:textSize="@dimen/sm_28" android:textColor="@drawable/live_channel_item_textcolor_selector" android:gravity="left" android:id="@id/fourlink" android:paddingLeft="@dimen/sm_40" android:layout_width="wrap_content" android:layout_height="wrap_content" android:singleLine="true" />
+    </RelativeLayout>
+</LinearLayout>

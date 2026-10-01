@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:layout_gravity="center_horizontal" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <RelativeLayout android:gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_425" />
+    <RelativeLayout android:gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content">
+        <FrameLayout android:id="@id/tv_fl_re_0" android:padding="@dimen/sm_13" android:layout_width="fill_parent" android:layout_height="fill_parent">
+            <ImageView android:id="@id/tv_bg_0" android:layout_width="fill_parent" android:layout_height="fill_parent" />
+            <ImageView android:layout_gravity="center" android:id="@id/tv_iv_livetv" android:focusable="true" android:nextFocusUp="@id/rb_Internet" android:clickable="true" android:layout_width="fill_parent" android:layout_height="fill_parent" android:src="@drawable/livetv" android:scaleType="fitXY" />
+        </FrameLayout>
+    </RelativeLayout>
+</FrameLayout>

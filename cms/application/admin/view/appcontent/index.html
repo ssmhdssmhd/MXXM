@@ -1,0 +1,25 @@
+{include file="../../../application/admin/view/public/head" /}
+<div class="page-container p10">
+    <h2 style="font-size:18px;font-weight:600;color:#1e9fff;margin:4px 0 14px;">&#x41;&#x70;&#x70;&#x20;&#x5916;&#x89c2;&#x8bbe;&#x7f6e;</h2>
+    <form class="layui-form" method="post" action="">
+        <input type="hidden" name="__token__" value="{$Request.token}" />
+        <div class="layui-form-item">
+            <label class="layui-form-label">&#x5173;&#x4e8e;&#x6211;&#x4eec;&#x56fe;&#x7247;&#x20;URL</label>
+            <div class="layui-input-block"><input type="text" name="about_url" value="{$about_url}" class="layui-input" placeholder="https://example.com/about.jpg"></div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">&#x80cc;&#x666f;&#x58c1;&#x7eb8;&#x5217;&#x8868;</label>
+            <div class="layui-input-block">
+                <textarea name="wallpapers" class="layui-textarea" style="min-height:260px;" placeholder="&#x6bcf;&#x884c;&#x4e00;&#x4e2a;&#xff1a;&#x540d;&#x79f0;|&#x56fe;&#x7247;URL|1">{$wallpapers}</textarea>
+                <div class="layui-form-mid layui-word-aux">&#x6bcf;&#x884c;&#x4e00;&#x4e2a;&#xff1a;&#x540d;&#x79f0;|&#x56fe;&#x7247;URL|1</div>
+            </div>
+        </div>
+        <div class="layui-form-item center">
+            <button type="submit" class="layui-btn" lay-submit="">&#x4fdd;&#x5b58;</button>
+        </div>
+    </form>
+</div>
+{include file="../../../application/admin/view/public/foot" /}
+<script type="text/javascript">layui.use(['form'], function () { var form = layui.form; });</script>
+</body>
+</html>

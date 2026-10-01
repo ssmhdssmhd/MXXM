@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>远程搜索</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+        body {
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .search-hint {
+            font-size: 24px;
+            margin-top: 10vh;
+        }
+
+        .search-form {
+            margin-top: 5vh;
+        }
+
+        .search-input {
+            padding: 10px;
+            font-size: 16px;
+            width: 80%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .search-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .search-message {
+            margin-top: 10px;
+            color: #4CAF50;
+        }
+
+        @media screen and (max-width: 600px) {
+            .search-form {
+                margin-top: 20vh;
+            }
+
+            .search-input {
+                width: 50%;
+            }
+        }
+    </style>
+
+    <script>
+        function submitForm(event) {
+            event.preventDefault(); // 阻止表单的默认提交行为
+
+            var form = document.querySelector('.search-form');
+            var input = document.querySelector('.search-input');
+            var message = document.querySelector('.search-message');
+
+            // 获取输入的关键词
+            // var word = input.value.trim();
+            var word = decodeURIComponent(input.value.trim());
+
+            if (word === '') {
+                message.textContent = '请输入搜索项';
+                return;
+            }
+
+            // 创建XHR对象
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/action', true);
+            xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+
+            // 设置请求完成后的回调函数
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    message.textContent = '搜索成功!';
+                    input.value = ''; // 清空搜索框
+                } else {
+                    message.textContent = '搜索失败,请重试!';
+                    input.value = ''; // 清空搜索框
+                }
+            };
+
+            // 发送请求
+            xhr.send('word=' + encodeURIComponent(word) + '&do=search');
+        }
+
+        window.onload = function() {
+            var form = document.querySelector('.search-form');
+            var input = document.querySelector('.search-input');
+
+            // 监听表单的提交事件
+            form.addEventListener('submit', submitForm);
+
+            // 监听输入框的回车键事件
+            input.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    submitForm(event);
+                }
+            });
+        };
+    </script>
+</head>
+<body>
+    <div class="search-hint">支持拼音/首字母/汉字/演员搜索</div>
+    <form class="search-form">
+        <input class="search-input" type="text" name="word" placeholder="请输入搜索项" required>
+        <input type="hidden" name="do" value="search">
+        <button class="search-button" type="submit">开始搜索</button>
+    </form>
+    <div class="search-message"></div>
+</body>
+</html>

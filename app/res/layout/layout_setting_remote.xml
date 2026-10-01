@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:id="@id/setting_remote" android:background="#ff3b4b73" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:id="@id/title" android:paddingLeft="@dimen/sm_12" android:paddingTop="@dimen/sm_16" android:paddingRight="@dimen/sm_35" android:layout_width="fill_parent" android:layout_height="wrap_content">
+        <TextView android:textSize="@dimen/sm_46" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/sm_2" android:text="@string/remotely" />
+        <ImageView android:layout_width="@dimen/sm_10" android:layout_height="@dimen/sm_70" android:layout_marginLeft="@dimen/sm_10" android:src="@drawable/vod_line35" />
+    </LinearLayout>
+    <ImageView android:id="@id/remote_installation_content_transmission_icon" android:layout_width="@dimen/sm_440" android:layout_height="@dimen/sm_132" android:layout_marginTop="@dimen/sm_30" android:src="@drawable/transmission_icon" android:layout_below="@id/title" android:layout_centerHorizontal="true" />
+    <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:id="@id/remote_installation_content_url_tv" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_8" android:layout_below="@id/remote_installation_content_transmission_icon" android:layout_centerHorizontal="true" />
+    <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:id="@id/remote_tips_tv" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_12" android:text="@string/remote_tips" android:layout_below="@id/remote_installation_content_url_tv" android:layout_centerHorizontal="true" />
+    <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_12" android:text="@string/ip_tips" android:layout_below="@id/remote_tips_tv" android:layout_centerHorizontal="true" />
+</RelativeLayout>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center_vertical" android:layout_gravity="center" android:orientation="vertical" android:layout_width="@dimen/sm_320" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sm_26" android:textColor="@color/white" android:gravity="center" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_15" android:text="@string/phone_binding_tips" />
+    <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/user_form_name" />
+    <TextView android:textSize="@dimen/sm_22" android:textColor="@color/white" android:id="@id/bind_name_et" android:background="@drawable/edit_bg" android:paddingLeft="@dimen/sm_8" android:layout_width="@dimen/sm_320" android:layout_height="@dimen/sm_31" android:layout_marginBottom="@dimen/sm_10" android:singleLine="true" />
+    <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/phone_nub" />
+    <EditText android:textSize="@dimen/sm_22" android:id="@id/bind_phone_et" android:background="@drawable/edit_bg" android:paddingLeft="@dimen/sm_8" android:layout_width="@dimen/sm_320" android:layout_height="@dimen/sm_31" android:layout_marginBottom="@dimen/sm_10" android:hint="@string/input_phones" android:singleLine="true" />
+    <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/code" />
+    <RelativeLayout android:orientation="horizontal" android:layout_width="@dimen/sm_320" android:layout_height="wrap_content" android:layout_marginBottom="@dimen/sm_25">
+        <EditText android:textSize="@dimen/sm_22" android:id="@id/bind_code_et" android:background="@drawable/edit_bg" android:paddingLeft="@dimen/sm_8" android:layout_width="fill_parent" android:layout_height="@dimen/sm_31" android:hint="@string/code" android:singleLine="true" android:layout_toLeftOf="@id/send_code_bt" android:inputType="text" />
+        <Button android:textSize="@dimen/sm_22" android:textColor="@color/white" android:layout_gravity="right" android:id="@id/send_code_bt" android:background="@drawable/wifi_dialog_bt_selector" android:layout_width="@dimen/sm_120" android:layout_height="@dimen/sm_30" android:layout_marginLeft="@dimen/sm_20" android:hint="@string/send_code" android:layout_alignParentRight="true" />
+    </RelativeLayout>
+</LinearLayout>

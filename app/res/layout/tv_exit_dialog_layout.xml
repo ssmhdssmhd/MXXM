@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:layout_width="@dimen/sm_500" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="vertical" android:background="@drawable/menu_bg_n" android:paddingBottom="@dimen/sm_5" android:layout_width="@dimen/sm_500" android:layout_height="wrap_content" android:layout_marginBottom="@dimen/sm_5">
+        <TextView android:textSize="@dimen/sm_22" android:textColor="@color/white" android:layout_gravity="center_horizontal" android:id="@id/tv_exit_msg_titile" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+        <LinearLayout android:gravity="center_horizontal" android:orientation="horizontal" android:id="@id/itv_exit_msg" android:visibility="visible" android:layout_width="@dimen/sm_500" android:layout_height="wrap_content">
+            <TextView android:textSize="@dimen/sm_26" android:textColor="@color/detail_point" android:layout_gravity="center" android:id="@id/tv_exit_msg" android:paddingLeft="@dimen/sm_15" android:paddingTop="@dimen/sm_10" android:paddingRight="@dimen/sm_15" android:paddingBottom="@dimen/sm_10" android:layout_width="fill_parent" android:layout_height="wrap_content" android:minLines="2" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:orientation="horizontal" android:id="@id/lv_exit_ok" android:background="@drawable/menu_bg_selector" android:focusable="true" android:clickable="true" android:layout_width="@dimen/sm_500" android:layout_height="@dimen/sm_70">
+        <ImageView android:layout_width="@dimen/sm_70" android:layout_height="@dimen/sm_70" android:src="@drawable/itv_exit_ok" android:scaleType="fitXY" />
+        <TextView android:textSize="@dimen/sm_26" android:textColor="@color/white" android:gravity="center" android:id="@id/tv_exit_confirm" android:layout_width="0.0px" android:layout_height="fill_parent" android:text="@string/exitdialog_out" android:layout_weight="1.0" />
+    </LinearLayout>
+    <LinearLayout android:orientation="horizontal" android:id="@id/lv_exit_cancle" android:background="@drawable/menu_bg_selector" android:focusable="true" android:clickable="true" android:layout_width="@dimen/sm_500" android:layout_height="@dimen/sm_70" android:layout_marginTop="@dimen/sm_5">
+        <ImageView android:layout_width="@dimen/sm_70" android:layout_height="@dimen/sm_70" android:src="@drawable/itv_exit_cancle" android:scaleType="fitXY" />
+        <TextView android:textSize="@dimen/sm_26" android:textColor="@color/white" android:gravity="center" android:id="@id/tv_exit_cancle" android:layout_width="0.0px" android:layout_height="fill_parent" android:text="@string/exitdialog_back" android:layout_weight="1.0" />
+    </LinearLayout>
+</LinearLayout>

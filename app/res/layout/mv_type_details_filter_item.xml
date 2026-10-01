@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:background="@drawable/filter_bg_selector" android:layout_width="@dimen/sm_180" android:layout_height="40.0px"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sm_24" android:textColor="@color/white" android:layout_gravity="center" android:id="@id/filter_name" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    <ImageView android:layout_gravity="center_vertical" android:id="@id/filter_gou" android:visibility="invisible" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/sm_5" android:src="@drawable/fliter_gou" />
+</FrameLayout>

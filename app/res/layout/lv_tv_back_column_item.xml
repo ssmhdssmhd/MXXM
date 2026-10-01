@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:id="@id/fl_item" android:background="@drawable/listview_item_bg_selector" android:layout_width="@dimen/sm_446" android:layout_height="@dimen/sm_50"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:gravity="center_vertical" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_marginLeft="@dimen/sm_10">
+        <TextView android:textSize="@dimen/sm_18" android:textColor="@drawable/channel_item_textcolor_selector" android:id="@id/tv_back_time" android:layout_width="@dimen/sm_60" android:layout_height="wrap_content" android:text="12:34" />
+        <TextView android:textSize="@dimen/sm_24" android:textColor="@drawable/channel_item_textcolor_selector" android:ellipsize="marquee" android:gravity="center_vertical" android:id="@id/tv_back_name" android:layout_width="@dimen/sm_550" android:layout_height="@dimen/sm_50" android:text="这里是栏目的名称" android:singleLine="true" android:marqueeRepeatLimit="marquee_forever" />
+    </LinearLayout>
+    <ImageView android:layout_gravity="center|right" android:id="@id/tv_back_log" android:layout_width="@dimen/sm_65" android:layout_height="@dimen/sm_35" android:layout_marginRight="@dimen/sm_10" android:src="@drawable/huikan" />
+</FrameLayout>

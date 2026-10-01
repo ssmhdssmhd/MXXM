@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center_vertical" android:layout_gravity="center" android:orientation="vertical" android:layout_width="@dimen/sm_320" android:layout_height="@dimen/sm_210"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="@dimen/sm_320" android:layout_height="wrap_content">
+        <TextView android:textSize="@dimen/sm_23" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/wifi_ssid_name" />
+        <TextView android:textSize="@dimen/sm_23" android:ellipsize="marquee" android:id="@id/wifi_unconn_ssid_tv" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/sm_20" android:singleLine="true" />
+    </LinearLayout>
+    <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_20">
+        <TextView android:textSize="@dimen/sm_23" android:gravity="center_vertical" android:layout_width="wrap_content" android:layout_height="@dimen/sm_31" android:text="@string/wifi_ssid_pass" />
+        <RelativeLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/sm_20">
+            <EditText android:textSize="@dimen/sm_23" android:id="@id/wifi_unconn_pass_et" android:background="@drawable/edit_bg" android:layout_width="@dimen/sm_294" android:layout_height="@dimen/sm_31" android:hint="@string/please_input_password" android:singleLine="true" />
+            <CheckBox android:id="@id/wifi_unconn_showpass_cb" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_150" android:layout_marginTop="@dimen/sm_16" android:layout_below="@id/wifi_unconn_pass_et" style="@style/MyCheckBox" />
+            <TextView android:textSize="@dimen/sm_20" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/sm_10" android:layout_marginTop="@dimen/sm_10" android:text="@string/show_pass" android:layout_toRightOf="@id/wifi_unconn_showpass_cb" android:layout_below="@id/wifi_unconn_pass_et" />
+        </RelativeLayout>
+    </LinearLayout>
+</LinearLayout>

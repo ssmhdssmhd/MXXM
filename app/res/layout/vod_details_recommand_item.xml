@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:id="@id/root_view" android:background="@drawable/vod_details_btn_bg" android:padding="@dimen/sm_8" android:focusable="true" android:layout_width="120.0dip" android:layout_height="wrap_content" android:layout_marginLeft="@dimen/sm_5" android:layout_marginRight="@dimen/sm_5"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sm_22" android:textStyle="bold" android:textColor="@color/white" android:ellipsize="end" android:id="@id/tvTitle" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="Title" android:maxLines="1" />
+    <TextView android:textSize="@dimen/sm_16" android:textColor="@color/detail_point" android:ellipsize="end" android:id="@id/tvSubtitle" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_8" android:text="Subtitle" android:maxLines="1" />
+</LinearLayout>

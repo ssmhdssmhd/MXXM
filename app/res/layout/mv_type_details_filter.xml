@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="bottom" android:orientation="vertical" android:descendantFocusability="beforeDescendants" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <ImageView android:focusable="false" android:layout_width="fill_parent" android:layout_height="@dimen/sm_2" android:src="@drawable/fliter_line_hor" />
+    <LinearLayout android:gravity="center_horizontal" android:orientation="horizontal" android:background="@drawable/fliter_bg" android:descendantFocusability="beforeDescendants" android:layout_width="fill_parent" android:layout_height="@dimen/sm_300">
+        <LinearLayout android:orientation="horizontal" android:id="@id/filter_rank" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_182" android:layout_height="fill_parent">
+            <ImageView android:focusable="false" android:layout_width="@dimen/sm_1" android:layout_height="fill_parent" android:src="@drawable/filter_line_ver" android:scaleType="fitXY" />
+            <LinearLayout android:orientation="vertical" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_180" android:layout_height="fill_parent">
+                <TextView android:textSize="@dimen/sm_30" android:textColor="@color/white" android:gravity="center" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_60" android:text="@string/search" />
+                <ImageView android:focusable="false" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_1" android:src="@drawable/fliter_line_hor" />
+                <ListView android:id="@id/filter_list_seach" android:nextFocusRight="@id/filter_list_type" android:nextFocusUp="@id/filter_list_seach" android:layout_width="fill_parent" android:layout_height="fill_parent" android:divider="@color/black" />
+            </LinearLayout>
+            <ImageView android:focusable="false" android:layout_width="@dimen/sm_1" android:layout_height="fill_parent" android:src="@drawable/filter_line_ver" android:scaleType="fitXY" />
+        </LinearLayout>
+        <LinearLayout android:orientation="horizontal" android:id="@id/filter_type" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_181" android:layout_height="fill_parent">
+            <LinearLayout android:orientation="vertical" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_180" android:layout_height="fill_parent">
+                <TextView android:textSize="@dimen/sm_30" android:textColor="@color/white" android:gravity="center" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_60" android:text="@string/wifi_secure_type" />
+                <ImageView android:focusable="false" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_1" android:src="@drawable/fliter_line_hor" />
+                <ListView android:id="@id/filter_list_type" android:nextFocusLeft="@id/filter_list_seach" android:nextFocusRight="@id/filter_list_year" android:nextFocusUp="@id/filter_list_type" android:layout_width="fill_parent" android:layout_height="fill_parent" android:divider="@color/black" />
+            </LinearLayout>
+            <ImageView android:focusable="false" android:layout_width="@dimen/sm_1" android:layout_height="fill_parent" android:src="@drawable/filter_line_ver" android:scaleType="fitXY" />
+        </LinearLayout>
+        <LinearLayout android:orientation="horizontal" android:id="@id/filter_year" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_181" android:layout_height="fill_parent">
+            <LinearLayout android:orientation="vertical" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_180" android:layout_height="fill_parent">
+                <TextView android:textSize="@dimen/sm_30" android:textColor="@color/white" android:gravity="center" android:id="@id/tv_filter_year" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_60" android:text="@string/time" />
+                <ImageView android:focusable="false" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_1" android:src="@drawable/fliter_line_hor" />
+                <ListView android:id="@id/filter_list_year" android:nextFocusLeft="@id/filter_list_type" android:nextFocusRight="@id/filter_list_area" android:nextFocusUp="@id/filter_list_year" android:layout_width="fill_parent" android:layout_height="fill_parent" android:divider="@color/black" />
+            </LinearLayout>
+            <ImageView android:focusable="false" android:layout_width="@dimen/sm_1" android:layout_height="fill_parent" android:src="@drawable/filter_line_ver" android:scaleType="fitXY" />
+        </LinearLayout>
+        <LinearLayout android:orientation="horizontal" android:id="@id/filter_area" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_181" android:layout_height="fill_parent">
+            <LinearLayout android:orientation="vertical" android:descendantFocusability="beforeDescendants" android:layout_width="@dimen/sm_180" android:layout_height="fill_parent">
+                <TextView android:textSize="@dimen/sm_30" android:textColor="@color/white" android:gravity="center" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_60" android:text="@string/area" />
+                <ImageView android:focusable="false" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_1" android:src="@drawable/fliter_line_hor" />
+                <ListView android:id="@id/filter_list_area" android:nextFocusLeft="@id/filter_list_year" android:nextFocusRight="@id/filter_list_sort" android:nextFocusUp="@id/filter_list_area" android:layout_width="fill_parent" android:layout_height="fill_parent" android:divider="@color/black" />
+            </LinearLayout>
+            <ImageView android:focusable="false" android:layout_width="@dimen/sm_1" android:layout_height="fill_parent" android:src="@drawable/filter_line_ver" android:scaleType="fitXY" />
+        </LinearLayout>
+        <LinearLayout android:orientation="horizontal" android:id="@id/filter_sort" android:layout_width="@dimen/sm_181" android:layout_height="fill_parent">
+            <LinearLayout android:orientation="vertical" android:layout_width="@dimen/sm_180" android:layout_height="fill_parent">
+                <TextView android:textSize="@dimen/sm_30" android:textColor="@color/white" android:gravity="center" android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_60" android:text="@string/sort" />
+                <ImageView android:layout_width="@dimen/sm_180" android:layout_height="@dimen/sm_1" android:src="@drawable/fliter_line_hor" />
+                <ListView android:id="@id/filter_list_sort" android:nextFocusLeft="@id/filter_list_area" android:nextFocusRight="@id/filter_list_sort" android:nextFocusUp="@id/filter_list_sort" android:layout_width="fill_parent" android:layout_height="fill_parent" android:divider="@color/black" />
+            </LinearLayout>
+            <ImageView android:layout_width="@dimen/sm_1" android:layout_height="fill_parent" android:src="@drawable/filter_line_ver" android:scaleType="fitXY" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

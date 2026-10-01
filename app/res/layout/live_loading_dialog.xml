@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:padding="@dimen/sm_10" android:layout_width="wrap_content" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <ImageView android:layout_gravity="center_horizontal" android:id="@id/live_loading_img" android:layout_width="@dimen/sm_120" android:layout_height="@dimen/sm_120" android:src="@drawable/icon_loading" />
+    <TextView android:textSize="@dimen/sm_30" android:textStyle="bold" android:textColor="@color/white" android:layout_gravity="center_horizontal" android:id="@id/live_loading_tv" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/load_msg" />
+</LinearLayout>

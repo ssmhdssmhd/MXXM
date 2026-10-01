@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center_vertical" android:layout_gravity="center" android:orientation="vertical" android:layout_width="@dimen/sm_320" android:layout_height="@dimen/sm_210"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:gravity="center" android:orientation="horizontal" android:paddingLeft="@dimen/sm_4" android:layout_width="@dimen/sm_320" android:layout_height="wrap_content">
+        <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:layout_gravity="bottom" android:id="@id/Categorypwd" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+    <LinearLayout android:gravity="center_horizontal" android:orientation="horizontal" android:paddingLeft="@dimen/sm_4" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_25">
+        <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:gravity="center_vertical" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="@dimen/sm_31" android:text="@string/wifi_ssid_pass" />
+        <TextView android:textSize="@dimen/sm_23" android:layout_gravity="bottom" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1621e18154b078e16c" />
+        <EditText android:textSize="@dimen/sm_23" android:layout_gravity="center_horizontal" android:id="@id/user_pwd_et" android:background="@drawable/edit_bg" android:layout_width="fill_parent" android:layout_height="@dimen/sm_31" android:hint="@string/input_pwd" android:singleLine="true" android:inputType="text" />
+    </LinearLayout>
+</LinearLayout>

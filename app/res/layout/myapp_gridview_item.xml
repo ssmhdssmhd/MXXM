@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:gravity="center_vertical" android:orientation="vertical" android:layout_width="@dimen/sm_190" android:layout_height="@dimen/sm_160">
+        <RelativeLayout android:id="@id/myapp_rl" android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <ImageView android:id="@id/myapp_gridview_item_iv" android:layout_width="@dimen/sm_70" android:layout_height="@dimen/sm_70" android:layout_marginTop="@dimen/sm_24" android:src="@drawable/icon" android:layout_centerInParent="true" />
+            <ImageView android:id="@id/myapp_gridview_item_love_iv" android:visibility="gone" android:layout_width="@dimen/sm_42" android:layout_height="@dimen/sm_42" android:layout_marginLeft="@dimen/sm_40" android:layout_marginTop="@dimen/sm_1" android:src="@drawable/app_favorite" />
+        </RelativeLayout>
+        <TextView android:textSize="@dimen/sm_20" android:textColor="@color/white" android:ellipsize="marquee" android:gravity="center_horizontal" android:id="@id/myapp_gridview_item_tv" android:paddingLeft="@dimen/sm_20" android:paddingRight="@dimen/sm_20" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_20" android:singleLine="true" />
+        <TextView android:id="@id/myapp_gridview_item_flag_tv" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+</RelativeLayout>

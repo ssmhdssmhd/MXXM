@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:layout_width="@dimen/sm_458" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout android:orientation="vertical" android:background="@drawable/wlan_dialog_bg" android:layout_width="@dimen/sm_458" android:layout_height="wrap_content">
+        <LinearLayout android:gravity="center" android:orientation="vertical" android:id="@id/forget_dialog_content" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_10" />
+        <LinearLayout android:gravity="center_vertical" android:id="@id/forget_dialog_btns_ll" android:layout_width="@dimen/sm_458" android:layout_height="@dimen/sm_60">
+            <Button android:textSize="@dimen/sm_23" android:id="@id/forget_dialog_bt1" android:background="@drawable/wifi_dialog_bt_selector" android:layout_width="0.0dip" android:layout_height="@dimen/sm_45" android:layout_marginLeft="@dimen/sm_50" android:layout_marginRight="@dimen/sm_50" android:layout_weight="1.0" />
+            <Button android:textSize="@dimen/sm_23" android:id="@id/forget_dialog_bt2" android:background="@drawable/wifi_dialog_bt_selector" android:layout_width="0.0dip" android:layout_height="@dimen/sm_45" android:layout_marginRight="@dimen/sm_50" android:layout_weight="1.0" android:layout_alignParentRight="true" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

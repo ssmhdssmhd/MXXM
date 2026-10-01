@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:layout_gravity="center" android:orientation="vertical" android:layout_width="@dimen/sm_260" android:layout_height="@dimen/sm_210"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="@dimen/sm_23" android:textColor="@color/white" android:gravity="center" android:id="@id/tv_logout_msg" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/logout_msg" />
+</LinearLayout>

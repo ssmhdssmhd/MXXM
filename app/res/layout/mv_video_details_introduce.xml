@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="bottom" android:orientation="horizontal" android:background="@drawable/video_detail_key_bg" android:paddingLeft="@dimen/sm_20" android:paddingTop="@dimen/sm_10" android:paddingRight="@dimen/sm_20" android:paddingBottom="@dimen/sm_10" android:layout_width="fill_parent" android:layout_height="@dimen/sm_333"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <ImageView android:background="@drawable/video_detail_key_xiangqing" android:layout_width="@dimen/sm_120" android:layout_height="fill_parent" />
+    <TextView android:textSize="@dimen/sm_20" android:textColor="@color/white" android:ellipsize="end" android:id="@id/tv_details_video_introduce" android:paddingLeft="@dimen/sm_30" android:paddingTop="@dimen/sm_10" android:paddingRight="@dimen/sm_30" android:paddingBottom="@dimen/sm_20" android:layout_width="fill_parent" android:layout_height="fill_parent" android:maxLines="6" android:layout_weight="1.0" android:lineSpacingExtra="@dimen/sm_3" android:lineSpacingMultiplier="1.2" />
+</LinearLayout>

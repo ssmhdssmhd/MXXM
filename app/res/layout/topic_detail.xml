@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <ImageView android:id="@id/topic_bg" android:layout_width="fill_parent" android:layout_height="fill_parent" android:src="@drawable/video_details_bg" android:scaleType="centerCrop" />
+    <LinearLayout android:orientation="horizontal" android:id="@id/ll_topic" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <LinearLayout android:gravity="center_horizontal" android:orientation="vertical" android:background="@drawable/topic_left_bg" android:layout_width="@dimen/sm_360" android:layout_height="fill_parent">
+            <ImageView android:id="@id/iv_topic_poster" android:layout_width="@dimen/sm_267" android:layout_height="@dimen/sm_405" android:layout_marginTop="@dimen/sm_60" android:scaleType="fitStart" />
+            <TextView android:textSize="@dimen/sm_36" android:textColor="@color/white" android:id="@id/tv_topic_name" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="@dimen/sm_60" />
+        </LinearLayout>
+        <RelativeLayout android:layout_width="fill_parent" android:layout_height="fill_parent">
+            <Gallery android:gravity="center|right" android:id="@id/topic_detail_gl" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginBottom="@dimen/sm_43" android:spacing="@dimen/sm_10" android:layout_alignParentBottom="true" />
+            <TextView android:textSize="@dimen/sm_20" android:textColor="@color/configuration_turn_off" android:ellipsize="end" android:gravity="left" android:id="@id/topic_detail_msg_tv" android:background="@drawable/topic_detail_msg_bg" android:padding="@dimen/sm_20" android:visibility="gone" android:layout_width="@dimen/sm_600" android:layout_height="wrap_content" android:layout_marginRight="@dimen/sm_30" android:layout_marginBottom="@dimen/sm_30" android:maxLines="4" android:layout_above="@id/topic_detail_gl" android:layout_alignParentRight="true" />
+        </RelativeLayout>
+    </LinearLayout>
+</FrameLayout>
