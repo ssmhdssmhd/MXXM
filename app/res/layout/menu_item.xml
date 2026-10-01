@@ -1,3 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<TextView android:textSize="14.0sp" android:textColor="@color/menu_item_text_selector" android:gravity="center" android:id="@id/menu_item_text" android:background="@drawable/menu_item_bg_selector" android:paddingLeft="20.0dip" android:paddingTop="2.0dip" android:paddingRight="20.0dip" android:paddingBottom="2.0dip" android:focusable="true" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minWidth="@dimen/sm_60" android:minHeight="@dimen/sm_58"
-  xmlns:android="http://schemas.android.com/apk/res/android" />

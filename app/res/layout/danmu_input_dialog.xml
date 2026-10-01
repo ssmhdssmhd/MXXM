@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout android:orientation="vertical" android:background="@drawable/dialog_bg" android:padding="24.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content"
-  xmlns:android="http://schemas.android.com/apk/res/android">
-    <TextView android:textSize="20.0sp" android:textStyle="bold" android:textColor="#ff000000" android:gravity="center" android:id="@id/tvTitle" android:paddingBottom="16.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="输入弹幕内容" />
-    <EditText android:id="@id/etInput" android:background="@drawable/danmu_input_edittext_bg" android:layout_width="fill_parent" android:layout_height="wrap_content" android:hint="请输入内容..." android:lines="2" android:inputType="text" android:imeOptions="actionDone" />
-    <LinearLayout android:gravity="end" android:orientation="horizontal" android:paddingTop="20.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content">
-        <Button android:textColor="@android:color/white" android:id="@id/btnSend" android:background="@drawable/danmu_input_btn_bg" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="发送" />
-    </LinearLayout>
-</LinearLayout>

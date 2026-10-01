@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout android:layout_width="fill_parent" android:layout_height="fill_parent"
-  xmlns:android="http://schemas.android.com/apk/res/android">
-    <ImageView android:layout_width="@dimen/sm_150" android:layout_height="@dimen/sm_310" android:layout_marginLeft="@dimen/sm_400" android:layout_marginTop="@dimen/sm_200" android:src="@drawable/exit_horse" />
-    <Button android:textSize="@dimen/sm_50" android:textColor="@color/black" android:id="@id/exit_ok_bt" android:background="@drawable/exit_bt_bg" android:layout_width="@dimen/sm_398" android:layout_height="@dimen/sm_90" android:layout_marginTop="@dimen/sm_275" android:layout_marginRight="@dimen/sm_200" android:text="@string/exitdialog_out" android:layout_alignParentRight="true" />
-    <Button android:textSize="@dimen/sm_50" android:textColor="@color/black" android:id="@id/exit_cancel_bt" android:background="@drawable/exit_bt_bg" android:layout_width="@dimen/sm_398" android:layout_height="@dimen/sm_90" android:layout_marginTop="@dimen/sm_20" android:layout_marginRight="@dimen/sm_200" android:text="@string/exitdialog_back" android:layout_below="@id/exit_ok_bt" android:layout_alignParentRight="true" />
-</RelativeLayout>

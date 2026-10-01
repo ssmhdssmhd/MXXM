@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<AbsoluteLayout android:orientation="vertical" android:descendantFocusability="afterDescendants" android:layout_width="fill_parent" android:layout_height="fill_parent"
-  xmlns:android="http://schemas.android.com/apk/res/android">
-    <FrameLayout android:background="@drawable/video_bg_selector" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_x="0.0px" android:layout_y="0.0px">
-        <ImageView android:layout_gravity="center_horizontal" android:id="@id/details_recommend_poster" android:layout_width="@dimen/sm_152" android:layout_height="@dimen/sm_224" android:src="@drawable/default_film_img" android:scaleType="fitXY" />
-        <TextView android:textSize="@dimen/sm_20" android:textStyle="bold" android:textColor="@color/Score" android:layout_gravity="right" android:id="@id/details_recommend_score" android:background="@color/score_bg" android:paddingLeft="@dimen/sm_5" android:paddingRight="@dimen/sm_5" android:visibility="gone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" />
-        <TextView android:textSize="@dimen/sm_20" android:textColor="@color/white" android:gravity="center" android:layout_gravity="bottom|center" android:id="@id/details_recommend_name" android:background="@drawable/video_textbg_selector" android:layout_width="@dimen/sm_152" android:layout_height="@dimen/sm_30" style="@style/marqueeText" />
-    </FrameLayout>
-</AbsoluteLayout>

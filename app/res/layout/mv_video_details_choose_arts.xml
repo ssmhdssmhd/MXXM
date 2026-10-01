@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout android:gravity="bottom" android:orientation="horizontal" android:background="@drawable/video_detail_key_bg" android:paddingLeft="@dimen/sm_20" android:paddingTop="@dimen/sm_10" android:paddingRight="@dimen/sm_20" android:paddingBottom="@dimen/sm_10" android:layout_width="fill_parent" android:layout_height="@dimen/sm_333"
-  xmlns:android="http://schemas.android.com/apk/res/android">
-    <ImageView android:background="@drawable/video_detail_key_xuanji" android:layout_width="@dimen/sm_120" android:layout_height="fill_parent" />
-    <ListView android:id="@id/details_key_list" android:paddingTop="@dimen/sm_10" android:nextFocusLeft="@id/details_key_list" android:nextFocusRight="@id/details_key_grid" android:layout_width="0.0px" android:layout_height="fill_parent" android:layout_weight="1.0" />
-    <GridView android:id="@id/details_key_lists" android:paddingTop="@dimen/sm_10" android:focusableInTouchMode="true" android:scrollbars="none" android:nextFocusLeft="@id/details_key_list" android:nextFocusRight="@id/details_key_grid" android:layout_width="0.0px" android:layout_height="fill_parent" android:numColumns="8" android:layout_weight="1.0" />
-    <ImageView android:id="@id/details_key_list_and_grid" android:background="@drawable/video_detail_key_line" android:layout_width="@dimen/sm_15" android:layout_height="fill_parent" />
-    <GridView android:id="@id/details_key_grid" android:paddingLeft="@dimen/sm_10" android:paddingTop="@dimen/sm_10" android:nextFocusLeft="@id/details_key_list" android:nextFocusRight="@id/details_key_grid" android:layout_width="0.0px" android:layout_height="fill_parent" android:horizontalSpacing="@dimen/sm_10" android:verticalSpacing="@dimen/sm_10" android:numColumns="4" android:layout_weight="1.0" />
-</LinearLayout>
