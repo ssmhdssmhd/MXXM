@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="版本" src="https://img.shields.io/badge/版本-v.0.0.4-blue"/>
+  <img alt="版本" src="https://img.shields.io/badge/版本-v.0.0.5-blue"/>
   <img alt="语言" src="https://img.shields.io/badge/语言-Go-00ADD8"/>
   <img alt="浏览器" src="https://img.shields.io/badge/浏览器-Lightpanda-6C5CE7"/>
 </p>
@@ -43,12 +43,12 @@ MXXM 是一个用 Go 开发的命令行工具，输入一个或多个链接后�
 | 芒果TV | `m.mgtv.com/b/xxx/xxx.html` | 成功 |
 | 哔哩哔哩 | `bilibili.com/bangumi/play/epxxx` / `ssxxx` | 成功 |
 | 搜狐视频 | `tv.sohu.com/v/xxx.html` | 成功 |
-| 爱奇艺 | `iqiyi.com/v_xxx.html` | 受限（对海外/数据中心 IP 返回首页，国内网络可正常提取） |
-| 咪咕视频 | `miguvideo.com/.../detail.html?cid=xxx` | 受限（SPA 纯 JS 渲染，无头浏览器拿不到数据） |
+| 爱奇艺 | `iqiyi.com/v_xxx.html` | 成功（自动抓取移动站原始数据） |
+| 咪咕视频 | `miguvideo.com/.../detail.html?cid=xxx` | 受限（海外 IP 下服务端不返回内容，国内网络可用） |
 
-> 说明：爱奇艺在沙箱/海外网络被 IP 限制（服务端直接返回首页），其页面标题格式与优酷相似
-> （"剧名 第X集-..."），在国内网络下可正常提取。咪咕视频详情页为纯前端 SPA，
-> 数据来自带签名的内部接口，无头浏览器无法获取。
+> 说明：爱奇艺 PC 播放页对海外/数据中心 IP 返回首页，工具会自动以移动端 UA
+> 抓取原始 HTML，从 `<meta name="title">`（如"余红旧事第1集-..."）提取剧名与集数。
+> 咪咕视频对海外 IP 返回 content not found，国内网络下可从页面数据中提取。
 
 示例：`./MXXM -url "腾讯链接,优酷链接,芒果链接" -threads 4 -wait-ms 5000`
 
@@ -127,6 +127,12 @@ go build -o MXXM .
 同时终端会输出提取摘要：标题、正文字符数、链接数、图片数。
 
 ## 版本历史
+
+### v.0.0.5（2026-10-04）
+
+- 新增 HTTP 原始页面兜底提取：无头浏览器受限时自动抓取原始 HTML
+- 爱奇艺移动站原始数据成功提取（meta title 含剧名与集数），实测 6/7 平台成功
+- 自动将 PC 域名替换为移动站域名（爱奇艺/咪咕/芒果/优酷）
 
 ### v.0.0.4（2026-10-04）
 

@@ -16,6 +16,8 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -29,16 +31,21 @@ import (
 )
 
 // Version 版本号, 每次更新维护递增, 百位进一: v.0.0.1 -> v.0.0.99 -> v.0.1.0
-const Version = "v.0.0.4"
+const Version = "v.0.0.5"
+
+// 移动端 UA: 部分平台(爱奇艺等)对手机站直接返回内容页
+const mobileUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
 
 // 从 HTML 中提取信息的正则
 var (
-	reTitle   = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reOgTitle = regexp.MustCompile(`(?is)<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']`)
-	reTwTitle = regexp.MustCompile(`(?is)<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']`)
-	reLink    = regexp.MustCompile(`(?is)<a[^>]*href=["']([^"'#][^"']*)["']`)
-	reImg     = regexp.MustCompile(`(?is)<img[^>]*src=["']([^"']+)["']`)
-	reTag     = regexp.MustCompile(`(?is)<[^>]+>`)
+	reTitle     = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+	reMetaTitle = regexp.MustCompile(`(?is)<meta[^>]+(?:name|property|itemprop)=["'](?:title|og:title)["'][^>]+content=["']([^"']+)["']`)
+	reMetaKw    = regexp.MustCompile(`(?is)<meta[^>]+name=["']keywords["'][^>]+content=["']([^"']+)["']`)
+	reOgTitle   = regexp.MustCompile(`(?is)<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']`)
+	reTwTitle   = regexp.MustCompile(`(?is)<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']`)
+	reLink      = regexp.MustCompile(`(?is)<a[^>]*href=["']([^"'#][^"']*)["']`)
+	reImg       = regexp.MustCompile(`(?is)<img[^>]*src=["']([^"']+)["']`)
+	reTag       = regexp.MustCompile(`(?is)<[^>]+>`)
 )
 
 // homeTitles 平台首页标题特征, 命中说明页面被重定向(非内容页)
@@ -210,6 +217,88 @@ func isHomeTitle(s string) bool {
 		}
 	}
 	return false
+}
+
+// httpClient 构造带代理的 HTTP 客户端
+func httpClient(proxy string) *http.Client {
+	tr := &http.Transport{}
+	if proxy != "" {
+		if pu, err := url.Parse(proxy); err == nil {
+			tr.Proxy = http.ProxyURL(pu)
+		}
+	}
+	return &http.Client{Timeout: 25 * time.Second, Transport: tr}
+}
+
+// fetchRawHTML 用 HTTP 直接获取页面原始 HTML(不执行 JS)。
+// 部分平台(爱奇艺移动站等)对无头浏览器执行 JS 后改写页面, 但原始响应含完整数据。
+func fetchRawHTML(rawURL, proxy string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest("GET", rawURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", mobileUA)
+	req.Header.Set("Referer", u.Scheme+"://"+u.Host+"/")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml")
+	resp, err := httpClient(proxy).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+// mobileURL 将常见平台的 PC 域名替换为移动站域名(移动站对海外 IP 更宽容)
+func mobileURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	switch {
+	case strings.HasPrefix(u.Host, "www.iqiyi.com"):
+		u.Host = "m.iqiyi.com"
+	case strings.HasPrefix(u.Host, "www.miguvideo.com"):
+		u.Host = "m.miguvideo.com"
+	case strings.HasPrefix(u.Host, "www.mgtv.com"):
+		u.Host = "m.mgtv.com"
+	case strings.HasPrefix(u.Host, "v.youku.com"):
+		u.Host = "m.youku.com"
+	}
+	return u.String()
+}
+
+// extractRawTitles 从原始 HTML 中提取候选标题文本(meta title/keywords/og:title 等)
+func extractRawTitles(html string) []string {
+	var out []string
+	for _, re := range []*regexp.Regexp{reTitle, reMetaTitle, reOgTitle, reTwTitle, reMetaKw} {
+		for _, m := range re.FindAllStringSubmatch(html, -1) {
+			if len(m) > 1 {
+				if t := strings.TrimSpace(reTag.ReplaceAllString(m[1], "")); t != "" {
+					out = append(out, t)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// detectFromRawHTML 从原始 HTML 中识别视频信息(无头浏览器受限时的兜底)
+func detectFromRawHTML(raw string) VideoInfo {
+	for _, t := range extractRawTitles(raw) {
+		vi := detectFromTitle(t)
+		if vi.Name != "" && vi.Episode != "" {
+			return vi
+		}
+	}
+	return VideoInfo{}
 }
 
 // extractTitle 提取页面标题: <title> 优先, 失败或被重定向时回退 og:title / twitter:title
@@ -417,6 +506,21 @@ func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, noRobo
 	links := extractLinks(html, u)
 	imgs := extractImages(html, u)
 	vi := detectVideoInfo(title, body)
+
+	// 无头浏览器受限时(标题为空/首页/正文过短), 用 HTTP 直接抓原始 HTML 兜底提取
+	// (爱奇艺移动站等原始响应含 meta title, 执行 JS 后反而被改写)
+	if vi.Name == "" && vi.Episode == "" {
+		fmt.Printf("[%d/%d] 尝试抓取页面原始数据...\n", index, total)
+		for _, cand := range []string{u.String(), mobileURL(u.String())} {
+			if raw, err := fetchRawHTML(cand, proxy); err == nil {
+				vi = detectFromRawHTML(raw)
+				if vi.Name != "" && vi.Episode != "" {
+					fmt.Printf("[%d/%d] 原始页面数据提取成功(%s)\n", index, total, cand)
+					break
+				}
+			}
+		}
+	}
 
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		fmt.Printf("[%d/%d] 创建输出目录失败: %v\n", index, total, err)
