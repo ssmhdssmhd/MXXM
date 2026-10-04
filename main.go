@@ -29,15 +29,20 @@ import (
 )
 
 // Version 版本号, 每次更新维护递增, 百位进一: v.0.0.1 -> v.0.0.99 -> v.0.1.0
-const Version = "v.0.0.3"
+const Version = "v.0.0.4"
 
 // 从 HTML 中提取信息的正则
 var (
-	reTitle = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reLink  = regexp.MustCompile(`(?is)<a[^>]*href=["']([^"'#][^"']*)["']`)
-	reImg   = regexp.MustCompile(`(?is)<img[^>]*src=["']([^"']+)["']`)
-	reTag   = regexp.MustCompile(`(?is)<[^>]+>`)
+	reTitle   = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+	reOgTitle = regexp.MustCompile(`(?is)<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']`)
+	reTwTitle = regexp.MustCompile(`(?is)<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']`)
+	reLink    = regexp.MustCompile(`(?is)<a[^>]*href=["']([^"'#][^"']*)["']`)
+	reImg     = regexp.MustCompile(`(?is)<img[^>]*src=["']([^"']+)["']`)
+	reTag     = regexp.MustCompile(`(?is)<[^>]+>`)
 )
+
+// homeTitles 平台首页标题特征, 命中说明页面被重定向(非内容页)
+var homeTitles = []string{"爱奇艺-在线视频网站", "咪咕视频"}
 
 // 从标题/正文中识别视频信息的正则
 var (
@@ -197,12 +202,48 @@ func effectiveProxy(flagProxy, scheme string) string {
 	return os.Getenv("HTTP_PROXY")
 }
 
-// extractTitle 提取页面标题
+// isHomeTitle 判断标题是否为平台首页(页面被重定向)
+func isHomeTitle(s string) bool {
+	for _, h := range homeTitles {
+		if strings.Contains(s, h) {
+			return true
+		}
+	}
+	return false
+}
+
+// extractTitle 提取页面标题: <title> 优先, 失败或被重定向时回退 og:title / twitter:title
 func extractTitle(html string) string {
 	if m := reTitle.FindStringSubmatch(html); len(m) > 1 {
-		return strings.TrimSpace(reTag.ReplaceAllString(m[1], ""))
+		t := strings.TrimSpace(reTag.ReplaceAllString(m[1], ""))
+		if t != "" && !isHomeTitle(t) {
+			return t
+		}
+	}
+	for _, re := range []*regexp.Regexp{reOgTitle, reTwTitle} {
+		if m := re.FindStringSubmatch(html); len(m) > 1 {
+			if t := strings.TrimSpace(m[1]); t != "" && !isHomeTitle(t) {
+				return t
+			}
+		}
 	}
 	return ""
+}
+
+// hintForHost 根据平台域名给出针对性失败提示
+func hintForHost(host string) string {
+	switch {
+	case strings.Contains(host, "iqiyi.com"):
+		return "爱奇艺对海外/数据中心 IP 会直接返回首页(IP 限制), 国内网络通常可正常提取"
+	case strings.Contains(host, "miguvideo.com"):
+		return "咪咕视频为 JS 动态加载(SPA)且 robots 限制, 可尝试 -no-robots 与更长 -wait-ms"
+	case strings.Contains(host, "youku.com"):
+		return "优酷页面 JS 较多, 可尝试更长 -wait-ms"
+	case strings.Contains(host, "mgtv.com"):
+		return "芒果TV 页面 JS 较多, 可尝试更长 -wait-ms"
+	default:
+		return "页面可能被反爬/需登录/内容由 JS 动态加载, 可尝试 -wait-ms 或 -no-robots"
+	}
 }
 
 // resolveURL 将相对链接解析为绝对链接
@@ -354,6 +395,25 @@ func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, noRobo
 	}
 
 	title := extractTitle(html)
+
+	// 内容过短或无标题时自动重试一次(更长等待), 帮助 JS 慢渲染页面
+	if title == "" || utf8.RuneCountInString(body) < 300 {
+		retryMS := waitMS * 2
+		if retryMS < 5000 {
+			retryMS = 5000
+		}
+		fmt.Printf("[%d/%d] 页面内容不足, 自动重试(等待 %dms)...\n", index, total, retryMS)
+		if body, err = fetchDump(bin, "markdown", u.String(), proxy, retryMS, noRobots); err != nil {
+			fmt.Printf("[%d/%d] %v\n", index, total, err)
+			return
+		}
+		if html, err = fetchDump(bin, "html", u.String(), proxy, retryMS, noRobots); err != nil {
+			fmt.Printf("[%d/%d] %v\n", index, total, err)
+			return
+		}
+		title = extractTitle(html)
+	}
+
 	links := extractLinks(html, u)
 	imgs := extractImages(html, u)
 	vi := detectVideoInfo(title, body)
@@ -387,7 +447,7 @@ func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, noRobo
 	fmt.Printf("  图片: %d 张\n", len(imgs))
 	fmt.Printf("  已保存: %s\n", fpath)
 	if vi.Name == "" && vi.Episode == "" && utf8.RuneCountInString(body) < 300 {
-		fmt.Println("  提示: 未能提取视频信息, 页面可能被反爬/需登录/内容由 JS 动态加载, 可尝试 -wait-ms 或 -no-robots")
+		fmt.Println("  提示:", hintForHost(u.Host))
 	}
 }
 
