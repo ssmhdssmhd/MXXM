@@ -1,0 +1,9 @@
+# 编译产物
+/MXXM
+*.exe
+
+# 抓取输出
+/output/
+
+# 本地环境
+.lightpanda
