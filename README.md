@@ -9,21 +9,24 @@
 </p>
 
 <p align="center">
-  <img alt="版本" src="https://img.shields.io/badge/版本-v.0.0.1-blue"/>
+  <img alt="版本" src="https://img.shields.io/badge/版本-v.0.0.2-blue"/>
   <img alt="语言" src="https://img.shields.io/badge/语言-Go-00ADD8"/>
   <img alt="浏览器" src="https://img.shields.io/badge/浏览器-Lightpanda-6C5CE7"/>
 </p>
 
 ## 简介
 
-MXXM 是一个用 Go 开发的命令行工具，输入一个链接后，自动使用 Lightpanda 无头浏览器打开页面，
+MXXM 是一个用 Go 开发的命令行工具，输入一个或多个链接后，自动使用 Lightpanda 无头浏览器打开页面，
 提取页面标题、正文（Markdown）、链接和图片，保存为 Markdown 文件，并在终端输出摘要。
+支持视频页面（如腾讯视频）自动识别剧名、集数，支持多线程并发抓取。
 
 ## 特性
 
-- 交互模式：运行后提示输入链接
-- 命令行模式：`-url` 直接指定链接
+- 交互模式：运行后提示输入链接（支持多个）
+- 命令行模式：`-url` 直接指定链接（多个用逗号分隔）
 - 自动提取：标题、正文、全部链接、全部图片
+- 视频页面自动识别：剧名、集数、更新至、总集数（如腾讯视频）
+- 多线程并发抓取：`-threads` 控制并发数
 - 相对链接自动解析为绝对链接，去重排序
 - 自动识别系统 HTTP/HTTPS 代理，亦可用 `-proxy` 指定
 - 尊重 `robots.txt`
@@ -71,10 +74,11 @@ go build -o MXXM .
 
 | 参数 | 说明 | 默认值 |
 | --- | --- | --- |
-| `-url` | 要抓取的链接，不填则交互输入 | 空 |
+| `-url` | 要抓取的链接，多个用逗号分隔；不填则交互输入 | 空 |
 | `-out` | 输出目录 | `output` |
 | `-wait-ms` | 页面加载完成后额外等待的毫秒数（适合 JS 动态页面） | `0` |
 | `-proxy` | HTTP 代理地址，不填则自动使用环境变量 | 自动 |
+| `-threads` | 并发抓取线程数 | `4` |
 | `-version` | 显示版本号 | - |
 
 ### 示例
@@ -82,6 +86,9 @@ go build -o MXXM .
 ```bash
 # 抓取并等待 3 秒让 JS 渲染完成
 ./MXXM -url https://example.com -wait-ms 3000
+
+# 多个链接并发抓取（腾讯视频自动识别剧名与集数）
+./MXXM -url "https://m.v.qq.com/x/m/play?cid=mzc00200aaogpgh&vid=r0047gdjpw6,https://v.qq.com/x/cover/xxx.html" -threads 4
 
 # 指定输出目录与代理
 ./MXXM -url https://example.com -out ./data -proxy http://127.0.0.1:7890
@@ -99,6 +106,11 @@ go build -o MXXM .
 同时终端会输出提取摘要：标题、正文字符数、链接数、图片数。
 
 ## 版本历史
+
+### v.0.0.2（2026-10-04）
+
+- 支持视频页面自动识别剧名、集数、更新至、总集数（腾讯视频等）
+- 支持多个链接并发抓取（`-threads` 控制并发数）
 
 ### v.0.0.1（2026-10-04）
 

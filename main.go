@@ -3,10 +3,12 @@
 // 用法:
 //   交互模式:   MXXM
 //   命令行模式: MXXM -url https://example.com
-//   其他选项:   -out 输出目录, -wait-ms 加载后等待毫秒数, -version 显示版本
+//   并发抓取:   MXXM -url "链接1,链接2,链接3" -threads 4
+//   其他选项:   -out 输出目录, -wait-ms 加载后等待毫秒数, -proxy 代理, -version 显示版本
 //
 // 原理: 调用 Lightpanda 无头浏览器打开用户输入的链接,
 // 提取页面标题、正文(Markdown)、链接和图片, 保存为 Markdown 文件。
+// 支持视频页面自动识别剧名、集数(如腾讯视频"仙逆 01集")。
 package main
 
 import (
@@ -20,12 +22,13 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
 
 // Version 版本号, 每次更新维护递增, 百位进一: v.0.0.1 -> v.0.0.99 -> v.0.1.0
-const Version = "v.0.0.1"
+const Version = "v.0.0.2"
 
 // 从 HTML 中提取信息的正则
 var (
@@ -34,6 +37,37 @@ var (
 	reImg   = regexp.MustCompile(`(?is)<img[^>]*src=["']([^"']+)["']`)
 	reTag   = regexp.MustCompile(`(?is)<[^>]+>`)
 )
+
+// 从正文中识别视频信息的正则
+var (
+	reEp      = regexp.MustCompile(`(?m)([^\n]{1,40}?)\s*(\d{1,4})\s*集`)
+	reTotal   = regexp.MustCompile(`全\s*(\d{1,4})\s*集`)
+	reUpdated = regexp.MustCompile(`更新至\s*(\d{1,4})\s*集`)
+)
+
+// VideoInfo 视频页面信息
+type VideoInfo struct {
+	Name    string // 剧名
+	Episode string // 集数
+	Total   string // 总集数
+	Updated string // 更新至
+}
+
+// detectVideoInfo 从 Markdown 正文中识别剧名、集数等视频信息
+func detectVideoInfo(body string) VideoInfo {
+	var vi VideoInfo
+	if m := reEp.FindStringSubmatch(body); len(m) > 1 {
+		vi.Name = strings.TrimSpace(strings.TrimSuffix(m[1], "第"))
+		vi.Episode = strings.TrimSpace(m[2]) + "集"
+	}
+	if m := reTotal.FindStringSubmatch(body); len(m) > 1 {
+		vi.Total = strings.TrimSpace(m[1]) + "集"
+	}
+	if m := reUpdated.FindStringSubmatch(body); len(m) > 1 {
+		vi.Updated = strings.TrimSpace(m[1]) + "集"
+	}
+	return vi
+}
 
 // findLightpanda 查找 lightpanda 二进制, 依次检查环境变量、程序同目录、PATH
 func findLightpanda() string {
@@ -78,6 +112,21 @@ func fetchDump(bin, dumpType, rawURL, proxy string, waitMS int) (string, error) 
 		return "", err
 	}
 	return string(out), nil
+}
+
+// effectiveProxy 确定代理: 命令行参数优先, 否则按协议读取环境变量
+func effectiveProxy(flagProxy, scheme string) string {
+	if flagProxy != "" {
+		return flagProxy
+	}
+	key := "HTTP_PROXY"
+	if scheme == "https" {
+		key = "HTTPS_PROXY"
+	}
+	if p := os.Getenv(key); p != "" {
+		return p
+	}
+	return os.Getenv("HTTP_PROXY")
 }
 
 // extractTitle 提取页面标题
@@ -138,12 +187,23 @@ func extractImages(html string, base *url.URL) []string {
 }
 
 // buildMarkdown 组装最终的 Markdown 文件内容
-func buildMarkdown(u *url.URL, title, body string, links, imgs []string) string {
+func buildMarkdown(u *url.URL, vi VideoInfo, title, body string, links, imgs []string) string {
 	var b strings.Builder
 	b.WriteString("# " + title + "\n\n")
 	b.WriteString("> 来源: " + u.String() + "\n")
 	b.WriteString("> 抓取时间: " + time.Now().Format("2006-01-02 15:04:05") + "\n")
-	b.WriteString("> 工具版本: " + Version + "\n\n")
+	b.WriteString("> 工具版本: " + Version + "\n")
+	if vi.Name != "" || vi.Episode != "" {
+		b.WriteString("> 剧名: " + vi.Name + "\n")
+		b.WriteString("> 集数: " + vi.Episode + "\n")
+		if vi.Updated != "" {
+			b.WriteString("> 更新至: " + vi.Updated + "\n")
+		}
+		if vi.Total != "" {
+			b.WriteString("> 总集数: " + vi.Total + "\n")
+		}
+	}
+	b.WriteString("\n")
 
 	b.WriteString("## 正文\n\n")
 	b.WriteString(body + "\n")
@@ -163,9 +223,26 @@ func buildMarkdown(u *url.URL, title, body string, links, imgs []string) string 
 	return b.String()
 }
 
-// promptURL 交互式提示用户输入链接
+// splitURLs 分割多个链接(支持逗号、空格、换行分隔), 去空去重
+func splitURLs(s string) []string {
+	seen := make(map[string]bool)
+	var out []string
+	for _, f := range strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == '，' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	}) {
+		f = strings.TrimSpace(f)
+		if f == "" || seen[f] {
+			continue
+		}
+		seen[f] = true
+		out = append(out, f)
+	}
+	return out
+}
+
+// promptURL 交互式提示用户输入链接(支持多个)
 func promptURL() string {
-	fmt.Print("请输入要提取的链接: ")
+	fmt.Print("请输入要提取的链接(多个用逗号或空格分隔): ")
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadString('\n')
 	if err != nil && line == "" {
@@ -184,11 +261,71 @@ func printInstallHint() {
 	fmt.Println("  export LIGHTPANDA_BIN=~/bin/lightpanda")
 }
 
+// processURL 抓取并提取单个链接
+func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, outDir string) {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		fmt.Printf("[%d/%d] 无效的链接: %s\n", index, total, raw)
+		return
+	}
+
+	fmt.Printf("[%d/%d] 正在用 Lightpanda 无头浏览器打开 %s ...\n", index, total, u.String())
+
+	proxy := effectiveProxy(proxyFlag, u.Scheme)
+
+	body, err := fetchDump(bin, "markdown", u.String(), proxy, waitMS)
+	if err != nil {
+		fmt.Printf("[%d/%d] %v\n", index, total, err)
+		return
+	}
+
+	html, err := fetchDump(bin, "html", u.String(), proxy, waitMS)
+	if err != nil {
+		fmt.Printf("[%d/%d] %v\n", index, total, err)
+		return
+	}
+
+	title := extractTitle(html)
+	links := extractLinks(html, u)
+	imgs := extractImages(html, u)
+	vi := detectVideoInfo(body)
+
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		fmt.Printf("[%d/%d] 创建输出目录失败: %v\n", index, total, err)
+		return
+	}
+	fname := fmt.Sprintf("MXXM.%s.%02d.md", time.Now().Format("20060102150405"), index)
+	fpath := filepath.Join(outDir, fname)
+	content := buildMarkdown(u, vi, title, body, links, imgs)
+	if err := os.WriteFile(fpath, []byte(content), 0o644); err != nil {
+		fmt.Printf("[%d/%d] 保存文件失败: %v\n", index, total, err)
+		return
+	}
+
+	fmt.Printf("[%d/%d] 提取完成:\n", index, total)
+	if vi.Name != "" || vi.Episode != "" {
+		fmt.Printf("  剧名: %s\n", vi.Name)
+		fmt.Printf("  集数: %s\n", vi.Episode)
+		if vi.Updated != "" {
+			fmt.Printf("  更新至: %s\n", vi.Updated)
+		}
+		if vi.Total != "" {
+			fmt.Printf("  总集数: %s\n", vi.Total)
+		}
+	}
+	fmt.Printf("  标题: %s\n", title)
+	fmt.Printf("  正文: %d 字符\n", utf8.RuneCountInString(body))
+	fmt.Printf("  链接: %d 个\n", len(links))
+	fmt.Printf("  图片: %d 张\n", len(imgs))
+	fmt.Printf("  已保存: %s\n", fpath)
+}
+
 func main() {
-	flagURL := flag.String("url", "", "要抓取的链接, 不填则交互输入")
+	flagURL := flag.String("url", "", "要抓取的链接, 多个用逗号分隔; 不填则交互输入")
 	outDir := flag.String("out", "output", "输出目录")
 	waitMS := flag.Int("wait-ms", 0, "页面加载完成后额外等待的毫秒数")
 	proxyFlag := flag.String("proxy", "", "HTTP 代理地址, 不填则自动使用环境变量 HTTP_PROXY/HTTPS_PROXY")
+	threads := flag.Int("threads", 4, "并发抓取线程数")
 	showVer := flag.Bool("version", false, "显示版本号")
 	flag.Parse()
 
@@ -201,14 +338,9 @@ func main() {
 	if raw == "" {
 		raw = promptURL()
 	}
-	if raw == "" {
+	urls := splitURLs(raw)
+	if len(urls) == 0 {
 		fmt.Println("链接不能为空")
-		os.Exit(1)
-	}
-
-	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		fmt.Printf("无效的链接: %s\n", raw)
 		os.Exit(1)
 	}
 
@@ -218,54 +350,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 确定代理: 命令行参数优先, 否则自动读取环境变量
-	proxy := *proxyFlag
-	if proxy == "" {
-		key := "HTTP_PROXY"
-		if u.Scheme == "https" {
-			key = "HTTPS_PROXY"
-		}
-		if p := os.Getenv(key); p != "" {
-			proxy = p
-		} else if p := os.Getenv("HTTP_PROXY"); p != "" {
-			proxy = p
-		}
+	n := *threads
+	if n < 1 {
+		n = 1
 	}
-
-	fmt.Printf("正在用 Lightpanda 无头浏览器打开 %s ...\n", u.String())
-
-	body, err := fetchDump(bin, "markdown", u.String(), proxy, *waitMS)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	sem := make(chan struct{}, n)
+	var wg sync.WaitGroup
+	for i, rawURL := range urls {
+		wg.Add(1)
+		go func(i int, rawURL string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			processURL(i+1, len(urls), rawURL, bin, *proxyFlag, *waitMS, *outDir)
+		}(i, rawURL)
 	}
-
-	html, err := fetchDump(bin, "html", u.String(), proxy, *waitMS)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	title := extractTitle(html)
-	links := extractLinks(html, u)
-	imgs := extractImages(html, u)
-
-	if err := os.MkdirAll(*outDir, 0o755); err != nil {
-		fmt.Println("创建输出目录失败:", err)
-		os.Exit(1)
-	}
-	fname := fmt.Sprintf("MXXM.%s.md", time.Now().Format("20060102150405"))
-	fpath := filepath.Join(*outDir, fname)
-	content := buildMarkdown(u, title, body, links, imgs)
-	if err := os.WriteFile(fpath, []byte(content), 0o644); err != nil {
-		fmt.Println("保存文件失败:", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("提取完成:")
-	fmt.Printf("  标题: %s\n", title)
-	fmt.Printf("  正文: %d 字符\n", utf8.RuneCountInString(body))
-	fmt.Printf("  链接: %d 个\n", len(links))
-	fmt.Printf("  图片: %d 张\n", len(imgs))
-	fmt.Printf("  已保存: %s\n", fpath)
+	wg.Wait()
 }
