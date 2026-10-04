@@ -1,10 +1,11 @@
 // MXXM - 基于 Lightpanda 无头浏览器的网页内容提取工具
 //
 // 用法:
-//   交互模式:   MXXM
-//   命令行模式: MXXM -url https://example.com
-//   并发抓取:   MXXM -url "链接1,链接2,链接3" -threads 4
-//   其他选项:   -out 输出目录, -wait-ms 加载后等待毫秒数, -proxy 代理, -version 显示版本
+//
+//	交互模式:   MXXM
+//	命令行模式: MXXM -url https://example.com
+//	并发抓取:   MXXM -url "链接1,链接2,链接3" -threads 4
+//	其他选项:   -out 输出目录, -wait-ms 加载后等待毫秒数, -proxy 代理, -version 显示版本
 //
 // 原理: 调用 Lightpanda 无头浏览器打开用户输入的链接,
 // 提取页面标题、正文(Markdown)、链接和图片, 保存为 Markdown 文件。
@@ -28,7 +29,7 @@ import (
 )
 
 // Version 版本号, 每次更新维护递增, 百位进一: v.0.0.1 -> v.0.0.99 -> v.0.1.0
-const Version = "v.0.0.2"
+const Version = "v.0.0.3"
 
 // 从 HTML 中提取信息的正则
 var (
@@ -38,12 +39,17 @@ var (
 	reTag   = regexp.MustCompile(`(?is)<[^>]+>`)
 )
 
-// 从正文中识别视频信息的正则
+// 从标题/正文中识别视频信息的正则
 var (
-	reEp      = regexp.MustCompile(`(?m)([^\n]{1,40}?)\s*(\d{1,4})\s*集`)
-	reTotal   = regexp.MustCompile(`全\s*(\d{1,4})\s*集`)
-	reUpdated = regexp.MustCompile(`更新至\s*(\d{1,4})\s*集`)
+	reTitleEp  = regexp.MustCompile(`第\s*(\d{1,4})\s*集`)                               // "第1集"
+	reTitleEnd = regexp.MustCompile(`([\p{Han}A-Za-z0-9·]{2,20}?)\s*(\d{1,4})[\s-]*$`) // 腾讯"仙逆 01"
+	reEp       = regexp.MustCompile(`(?m)([^\n]{1,40}?)\s*(\d{1,4})\s*集`)
+	reTotal    = regexp.MustCompile(`全\s*(\d{1,4})\s*集`)
+	reUpdated  = regexp.MustCompile(`更新至\s*(\d{1,4})\s*集`)
 )
+
+// noiseNames 正文中的噪词, 命中则不能作为剧名
+var noiseNames = []string{"选集", "剧集", "分集", "集数", "已更新", "全剧"}
 
 // VideoInfo 视频页面信息
 type VideoInfo struct {
@@ -53,13 +59,72 @@ type VideoInfo struct {
 	Updated string // 更新至
 }
 
-// detectVideoInfo 从 Markdown 正文中识别剧名、集数等视频信息
-func detectVideoInfo(body string) VideoInfo {
+// isNoiseName 判断是否为噪词(不能作为剧名)
+func isNoiseName(s string) bool {
+	for _, n := range noiseNames {
+		if strings.Contains(s, n) {
+			return true
+		}
+	}
+	return false
+}
+
+// cleanName 清洗剧名: 去书名号、平台前缀(如【腾讯视频】)与首尾空白
+func cleanName(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, "《》")
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "【") {
+		if idx := strings.Index(s, "】"); idx >= 0 {
+			s = strings.TrimSpace(s[idx+1:])
+		}
+	}
+	return s
+}
+
+// detectFromTitle 优先从页面标题提取剧名与集数
+func detectFromTitle(title string) VideoInfo {
 	var vi VideoInfo
-	if m := reEp.FindStringSubmatch(body); len(m) > 1 {
-		vi.Name = strings.TrimSpace(strings.TrimSuffix(m[1], "第"))
+	if m := reTitleEp.FindStringSubmatchIndex(title); m != nil {
+		vi.Episode = title[m[2]:m[3]] + "集"
+		vi.Name = cleanName(title[:m[0]])
+		return vi
+	}
+	if m := reTitleEnd.FindStringSubmatch(title); len(m) > 1 {
+		vi.Name = cleanName(m[1])
 		vi.Episode = strings.TrimSpace(m[2]) + "集"
 	}
+	return vi
+}
+
+// detectFromBody 从 Markdown 正文中识别剧名、集数(过滤噪词)
+func detectFromBody(body string) VideoInfo {
+	var vi VideoInfo
+	for _, m := range reEp.FindAllStringSubmatch(body, -1) {
+		name := strings.TrimSpace(strings.TrimSuffix(m[1], "第"))
+		if name == "" || isNoiseName(name) {
+			continue
+		}
+		vi.Name = name
+		vi.Episode = strings.TrimSpace(m[2]) + "集"
+		break
+	}
+	if m := reTotal.FindStringSubmatch(body); len(m) > 1 {
+		vi.Total = strings.TrimSpace(m[1]) + "集"
+	}
+	if m := reUpdated.FindStringSubmatch(body); len(m) > 1 {
+		vi.Updated = strings.TrimSpace(m[1]) + "集"
+	}
+	return vi
+}
+
+// detectVideoInfo 识别视频信息: 标题优先, 正文补充
+func detectVideoInfo(title, body string) VideoInfo {
+	vi := detectFromTitle(title)
+	if vi.Name == "" && vi.Episode == "" {
+		return detectFromBody(body)
+	}
+	// 用正文补充总集数/更新至
 	if m := reTotal.FindStringSubmatch(body); len(m) > 1 {
 		vi.Total = strings.TrimSpace(m[1]) + "集"
 	}
@@ -87,12 +152,15 @@ func findLightpanda() string {
 }
 
 // fetchDump 用 lightpanda 无头打开页面并输出指定类型内容(html/markdown)
-func fetchDump(bin, dumpType, rawURL, proxy string, waitMS int) (string, error) {
+func fetchDump(bin, dumpType, rawURL, proxy string, waitMS int, noRobots bool) (string, error) {
 	args := []string{
-		"fetch", "--obey-robots",
+		"fetch",
 		"--dump", dumpType,
 		"--log-format", "pretty",
 		"--log-level", "warn",
+	}
+	if !noRobots {
+		args = append(args, "--obey-robots")
 	}
 	if proxy != "" {
 		args = append(args, "--http-proxy", proxy)
@@ -262,7 +330,7 @@ func printInstallHint() {
 }
 
 // processURL 抓取并提取单个链接
-func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, outDir string) {
+func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, noRobots bool, outDir string) {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		fmt.Printf("[%d/%d] 无效的链接: %s\n", index, total, raw)
@@ -273,13 +341,13 @@ func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, outDir
 
 	proxy := effectiveProxy(proxyFlag, u.Scheme)
 
-	body, err := fetchDump(bin, "markdown", u.String(), proxy, waitMS)
+	body, err := fetchDump(bin, "markdown", u.String(), proxy, waitMS, noRobots)
 	if err != nil {
 		fmt.Printf("[%d/%d] %v\n", index, total, err)
 		return
 	}
 
-	html, err := fetchDump(bin, "html", u.String(), proxy, waitMS)
+	html, err := fetchDump(bin, "html", u.String(), proxy, waitMS, noRobots)
 	if err != nil {
 		fmt.Printf("[%d/%d] %v\n", index, total, err)
 		return
@@ -288,7 +356,7 @@ func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, outDir
 	title := extractTitle(html)
 	links := extractLinks(html, u)
 	imgs := extractImages(html, u)
-	vi := detectVideoInfo(body)
+	vi := detectVideoInfo(title, body)
 
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		fmt.Printf("[%d/%d] 创建输出目录失败: %v\n", index, total, err)
@@ -318,6 +386,9 @@ func processURL(index, total int, raw, bin, proxyFlag string, waitMS int, outDir
 	fmt.Printf("  链接: %d 个\n", len(links))
 	fmt.Printf("  图片: %d 张\n", len(imgs))
 	fmt.Printf("  已保存: %s\n", fpath)
+	if vi.Name == "" && vi.Episode == "" && utf8.RuneCountInString(body) < 300 {
+		fmt.Println("  提示: 未能提取视频信息, 页面可能被反爬/需登录/内容由 JS 动态加载, 可尝试 -wait-ms 或 -no-robots")
+	}
 }
 
 func main() {
@@ -326,6 +397,7 @@ func main() {
 	waitMS := flag.Int("wait-ms", 0, "页面加载完成后额外等待的毫秒数")
 	proxyFlag := flag.String("proxy", "", "HTTP 代理地址, 不填则自动使用环境变量 HTTP_PROXY/HTTPS_PROXY")
 	threads := flag.Int("threads", 4, "并发抓取线程数")
+	noRobots := flag.Bool("no-robots", false, "忽略 robots.txt 限制")
 	showVer := flag.Bool("version", false, "显示版本号")
 	flag.Parse()
 
@@ -362,7 +434,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			processURL(i+1, len(urls), rawURL, bin, *proxyFlag, *waitMS, *outDir)
+			processURL(i+1, len(urls), rawURL, bin, *proxyFlag, *waitMS, *noRobots, *outDir)
 		}(i, rawURL)
 	}
 	wg.Wait()

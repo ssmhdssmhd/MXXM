@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="版本" src="https://img.shields.io/badge/版本-v.0.0.2-blue"/>
+  <img alt="版本" src="https://img.shields.io/badge/版本-v.0.0.3-blue"/>
   <img alt="语言" src="https://img.shields.io/badge/语言-Go-00ADD8"/>
   <img alt="浏览器" src="https://img.shields.io/badge/浏览器-Lightpanda-6C5CE7"/>
 </p>
@@ -25,12 +25,28 @@ MXXM 是一个用 Go 开发的命令行工具，输入一个或多个链接后�
 - 交互模式：运行后提示输入链接（支持多个）
 - 命令行模式：`-url` 直接指定链接（多个用逗号分隔）
 - 自动提取：标题、正文、全部链接、全部图片
-- 视频页面自动识别：剧名、集数、更新至、总集数（如腾讯视频）
+- 视频页面自动识别：剧名、集数、更新至、总集数（标题优先，正文补充）
 - 多线程并发抓取：`-threads` 控制并发数
 - 相对链接自动解析为绝对链接，去重排序
 - 自动识别系统 HTTP/HTTPS 代理，亦可用 `-proxy` 指定
-- 尊重 `robots.txt`
+- 尊重 `robots.txt`（可用 `-no-robots` 关闭）
 - 零第三方依赖（仅标准库）
+
+## 平台兼容性
+
+使用真实播放链接测试结果（2026-10-04）：
+
+| 平台 | 链接格式 | 结果 |
+| --- | --- | --- |
+| 腾讯视频 | `m.v.qq.com/x/m/play?cid=...&vid=...` | 成功 |
+| 优酷 | `v.youku.com/v_nextstage/id_xxx.html` | 成功 |
+| 芒果TV | `m.mgtv.com/b/xxx/xxx.html` | 成功 |
+| 哔哩哔哩 | `bilibili.com/bangumi/play/epxxx` / `ssxxx` | 成功 |
+| 搜狐视频 | `tv.sohu.com/v/xxx.html` | 成功 |
+| 爱奇艺 | `iqiyi.com/v_xxx.html` | 受限（页面重定向，需登录/反爬） |
+| 咪咕视频 | `miguvideo.com/.../detail.html?cid=xxx` | 受限（robots 与 SPA 动态加载） |
+
+示例：`./MXXM -url "腾讯链接,优酷链接,芒果链接" -threads 4 -wait-ms 5000`
 
 ## 环境要求
 
@@ -79,6 +95,7 @@ go build -o MXXM .
 | `-wait-ms` | 页面加载完成后额外等待的毫秒数（适合 JS 动态页面） | `0` |
 | `-proxy` | HTTP 代理地址，不填则自动使用环境变量 | 自动 |
 | `-threads` | 并发抓取线程数 | `4` |
+| `-no-robots` | 忽略 `robots.txt` 限制 | 关闭 |
 | `-version` | 显示版本号 | - |
 
 ### 示例
@@ -106,6 +123,13 @@ go build -o MXXM .
 同时终端会输出提取摘要：标题、正文字符数、链接数、图片数。
 
 ## 版本历史
+
+### v.0.0.3（2026-10-04）
+
+- 视频信息识别改为标题优先、正文补充，兼容各平台标题格式
+- 过滤"选集"等噪词，避免误识别
+- 新增 `-no-robots` 选项与抓取失败提示
+- 实测 7 大视频平台：腾讯/优酷/芒果/B站/搜狐 5 家成功识别剧名与集数
 
 ### v.0.0.2（2026-10-04）
 
