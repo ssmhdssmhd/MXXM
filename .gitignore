@@ -1,0 +1,27 @@
+# 依赖
+/vendor/
+composer.phar
+
+# 日志
+*.log
+logs/
+
+# 缓存
+cache/
+tmp/
+temp/
+
+# 环境
+.env
+.env.local
+
+# 编辑器
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 构建产物
+build/
+dist/
+*.phar

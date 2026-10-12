@@ -1,0 +1,20 @@
+# MXXM Apache 配置
+
+RewriteEngine On
+
+# 所有请求转发到 index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# 禁止访问隐藏文件
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 禁止访问敏感目录
+<FilesMatch "^(config|config\.php)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
