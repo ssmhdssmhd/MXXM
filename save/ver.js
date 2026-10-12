@@ -1,0 +1,1 @@
+﻿document.writeln("<font color=\'#ff0000\'>智能影视解析正式版</font>");
