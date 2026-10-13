@@ -15,9 +15,9 @@
     <title>在线播放 - MXXM</title>
     <!-- 通用工具（Base64 等） -->
     <script type="text/javascript" src="../../include/class.main.js"></script>
-    <!-- 播放器样式与内核 -->
-    <link rel="stylesheet" href="../dplayer/DPlayer.min.css">
-    <script type="text/javascript" src="../dplayer/DPlayer.min.js"></script>
+    <!-- 播放器样式与内核（本地化，均在本目录内） -->
+    <link rel="stylesheet" href="DPlayer.min.css">
+    <script type="text/javascript" src="DPlayer.min.js"></script>
     <style type="text/css">
         html, body {
             background-color: #000;
@@ -90,10 +90,10 @@
         // 按需加载对应的解码库
         function loadLib(type, cb) {
             var libs = {
-                hls: "../dplayer/hls.min.js",
-                flv: "../dplayer/flv.min.js",
-                dash: "../dplayer/dash.all.min.js",
-                webtorrent: "../dplayer/webtorrent.min.js"
+                hls: "hls.min.js",
+                flv: "flv.min.js",
+                dash: "dash.all.min.js",
+                webtorrent: "webtorrent.min.js"
             };
             var src = libs[type];
             if (!src) { cb(); return; }
