@@ -6,6 +6,7 @@
 
 | 版本 | 日期时间 | 说明 |
 |------|----------|------|
+| v.0.0.11 | 2026-10-13 21:05 (202610132105) | 新增 9 款 WEB 播放器（本地离线打包，`player/` 目录）：**Artplayer / Video.js / MuiPlayer / Plyr / Aliplayer(阿里云) / TCPlayer(腾讯云) / XGPlayer(西瓜) / NPlayer / MediaElement.js**；新增通用对接核心 `player/_core.js`（统一接入 xyplay：播放列表切换、记忆播放、自定义右键、上下一集、格式识别 m3u8/flv/mp4/dash、播放出错自动回退 h5）；后台「播放器设置」下拉自动列出全部 15 款播放器 |
 | v.0.0.10 | 2026-10-13 20:34 (202610132034) | 后台「系统设置」中**「基本设置」前面新增「播放器设置」**菜单，独立页面（`admin_player.htm`）：可选择电脑端/移动端默认播放器（自动读取 `player/` 目录，ckplayer、ckplayerx、dplayer、h5、mpv、p2p-dplayer 及自定义）、自定义播放器地址、自动播放，以及记忆播放 / P2P加速 / 弹幕 / 全屏点击 / LOGO / 自定义右键 / 自动播放器选择规则；原「播放设置」中重复的播放器标签页已移除，避免两处维护 |
 | v.0.0.9 | 2026-10-13 20:20 (202610132020) | 新增 `GZ/` 云播放规则库：规则文件（`yun.match.php` / `yun.ver.js`）纳入仓库，随在线更新实时自动同步，免维护；系统运行时**优先加载 GZ/ 规则**（缺失回退 `save/yun.match.php`）；后台「云播放设置 → 更新规则」改为从当前仓库 GZ/ 实时拉取（替换已停运的第三方源 `server.baidu.cn`）；「当前规则」版本与规则编辑均以 GZ/ 为准 |
 | v.0.0.8 | 2026-10-13 17:48 (202610131748) | 新增**官替算法 v0.1**：后台侧边栏「在线更新」上方新增「官替算法」→「算法设置」；算法代码置于仓库根目录 `SF/`（index.php / ziyuan.php / mysql.php / md5.php）；全部参数（算法目录、启用开关、CMS 地址、播放器编码、电影/综艺分类、解析接口、去广告接口、数据表、数据库连接）均可在后台配置，保存后生成 `save/sf.config.php`，**无需打开文件夹修改任何文件**；算法目录变更时后台自动同步算法文件到该目录 |
@@ -59,7 +60,11 @@ MXXM/
 ├── version.php            # 版本元数据（在线更新对比依据）
 ├── include/               # 核心类库（class.main.php / class.db.php）
 ├── video/                 # 各视频源解析类
-├── player/                # 播放器（ckplayer / dplayer / p2p-dplayer / h5 / mpv）
+├── player/                # 播放器（15 款）与通用对接核心 _core.js
+│   ├── _core.js           # 通用对接核心（xyplay：列表/记忆/右键/上下集/回退）
+│   ├── ckplayer|ckplayerx|dplayer|p2p-dplayer|h5|mpv
+│   ├── artplayer|videojs|muiplayer|plyr   # Artplayer/Video.js/MuiPlayer/Plyr
+│   └── aliplayer|tcplayer|xgplayer|nplayer|mediaelement  # 阿里/腾讯/西瓜/NPlayer/MediaElement
 ├── SF/                    # 官替算法（资源站替换算法 v0.1）
 ├── GZ/                    # 云播放规则库（GZ 规则，随仓库实时自动更新）
 ├── plus/                  # 插件（微信 / sea_parse / parse）
@@ -100,6 +105,30 @@ MXXM/
 > 桌面端 MPV 优化配置（可选，追求极致画质时使用）：`source/mpv/mpv.conf`、`source/mpv/input.conf`，
 > 安装与用法见 [`source/mpv/README.md`](./source/mpv/README.md)；
 > 主程序推荐 [zhongfly/mpv-winbuild](https://github.com/zhongfly/mpv-winbuild/releases)。
+
+### 支持的播放器（15 款，本地离线打包）
+
+任意播放器均可直接以 `域名/player/<名称>/?url=视频地址` 访问；后台「播放器设置」下拉会自动列出全部。
+
+| 目录 | 播放器 | HLS(m3u8) | FLV | DASH | 说明 |
+|------|--------|:---:|:---:|:---:|------|
+| `dplayer` / `p2p-dplayer` | DPlayer | ✅ | ✅ | ✅ | 自带弹幕，P2P 版本支持 CDNBye |
+| `ckplayer` / `ckplayerx` | CKplayer | ✅ | — | — | 老牌 H5 播放器 |
+| `h5` | 原生 H5 | ✅ | — | — | 出错回退的兜底播放器 |
+| `artplayer` | Artplayer | ✅ | ✅ | ✅ | 自定义类型接入 hls/flv/dash |
+| `videojs` | Video.js | ✅ | — | ✅ | 内置 http-streaming |
+| `muiplayer` | MuiPlayer | ✅ | ✅ | — | 简约风格 |
+| `plyr` | Plyr | ✅ | ✅ | — | 轻量、UI 好看 |
+| `aliplayer` | 阿里云 Aliplayer | ✅ | ✅ | — | 内置解析 |
+| `tcplayer` | 腾讯云 TCPlayer | ✅ | ✅ | — | 需先加载全局 hls.js/flv.js |
+| `xgplayer` | 西瓜播放器 | ✅ | — | — | m3u8 由 xgplayer-hls 插件提供 |
+| `nplayer` | NPlayer | ✅ | ✅ | ✅ | 轻量弹幕播放器 |
+| `mediaelement` | MediaElement.js | Safari | — | — | 经典老牌播放器 |
+| `mpv` | 网页播放器(基于 DPlayer) | ✅ | ✅ | ✅ | 无需安装软件，见上 |
+
+- 全部接入 `player/_core.js` 通用核心：线路/剧集列表切换、记忆播放（cookie）、自定义右键、上下一集、格式自动识别、**播放出错自动回退 `h5` 播放器**
+- 库文件全部**本地打包**（对应 `player/<名称>/` 内），无外链依赖，可离线运行
+- 新增播放器目录后，后台「播放器设置」下拉会自动出现，无需改代码
 
 ## 🧩 官替算法 v0.1
 
