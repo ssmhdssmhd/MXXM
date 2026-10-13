@@ -522,6 +522,153 @@ switch ($type) {
         $info['m'] = "官替算法设置已保存";
         break;
 
+    //资源站设置 实时更新站点列表（数据源：blog.ksdiy.cn/dh，实时拉取 resources.json）
+    case 'ziyuan_update':
+        $cfg = zy_load();
+        $json = zy_fetch('https://blog.ksdiy.cn/dh/resources.json?t=' . time());
+        $arr = json_decode($json, true);
+        if (!is_array($arr) || empty($arr)) {
+            $info['m'] = "获取资源站列表失败，请检查服务器网络或数据源是否可访问！";
+            exit(json_encode($info));
+        }
+        $idx = array();
+        foreach ($cfg['items'] as $k => $it) { $idx[$it['name']] = $k; }
+        $add = 0;
+        foreach ($arr as $site) {
+            $name = isset($site['title']) ? trim($site['title']) : '';
+            if ($name === '') { continue; }
+            $link = isset($site['link']) ? trim($site['link']) : '';
+            $home = '';
+            if (!empty($site['iconImage'])) { $home = zy_domain_root($site['iconImage']); }
+            if (isset($idx[$name])) {
+                $k = $idx[$name];
+                $cfg['items'][$k]['link'] = $link;
+                if ($home !== '' && empty($cfg['items'][$k]['site'])) { $cfg['items'][$k]['site'] = $home; }
+            } else {
+                $cfg['items'][] = array('name' => $name, 'link' => $link, 'site' => $home, 'api' => '', 'code' => '', 'player' => '', 'off' => '0', 'p' => '0');
+                $add++;
+            }
+        }
+        $cfg['time'] = date('YmdHis');
+        $cfg['source'] = 'https://blog.ksdiy.cn/dh/resources.json';
+        if (!zy_save($cfg)) { $info['m'] = "保存失败，请检查 save/ 目录写权限！"; exit(json_encode($info)); }
+        $info['success'] = 1; $info['icon'] = 6;
+        $info['m'] = "资源站列表已实时更新，共 " . count($cfg['items']) . " 个站点（本次新增 $add 个）";
+        exit(json_encode($info));
+
+    //资源站设置 解析单个站点详情页（自动填入采集接口/播放器编码/播放器URL）
+    case 'ziyuan_parse':
+        $name = trim((string)filter_input(INPUT_POST, 'name'));
+        $link = trim((string)filter_input(INPUT_POST, 'link'));
+        if ($link === '') { $info['m'] = "缺少详情链接！"; exit(json_encode($info)); }
+        $html = zy_fetch($link);
+        if (!$html) { $info['m'] = "详情页抓取失败，请稍后重试！"; exit(json_encode($info)); }
+        $p = zy_parse_detail($html);
+        $cfg = zy_load();
+        $hit = false;
+        foreach ($cfg['items'] as $k => $it) {
+            if ($it['name'] === $name) {
+                if ($p['api'] !== '')    { $cfg['items'][$k]['api'] = $p['api']; }
+                if ($p['code'] !== '')   { $cfg['items'][$k]['code'] = $p['code']; }
+                if ($p['player'] !== '') { $cfg['items'][$k]['player'] = $p['player']; }
+                $cfg['items'][$k]['p'] = '1';
+                $hit = true; break;
+            }
+        }
+        if (!$hit) { $info['m'] = "未找到对应资源站！"; exit(json_encode($info)); }
+        if (!zy_save($cfg)) { $info['m'] = "保存失败，请检查 save/ 目录写权限！"; exit(json_encode($info)); }
+        $info['success'] = 1; $info['icon'] = 6;
+        $info['api'] = $p['api']; $info['code'] = $p['code']; $info['player'] = $p['player'];
+        $info['m'] = ($p['api'] !== '') ? "解析成功" : "未在该详情页找到采集接口";
+        exit(json_encode($info));
+
+    //资源站设置 批量解析详情（分批执行，避免单次请求超时）
+    case 'ziyuan_parse_all':
+        @set_time_limit(120);
+        $limit = (int)filter_input(INPUT_POST, 'limit');
+        if ($limit <= 0 || $limit > 20) { $limit = 5; }
+        $cfg = zy_load();
+        $done = 0;
+        foreach ($cfg['items'] as $k => $it) {
+            if ($done >= $limit) { break; }
+            if ($it['p'] === '1' || $it['link'] === '') { continue; }
+            $html = zy_fetch($it['link']);
+            $cfg['items'][$k]['p'] = '1';
+            if ($html) {
+                $p = zy_parse_detail($html);
+                if ($p['api'] !== '')    { $cfg['items'][$k]['api'] = $p['api']; }
+                if ($p['code'] !== '')   { $cfg['items'][$k]['code'] = $p['code']; }
+                if ($p['player'] !== '') { $cfg['items'][$k]['player'] = $p['player']; }
+            }
+            $done++;
+        }
+        zy_save($cfg);
+        $remain = 0;
+        foreach ($cfg['items'] as $it) { if ($it['p'] !== '1' && $it['link'] !== '') { $remain++; } }
+        $info['success'] = 1; $info['icon'] = 6;
+        $info['remain'] = $remain;
+        $info['m'] = "本次解析 $done 个，剩余 $remain 个待解析";
+        exit(json_encode($info));
+
+    //资源站设置 保存编辑后的列表
+    case 'ziyuan_system':
+        $names  = isset($_POST['zy_name'])   ? (array)$_POST['zy_name']   : array();
+        $links  = isset($_POST['zy_link'])   ? (array)$_POST['zy_link']   : array();
+        $sites  = isset($_POST['zy_site'])   ? (array)$_POST['zy_site']   : array();
+        $apis   = isset($_POST['zy_api'])    ? (array)$_POST['zy_api']    : array();
+        $codes  = isset($_POST['zy_code'])   ? (array)$_POST['zy_code']   : array();
+        $pls    = isset($_POST['zy_player']) ? (array)$_POST['zy_player'] : array();
+        $offs   = isset($_POST['zy_off'])    ? (array)$_POST['zy_off']    : array();
+        $ps     = isset($_POST['zy_p'])      ? (array)$_POST['zy_p']      : array();
+        $items  = array();
+        foreach ($names as $i => $n) {
+            $n = trim((string)$n);
+            if ($n === '') { continue; }
+            $items[] = array(
+                'name'   => $n,
+                'link'   => isset($links[$i])  ? trim((string)$links[$i])  : '',
+                'site'   => isset($sites[$i])  ? trim((string)$sites[$i])  : '',
+                'api'    => isset($apis[$i])   ? trim((string)$apis[$i])   : '',
+                'code'   => isset($codes[$i])  ? trim((string)$codes[$i])  : '',
+                'player' => isset($pls[$i])    ? trim((string)$pls[$i])    : '',
+                'off'    => (isset($offs[$i]) && (string)$offs[$i] === '1') ? '1' : '0',
+                'p'      => isset($ps[$i])     ? (string)$ps[$i]           : '0',
+            );
+        }
+        $cfg = zy_load();
+        $cfg['items'] = $items;
+        $cfg['time']  = date('YmdHis');
+        if (!zy_save($cfg)) { $info['m'] = "保存失败，请检查 save/ 目录写权限！"; exit(json_encode($info)); }
+        $info['success'] = 1; $info['icon'] = 6; $info['m'] = "资源站设置已保存";
+        exit(json_encode($info));
+
+    //资源站设置 同步到云播设置的资源列表
+    case 'ziyuan_sync':
+        $over = (filter_input(INPUT_POST, 'overwrite') === '1');
+        $cfg  = zy_load();
+        $yunFile = dirname(__FILE__) . '/../save/yun.config.php';
+        if (!file_exists($yunFile)) { $info['m'] = "未找到 save/yun.config.php"; exit(json_encode($info)); }
+        require_once($yunFile);   // 载入全局 $YUN_CONFIG
+        $list = $over ? array() : (isset($YUN_CONFIG['API']) && is_array($YUN_CONFIG['API']) ? array_values($YUN_CONFIG['API']) : array());
+        $exist = array();
+        foreach ($list as $line) {
+            $val = explode('=>', $line, 2);
+            if (isset($val[1])) { $exist[trim($val[1])] = 1; }
+        }
+        $added = 0;
+        foreach ($cfg['items'] as $it) {
+            if ($it['off'] !== '1' || $it['api'] === '') { continue; }
+            if (isset($exist[$it['api']])) { continue; }
+            $list[] = $it['name'] . '=>' . $it['api'];
+            $exist[$it['api']] = 1;
+            $added++;
+        }
+        $YUN_CONFIG['API'] = array_values($list);
+        if (!Main_db::save($yunFile)) { $info['m'] = "同步失败，请检查 save/ 目录写权限！"; exit(json_encode($info)); }
+        $info['success'] = 1; $info['icon'] = 6;
+        $info['m'] = ($over ? "已覆盖" : "已追加") . "到云播资源列表，本次新增 $added 条，当前共 " . count($list) . " 条";
+        exit(json_encode($info));
+
     default:
         exit(json_encode(array('success' => 0, 'icon' => 0, 'm' => "参数错误！")));
 }
@@ -594,4 +741,82 @@ function mxxm_rmdir($dir) {
     }
     closedir($dh);
     return @rmdir($dir);
+}
+
+/* ==================== 资源站设置（数据源：blog.ksdiy.cn/dh） ==================== */
+
+// 带超时的抓取（限定时长，避免批量解析拖垮请求）
+function zy_fetch($url) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 6);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_ENCODING, '');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    $data = curl_exec($ch);
+    curl_close($ch);
+    return $data;
+}
+
+// 读取资源站配置（并补全字段，兼容旧数据）
+function zy_load() {
+    $cfg = array();
+    $file = dirname(__FILE__) . '/../save/ziyuan.config.php';
+    if (file_exists($file)) {
+        include $file;
+        if (isset($ZIYUAN_CONFIG) && is_array($ZIYUAN_CONFIG)) { $cfg = $ZIYUAN_CONFIG; }
+    }
+    if (!is_array($cfg)) { $cfg = array(); }
+    $cfg += array('ver' => '0.1', 'time' => '', 'source' => 'https://blog.ksdiy.cn/dh/resources.json', 'items' => array());
+    if (!is_array($cfg['items'])) { $cfg['items'] = array(); }
+    foreach ($cfg['items'] as $k => $it) {
+        if (!is_array($it)) { unset($cfg['items'][$k]); continue; }
+        $cfg['items'][$k] += array('name' => '', 'link' => '', 'site' => '', 'api' => '', 'code' => '', 'player' => '', 'off' => '0', 'p' => '0');
+    }
+    return $cfg;
+}
+
+// 保存资源站配置
+function zy_save($cfg) {
+    $file = dirname(__FILE__) . '/../save/ziyuan.config.php';
+    $content = "<?php\n/* 资源站设置（由后台「资源站设置」页面生成，请勿手动改动格式） */\n"
+        . '$ZIYUAN_CONFIG = ' . var_export($cfg, true) . ";\n";
+    return @file_put_contents($file, $content);
+}
+
+// 取 URL 的站点根（协议://域名）
+function zy_domain_root($url) {
+    $p = @parse_url($url);
+    if (empty($p['scheme']) || empty($p['host'])) { return ''; }
+    return $p['scheme'] . '://' . $p['host'];
+}
+
+// 解析详情页，提取 m3u8 采集接口 / 播放器编码 / 播放器URL
+function zy_parse_detail($html) {
+    $out = array('api' => '', 'code' => '', 'player' => '');
+    if (empty($html)) { return $out; }
+    if (preg_match_all('~https?://[^\s"\'<>()，,]+~i', $html, $m)) {
+        $urls = array_values(array_unique($m[0]));
+        $apis = array(); $players = array();
+        foreach ($urls as $u) {
+            if (stripos($u, 'api.php/provide/vod') !== false) { $apis[] = $u; }
+            if (preg_match('~/play/\?url=~i', $u)) { $players[] = $u; }
+        }
+        // 优先取 m3u8 采集接口
+        $pick = '';
+        foreach ($apis as $u) { if (stripos($u, 'm3u8') !== false) { $pick = $u; break; } }
+        if ($pick === '' && !empty($apis)) { $pick = $apis[0]; }
+        if ($pick !== '') {
+            $pick = rtrim($pick, '/');
+            $out['api'] = $pick;
+            if (preg_match('~/from/([a-zA-Z0-9_\-]+)~', $pick, $mm)) { $out['code'] = $mm[1]; }
+            if ($out['code'] === '') { $out['code'] = 'm3u8'; }
+        }
+        if (!empty($players)) { $out['player'] = $players[0]; }
+    }
+    return $out;
 }

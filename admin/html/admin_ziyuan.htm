@@ -1,0 +1,179 @@
+<?php
+$ZY = array();
+$zyFile = dirname(__FILE__) . '/../../save/ziyuan.config.php';
+if (file_exists($zyFile)) {
+    include $zyFile;
+    if (isset($ZIYUAN_CONFIG) && is_array($ZIYUAN_CONFIG)) { $ZY = $ZIYUAN_CONFIG; }
+}
+if (!is_array($ZY)) { $ZY = array(); }
+$ZY += array('ver' => '0.1', 'time' => '', 'source' => 'https://blog.ksdiy.cn/dh/resources.json', 'items' => array());
+if (!is_array($ZY['items'])) { $ZY['items'] = array(); }
+$zyItems = array_values($ZY['items']);
+$zyTotal = count($zyItems);
+$zyEnabled = 0; $zyParsed = 0;
+foreach ($zyItems as $it) {
+    if (isset($it['off']) && $it['off'] === '1') { $zyEnabled++; }
+    if (isset($it['api']) && $it['api'] !== '') { $zyParsed++; }
+}
+include "block_header.htm";
+?>
+    <body>
+        <div class="x-nav">
+            <span class="layui-breadcrumb">
+                <a><cite>首页</cite></a>
+                <a><cite>系统设置</cite></a>
+                <a><cite>资源站设置</cite></a>
+            </span>
+
+            <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+            <button type="button" onclick="zyParseAll()" class="layui-btn layui-btn-primary" style="line-height:1.6em;margin-top:3px;margin-right:5px;float:right">一键解析详情</button>
+            <button type="button" onclick="zyUpdate()" class="layui-btn" style="line-height:1.6em;margin-top:3px;margin-right:5px;float:right">实时更新站点列表</button>
+        </div>
+
+        <div class="x-body">
+            <blockquote class="layui-elem-quote layui-quote-nm">
+                <h2>资源站设置 v<?php echo htmlspecialchars($ZY['ver']); ?></h2><br>
+                数据源（实时）：<code><?php echo htmlspecialchars($ZY['source']); ?></code>，对应页面
+                <a href="https://blog.ksdiy.cn/dh/" target="_blank">blog.ksdiy.cn/dh/</a><br>
+                最近更新：<b><?php echo $ZY['time'] !== '' ? date('Y-m-d H:i:s', strtotime($ZY['time'])) : '尚未更新'; ?></b>
+                ｜ 共 <b><?php echo $zyTotal; ?></b> 个站点，已启用 <b><?php echo $zyEnabled; ?></b> 个，已解析采集接口 <b><?php echo $zyParsed; ?></b> 个<br>
+                用法：①「实时更新站点列表」拉取全部资源站 → ②「一键解析详情」自动填入各站 m3u8 采集接口 / 播放器编码 / 播放器URL（可手动修正）
+                → ③勾选「启用」并「保存设置」 → ④「同步到云播设置」写入云播的资源列表。<br>
+                本页数据保存于 <code>save/ziyuan.config.php</code>，同步后写入 <code>save/yun.config.php</code> 的资源列表，<b>无需打开文件夹修改任何文件</b>。
+            </blockquote>
+
+            <form id="zyform" class="layui-form" action="">
+                <div style="overflow-x:auto">
+                    <table class="layui-table">
+                        <thead>
+                            <tr>
+                                <th style="min-width:110px">资源站</th>
+                                <th style="min-width:160px">资源站官网</th>
+                                <th style="min-width:320px">采集接口(m3u8)</th>
+                                <th style="min-width:110px">播放器编码</th>
+                                <th style="min-width:220px">播放器URL</th>
+                                <th style="min-width:90px">启用</th>
+                                <th style="min-width:130px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php if ($zyTotal === 0): ?>
+                            <tr>
+                                <td colspan="7" style="text-align:center;color:#999;padding:30px 0">
+                                    暂无数据，请点击上方「实时更新站点列表」从数据源拉取资源站
+                                </td>
+                            </tr>
+                        <?php else: foreach ($zyItems as $i => $it): ?>
+                            <tr>
+                                <td>
+                                    <?php echo htmlspecialchars($it['name']); ?>
+                                    <input type="hidden" name="zy_name[]" value="<?php echo htmlspecialchars($it['name']); ?>">
+                                    <input type="hidden" name="zy_link[]" value="<?php echo htmlspecialchars($it['link']); ?>">
+                                    <input type="hidden" name="zy_p[]" value="<?php echo htmlspecialchars($it['p']); ?>">
+                                </td>
+                                <td><input type="text" name="zy_site[]" class="layui-input" autocomplete="off" value="<?php echo htmlspecialchars($it['site']); ?>" placeholder="https://"></td>
+                                <td><input type="text" name="zy_api[]" class="layui-input" autocomplete="off" value="<?php echo htmlspecialchars($it['api']); ?>" placeholder="默认取该站 m3u8 采集接口"></td>
+                                <td><input type="text" name="zy_code[]" class="layui-input" autocomplete="off" value="<?php echo htmlspecialchars($it['code']); ?>" placeholder="如 jsm3u8"></td>
+                                <td><input type="text" name="zy_player[]" class="layui-input" autocomplete="off" value="<?php echo htmlspecialchars($it['player']); ?>" placeholder="如 https://xxx.com/play/?url="></td>
+                                <td>
+                                    <select name="zy_off[]">
+                                        <option value="1" <?php if ($it['off'] === '1') { echo 'selected'; } ?>>启用</option>
+                                        <option value="0" <?php if ($it['off'] !== '1') { echo 'selected'; } ?>>关闭</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <button type="button" class="layui-btn layui-btn-xs" onclick="zyParseOne(this)">解析详情</button>
+                                    <?php if ($it['link'] !== ''): ?>
+                                        <a class="layui-btn layui-btn-xs layui-btn-normal" href="<?php echo htmlspecialchars($it['link']); ?>" target="_blank">详情</a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="layui-form-item">
+                    <button class="layui-btn" lay-submit="" lay-filter="zy">保存设置</button>
+                    <button type="button" class="layui-btn layui-btn-warm" onclick="zySync()">同步到云播设置</button>
+                    <input type="checkbox" id="zy_over" title="同步时覆盖现有资源列表(默认追加)">
+                </div>
+            </form>
+        </div>
+
+        <script>
+            layui.use(['form', 'layer'], function () {
+                var form = layui.form, layer = layui.layer, $ = layui.jquery;
+                form.render();
+
+                //保存编辑后的资源站列表
+                form.on('submit(zy)', function () {
+                    x_admin_post("admin.php", $('#zyform').serialize() + "&type=ziyuan_system", function (d) {
+                        layer.closeAll('loading');
+                        layer.alert(d.m, { icon: d.icon || (d.success ? 6 : 5) });
+                    });
+                    return false;
+                });
+
+                //实时更新站点列表
+                window.zyUpdate = function () {
+                    var load = layer.load(2);
+                    $.post("admin.php", { type: "ziyuan_update" }, function (d) {
+                        layer.close(load);
+                        layer.alert(d.m, { icon: d.icon || (d.success ? 6 : 5) }, function () { if (d.success) { location.reload(); } });
+                    }, "json").fail(function () {
+                        layer.close(load); layer.alert("数据获取异常，请检查服务器网络或防火墙设置！", { icon: 5 });
+                    });
+                };
+
+                //解析单个站点详情
+                window.zyParseOne = function (btn) {
+                    var tr = $(btn).closest('tr');
+                    var name = tr.find('input[name="zy_name[]"]').val();
+                    var link = tr.find('input[name="zy_link[]"]').val();
+                    if (!link) { layer.msg('该站点没有详情链接', { icon: 5 }); return; }
+                    var load = layer.load(2);
+                    $.post("admin.php", { type: "ziyuan_parse", name: name, link: link }, function (d) {
+                        layer.close(load);
+                        if (d.success) {
+                            if (d.api) { tr.find('input[name="zy_api[]"]').val(d.api); }
+                            if (d.code) { tr.find('input[name="zy_code[]"]').val(d.code); }
+                            if (d.player) { tr.find('input[name="zy_player[]"]').val(d.player); }
+                            tr.find('input[name="zy_p[]"]').val('1');
+                            layer.msg(d.m, { icon: 1 });
+                        } else { layer.msg(d.m, { icon: 5 }); }
+                    }, "json").fail(function () {
+                        layer.close(load); layer.alert("数据获取异常，请检查服务器网络或防火墙设置！", { icon: 5 });
+                    });
+                };
+
+                //批量解析（分批拉取，避免超时）
+                window.zyParseAll = function () {
+                    var load = layer.load(2);
+                    (function step() {
+                        $.post("admin.php", { type: "ziyuan_parse_all", limit: 5 }, function (d) {
+                            if (!d.success) { layer.close(load); layer.alert(d.m, { icon: 5 }); return; }
+                            if (d.remain > 0) { step(); }
+                            else { layer.close(load); layer.alert(d.m, { icon: 6 }, function () { location.reload(); }); }
+                        }, "json").fail(function () {
+                            layer.close(load); layer.alert("数据获取异常，请检查服务器网络或防火墙设置！", { icon: 5 });
+                        });
+                    })();
+                };
+
+                //同步到云播设置资源列表
+                window.zySync = function () {
+                    layer.confirm('确定将「已启用」的资源站同步到「云播设置」的资源列表吗？', { icon: 3, title: '同步到云播设置' }, function (idx) {
+                        layer.close(idx);
+                        var over = $('#zy_over').prop('checked') ? '1' : '0';
+                        $.post("admin.php", { type: "ziyuan_sync", overwrite: over }, function (d) {
+                            layer.alert(d.m, { icon: d.icon || (d.success ? 6 : 5) });
+                        }, "json").fail(function () {
+                            layer.alert("数据获取异常，请检查服务器网络或防火墙设置！", { icon: 5 });
+                        });
+                    });
+                };
+            });
+        </script>
+    </body>
+</html>
