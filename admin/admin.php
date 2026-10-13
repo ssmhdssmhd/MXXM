@@ -349,6 +349,120 @@ switch ($type) {
         }
         exit(json_encode($info));
         
+    //在线更新 检查版本（实时对比当前版本与远程仓库版本）
+    case 'update_check':
+        $meta = @include dirname(__FILE__) . '/../version.php';
+        if (!is_array($meta)) {
+            $meta = array('version' => 'v.0.0.1', 'time' => '', 'repo' => 'ssmhdssmhd/MXXM', 'branch' => 'main');
+        }
+        $repo = !empty($meta['repo']) ? $meta['repo'] : 'ssmhdssmhd/MXXM';
+        $branch = !empty($meta['branch']) ? $meta['branch'] : 'main';
+
+        //远程版本（实时从仓库 raw 获取）
+        $remote = array('version' => '', 'time' => '');
+        $raw = 'https://raw.githubusercontent.com/' . $repo . '/' . $branch . '/version.php?t=' . time();
+        $txt = curl($raw);
+        if ($txt) {
+            if (preg_match("/'version'\s*=>\s*'([^']+)'/i", $txt, $m)) { $remote['version'] = $m[1]; }
+            if (preg_match("/'time'\s*=>\s*'([^']+)'/i", $txt, $m)) { $remote['time'] = $m[1]; }
+        }
+
+        //最新提交信息
+        $commit = '';
+        $json = curl('https://api.github.com/repos/' . $repo . '/commits/' . $branch . '?t=' . time());
+        if ($json) {
+            $arr = json_decode($json, true);
+            if (is_array($arr) && !empty($arr['sha'])) {
+                $ts = !empty($arr['commit']['author']['date']) ? strtotime($arr['commit']['author']['date']) : 0;
+                $date = $ts ? date('Y-m-d H:i:s', $ts) : '';
+                $msg = !empty($arr['commit']['message']) ? strtok($arr['commit']['message'], "\n") : '';
+                $commit = trim($date . ' ' . $msg) . ' (' . substr($arr['sha'], 0, 7) . ')';
+            }
+        }
+
+        $info['local'] = $meta['version'];
+        $info['repo'] = $repo . ' @ ' . $branch;
+        $info['commit'] = $commit !== '' ? $commit : '获取失败';
+
+        if ($remote['version'] === '') {
+            $info['success'] = 0;
+            $info['icon'] = 5;
+            $info['m'] = "无法获取远程版本，请检查服务器网络！";
+            $info['remote'] = '获取失败';
+            $info['has_update'] = -1;
+            exit(json_encode($info));
+        }
+
+        $info['success'] = 1;
+        $info['icon'] = 6;
+        $info['m'] = "检测完成";
+        $info['remote'] = $remote['version'];
+        $info['has_update'] = (strcasecmp(trim($remote['version']), trim($meta['version'])) === 0) ? 0 : 1;
+        exit(json_encode($info));
+
+    //在线更新 执行更新（实时拉取仓库代码并覆盖到本地）
+    case 'update_run':
+        $meta = @include dirname(__FILE__) . '/../version.php';
+        $repo = (is_array($meta) && !empty($meta['repo'])) ? $meta['repo'] : 'ssmhdssmhd/MXXM';
+        $branch = (is_array($meta) && !empty($meta['branch'])) ? $meta['branch'] : 'main';
+        $root = dirname(dirname(__FILE__));
+
+        if (!class_exists('ZipArchive')) {
+            $info['m'] = "服务器未开启 ZipArchive 扩展，无法在线更新！";
+            exit(json_encode($info));
+        }
+        if (!is_writable($root)) {
+            $info['m'] = "项目根目录不可写，请检查目录权限后再试！";
+            exit(json_encode($info));
+        }
+
+        //实时下载仓库最新代码包
+        $data = curl('https://codeload.github.com/' . $repo . '/zip/refs/heads/' . $branch);
+        if (!$data || strlen($data) < 100) {
+            $info['m'] = "下载更新包失败，请检查服务器网络或防火墙设置！";
+            exit(json_encode($info));
+        }
+
+        $tmpZip = tempnam(sys_get_temp_dir(), 'mxxm_');
+        if (!@file_put_contents($tmpZip, $data)) {
+            $info['m'] = "更新包写入失败，请检查服务器临时目录权限！";
+            exit(json_encode($info));
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($tmpZip) !== true) {
+            @unlink($tmpZip);
+            $info['m'] = "更新包解压失败（文件可能损坏）！";
+            exit(json_encode($info));
+        }
+        $tmpDir = sys_get_temp_dir() . '/mxxm_upd_' . uniqid();
+        @mkdir($tmpDir, 0755, true);
+        $zip->extractTo($tmpDir);
+        $zip->close();
+        @unlink($tmpZip);
+
+        //定位压缩包内层根目录
+        $dirs = glob($tmpDir . '/*', GLOB_ONLYDIR);
+        $src = !empty($dirs) ? $dirs[0] : $tmpDir;
+
+        //覆盖写入项目根目录，跳过 save/ 目录以保护用户配置与数据
+        mxxm_copy_dir($src, $root, array('save'));
+
+        //读取更新后的版本号
+        $newVer = '';
+        if (file_exists($src . '/version.php')) {
+            $nv = @include $src . '/version.php';
+            if (is_array($nv) && !empty($nv['version'])) { $newVer = $nv['version']; }
+        }
+
+        mxxm_rmdir($tmpDir);
+
+        $info['success'] = 1;
+        $info['icon'] = 6;
+        $info['version'] = $newVer;
+        $info['m'] = "更新成功！" . ($newVer !== '' ? "当前版本：" . $newVer : "") . "，建议到「清理缓存」清除缓存后使用。";
+        exit(json_encode($info));
+
     default:
         exit(json_encode(array('success' => 0, 'icon' => 0, 'm' => "参数错误！")));
 }
@@ -387,4 +501,38 @@ function curl($url, $ref = '') {
     $params["ua"] = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36";
     $params['ref'] = $ref;
     return GlobalBase::curl($url, $params);
+}
+
+//在线更新：递归复制目录（$skip 仅在顶层生效，用于跳过 save/ 等用户数据目录）
+function mxxm_copy_dir($src, $dst, $skip = array()) {
+    if (!is_dir($dst)) { @mkdir($dst, 0755, true); }
+    $dh = @opendir($src);
+    if (!$dh) { return false; }
+    while (($file = readdir($dh)) !== false) {
+        if ($file === '.' || $file === '..') { continue; }
+        if (in_array($file, $skip, true)) { continue; }
+        $s = $src . '/' . $file;
+        $d = $dst . '/' . $file;
+        if (is_dir($s)) {
+            mxxm_copy_dir($s, $d, array());
+        } else {
+            @copy($s, $d);
+        }
+    }
+    closedir($dh);
+    return true;
+}
+
+//在线更新：递归删除临时目录
+function mxxm_rmdir($dir) {
+    if (!is_dir($dir)) { return false; }
+    $dh = @opendir($dir);
+    if (!$dh) { return false; }
+    while (($file = readdir($dh)) !== false) {
+        if ($file === '.' || $file === '..') { continue; }
+        $path = $dir . '/' . $file;
+        if (is_dir($path)) { mxxm_rmdir($path); } else { @unlink($path); }
+    }
+    closedir($dh);
+    return @rmdir($dir);
 }

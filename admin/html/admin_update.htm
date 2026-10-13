@@ -1,0 +1,112 @@
+<?php include "block_header.htm";?>
+    <body>
+        <div class="x-nav">
+            <span class="layui-breadcrumb">
+                <a><cite>首页</cite></a>
+                <a><cite>在线更新</cite></a>
+                <a><cite>版本管理</cite></a>
+            </span>
+            <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href.split('?')[0]);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+        </div>
+        <div class="x-body">
+
+            <blockquote class="layui-elem-quote layui-quote-nm">
+                <h2>使用说明:</h2><br>
+                本功能直接从远程仓库实时拉取最新代码，实现一键更新、免维护;<br>
+                点击「检查更新」可对比当前版本与远程仓库版本，如实显示最新提交信息;<br>
+                点击「立即更新」将从仓库下载最新代码并覆盖到本地，<span class="x-red">不会覆盖 save/ 目录下的配置与数据</span>，请放心使用;<br>
+                更新依赖服务器 PHP 的 <span class="x-red">curl</span> 与 <span class="x-red">ZipArchive</span> 扩展，并需具备根目录写入权限。
+            </blockquote>
+
+            <fieldset class="layui-elem-field">
+                <legend>版本信息</legend>
+                <table class="layui-table">
+                    <tbody>
+                        <tr>
+                            <th style="width:180px;">当前版本</th>
+                            <td id="m_local"><i class="layui-icon layui-anim layui-anim-rotate layui-anim-loop">ဂ</i> 检测中…</td></tr>
+                        <tr>
+                            <th>远程仓库版本</th>
+                            <td id="m_remote"><i class="layui-icon layui-anim layui-anim-rotate layui-anim-loop">ဂ</i> 检测中…</td></tr>
+                        <tr>
+                            <th>远程仓库</th>
+                            <td id="m_repo">—</td></tr>
+                        <tr>
+                            <th>最新提交</th>
+                            <td id="m_commit">—</td></tr>
+                        <tr>
+                            <th>检测结果</th>
+                            <td id="m_status">—</td></tr>
+                    </tbody>
+                </table>
+            </fieldset>
+
+            <div class="layui-form-item">
+                <button class="layui-btn" id="btn_check">检查更新</button>
+                <button class="layui-btn layui-btn-normal" id="btn_update">立即更新</button>
+            </div>
+
+            <blockquote class="layui-elem-quote layui-quote-nm">
+                <b>提示：</b>更新完成后建议再到顶部右上角点击一次「清理缓存」，确保前台加载到最新内容。
+            </blockquote>
+
+        </div>
+
+        <script>
+            layui.use(['form', 'layer'], function () {
+                $ = layui.jquery;
+                var layer = layui.layer;
+
+                function esc(s) {
+                    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+                        return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+                    });
+                }
+
+                function check() {
+                    $('#m_local').html('<i class="layui-icon layui-anim layui-anim-rotate layui-anim-loop">ဂ</i> 检测中…');
+                    $('#m_remote').html('<i class="layui-icon layui-anim layui-anim-rotate layui-anim-loop">ဂ</i> 获取中…');
+                    $('#m_status').html('—');
+                    $.post("admin.php", {type: "update_check"}, function (d) {
+                        $('#m_local').html(esc(d.local));
+                        $('#m_remote').html(esc(d.remote));
+                        $('#m_repo').html(esc(d.repo));
+                        $('#m_commit').html(esc(d.commit));
+                        if (d.has_update == 1) {
+                            $('#m_status').html('<font color="#ff5722">发现新版本，可立即更新！</font>');
+                        } else if (d.has_update == 0) {
+                            $('#m_status').html('<font color="#5fb878">已是最新版本</font>');
+                        } else {
+                            $('#m_status').html('<font color="#ffb800">' + esc(d.m) + '</font>');
+                        }
+                    }, "json").fail(function () {
+                        layer.alert('检测失败，请检查服务器网络或防火墙设置！', {icon: 5});
+                        $('#m_remote').html('获取失败');
+                    });
+                }
+
+                $('#btn_check').on('click', check);
+
+                $('#btn_update').on('click', function () {
+                    layer.confirm('确定要立即从远程仓库更新代码吗？更新过程需要服务器能够访问外网。', {icon: 3, title: '在线更新'}, function (index) {
+                        layer.close(index);
+                        var load = layer.load(2);
+                        $.post("admin.php", {type: "update_run"}, function (d) {
+                            layer.close(load);
+                            layer.alert(d.m, {icon: d.icon || (d.success ? 6 : 5)}, function () {
+                                if (d.success) { check(); }
+                            });
+                        }, "json").fail(function () {
+                            layer.close(load);
+                            layer.alert('更新请求失败，请检查服务器网络或防火墙设置！', {icon: 5});
+                        });
+                    });
+                });
+
+                // 进入页面自动检测一次
+                check();
+            });
+        </script>
+
+    </body>
+</html>

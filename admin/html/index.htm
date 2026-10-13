@@ -36,6 +36,7 @@
                 
                 
                 <li class="layui-nav-item to-index"><a href="./../" target="_blank">前台首页</a></li>
+                <li class="layui-nav-item"><a href="javascript:;" onclick="clear_browser_cache();">清理缓存</a></li>
             </ul>
 
         </div>
@@ -168,6 +169,22 @@
                         </ul>
                     </li>     
 
+                    <li>
+                        <a href="javascript:;">
+                            <i class="iconfont">&#xe6a7;</i>
+                            <cite>在线更新</cite>
+                            <i class="iconfont nav_right">&#xe697;</i>
+                        </a>
+                        <ul class="sub-menu">
+                            <li>
+                                <a _href="load.php?url=admin_update.htm">
+                                    <i class="iconfont">&#xe6a7;</i>
+                                    <cite>版本管理</cite>
+                                </a>
+                            </li >
+                        </ul>
+                    </li>
+
                                 
                             </li>               
                         </ul>
@@ -231,5 +248,29 @@
       
  
  </script>
+    <script>
+        // 一键清理缓存：清除服务器缓存 + 浏览器缓存，并强制刷新，确保看到最新内容
+        layui.use(['layer'], function () {
+            var layer = layui.layer, $ = layui.jquery;
+            window.clear_browser_cache = function () {
+                layer.confirm('确定要清理缓存吗？将同时清除服务器缓存与浏览器缓存，并强制刷新页面以获取最新内容。', {icon: 3, title: '清理缓存'}, function (index) {
+                    layer.close(index);
+                    // 清除浏览器本地缓存（LocalStorage / SessionStorage）
+                    try { if (window.localStorage) { localStorage.clear(); } } catch (e) { }
+                    try { if (window.sessionStorage) { sessionStorage.clear(); } } catch (e) { }
+                    // 清除服务器端缓存，然后带时间戳强制刷新，绕过浏览器 HTTP 缓存
+                    var refresh = function () {
+                        var url = location.href.split('#')[0].split('?')[0] + '?t=' + new Date().getTime();
+                        location.replace(url);
+                    };
+                    $.post("admin.php", {"type": "recache"}, function () {
+                        layer.msg('缓存已清理，正在刷新…', {icon: 1, time: 900}, refresh);
+                    }, "json").fail(function () {
+                        layer.msg('已清除浏览器缓存，正在刷新…', {icon: 1, time: 900}, refresh);
+                    });
+                });
+            };
+        });
+    </script>
     </body>
 </html>
