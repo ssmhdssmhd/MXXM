@@ -1,6 +1,8 @@
 ﻿<?php 
 include("config.php");
 require_once('../include/class.db.php');
+//云规则文件：优先 GZ/（随仓库实时自动更新），缺失时回退 save/yun.match.php
+$YUN_RULE_FILE = file_exists(dirname(__FILE__).'/../GZ/yun.match.php') ? dirname(__FILE__).'/../GZ/yun.match.php' : dirname(__FILE__).'/../save/yun.match.php';
 /*
 session_start(); 
  if(isset($_SESSION['lock_yun_config'])){ $time=(int)$_SESSION['lock_yun_config']-(int)time(); if($time>0){ exit(json_encode(array('success'=>0,'icon'=>5,'m'=>"请勿频繁提交，".$time."秒后再试！")));}}
@@ -33,7 +35,7 @@ if (filter_has_var(INPUT_POST, "yun_config_api")) {
 //云播 规则设置
 if (filter_has_var(INPUT_POST, "yun_match_title_match")) {
     
-    require_once("../save/yun.match.php");
+    require_once($YUN_RULE_FILE);
    
    //404跳转设置
     $YUN_MATCH["ERROR_404"] = filter_input(INPUT_POST, "yun_match_error_404");
@@ -59,7 +61,7 @@ if (filter_has_var(INPUT_POST, "yun_match_title_match")) {
     $YUN_MATCH["name_match"] = arr_input("yun_match_name_match",true);
    
     
-    if (Main_db::save("../save/yun.match.php")) {
+    if (Main_db::save($YUN_RULE_FILE)) {
 
         exit(json_encode(array('success' => 1, 'icon' => 1, 'm' => "保存成功!")));
     } else {

@@ -5,7 +5,8 @@ error_reporting(0);
  //加载云配置文件
 
  require_once dirname(__FILE__).'/../save/yun.config.php'; 
- require_once dirname(__FILE__).'/../save/yun.match.php';
+ //云规则：优先使用 GZ/ 规则库（随仓库实时自动更新），缺失时回退 save/yun.match.php
+ require_once (file_exists(dirname(__FILE__).'/../GZ/yun.match.php') ? dirname(__FILE__).'/../GZ/yun.match.php' : dirname(__FILE__).'/../save/yun.match.php');
  require_once dirname(__FILE__).'/../save/yun.data.php';
 
 class YUN

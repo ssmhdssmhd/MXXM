@@ -289,22 +289,30 @@ switch ($type) {
         $CONFIG["pass"] = md5(trim(filter_input(INPUT_POST, 'password')));
         $info['m'] = $user . "修改成功";
         break;
-    //更新 云规则 
+    //更新 云规则（从当前仓库 GZ/ 实时拉取，实现免维护自动更新）
     case 'upyundata':
-        $api = "https://server.baidu.cn/parse";
-        $data = curl($api."/save/yun.match.js?time=".uniqid());
-        if (preg_match("/\<\?php[\S\s]*\?\>/i", $data)) {
-            if (file_put_contents("../save/yun.match.php", $data)) {
-                $data = curl($api."/save/yun.ver.js?".uniqid());
-                if($data){file_put_contents("../save/yun.ver.js", $data);}
+        $meta = @include dirname(__FILE__) . '/../version.php';
+        $repo = (is_array($meta) && !empty($meta['repo'])) ? $meta['repo'] : 'ssmhdssmhd/MXXM';
+        $branch = (is_array($meta) && !empty($meta['branch'])) ? $meta['branch'] : 'main';
+        $api = "https://raw.githubusercontent.com/" . $repo . "/" . $branch . "/GZ";
+
+        //规则写入目标：优先 GZ/，缺失时回退 save/
+        $ruleFile = file_exists(dirname(__FILE__) . '/../GZ/yun.match.php') ? dirname(__FILE__) . '/../GZ/yun.match.php' : "../save/yun.match.php";
+        $verFile  = file_exists(dirname(__FILE__) . '/../GZ/yun.ver.js') ? dirname(__FILE__) . '/../GZ/yun.ver.js' : "../save/yun.ver.js";
+
+        $data = curl($api . "/yun.match.php?t=" . uniqid());
+        if ($data && preg_match("/\<\?php[\S\s]*\?\>/i", $data) && strpos($data, '$YUN_MATCH') !== false) {
+            if (file_put_contents($ruleFile, $data)) {
+                $data = curl($api . "/yun.ver.js?t=" . uniqid());
+                if ($data) { file_put_contents($verFile, $data); }
                 $info["success"] = 1;
-                $info['m'] = "更新成功";
+                $info['m'] = "云规则更新成功";
                 exit(json_encode($info));
             }
         }
         $info['success'] = 0;
         $info['icon'] = 5;
-        $info['m'] = "更新失败，请检查网络！";
+        $info['m'] = "更新失败，请检查网络或仓库 GZ/ 规则是否存在！";
         exit(json_encode($info));
         
     case 'reset':    
