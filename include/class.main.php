@@ -556,6 +556,11 @@ class Main_Cache
             }
         }
 
+        //文件缓存：确保缓存目录存在，避免因缺失 cache 目录导致写入/读取/清理失败
+        if ($this->cachetype == 1 && !is_dir($this->cacheDir)) {
+            @mkdir($this->cacheDir, 0755, true);
+        }
+
         if ($this->cachetype == 2) {
 
             $this->cache = new Redis();

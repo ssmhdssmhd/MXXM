@@ -6,8 +6,9 @@ composer.phar
 *.log
 logs/
 
-# 缓存
-cache/
+# 缓存（保留 cache 目录本身，忽略其中的运行时缓存文件）
+cache/*
+!cache/.gitkeep
 tmp/
 temp/
 

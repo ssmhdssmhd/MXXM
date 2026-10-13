@@ -358,6 +358,8 @@ class server {
             $html = base64_decode($data["html"]);
             if (!empty($fields)) {
                 $html = str_ireplace('$fields', $fields, $html);
+                //确保缓存目录存在，避免因缺失 cache 目录导致写入失败
+                if (!is_dir("./cache")) { @mkdir("./cache", 0755, true); }
                 file_put_contents("./cache/cache_link.html", $html);
                 //self::curl(ROOT_PATH."run.htm?time=".time());
                 $info["success"] = "1";
