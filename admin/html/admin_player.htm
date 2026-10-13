@@ -1,0 +1,216 @@
+<?php include "block_header.htm"; ?>
+
+    <body>
+        <div class="x-nav">
+            <span class="layui-breadcrumb">
+                <a><cite>首页</cite></a>
+                <a><cite>系统设置</cite></a>
+                <a><cite>播放器设置</cite></a>
+            </span>
+            <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+        </div>
+        <div class="x-body">
+
+            <blockquote class="layui-elem-quote layui-quote-nm">
+                在此选择前台播放时使用的播放器（自动读取 <code>player/</code> 目录，新增播放器目录后会自动出现在列表中）。
+            </blockquote>
+
+            <form class="layui-form layui-form-pane" action="">
+
+                <fieldset class="layui-elem-field">
+                    <legend>电脑端(PC)配置</legend>
+                    <div class="layui-field-box">
+                        <table class="layui-table">
+                            <tbody>
+                                <tr>
+                                    <th>默认播放器</th>
+                                    <td>
+                                        <?php $arr = GlobalBase::getdirs("../player"); $arr[] = "自定义"; ?>
+                                        <select name="play_play_pc_player" lay-filter="province">
+                                            <?php foreach ($arr as $key): ?>
+                                                <option <?php echo ($CONFIG["play"]['play']['pc']['player'] == $key) ? "selected" : ''; ?> ><?php echo $key; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>自定义播放器</th>
+                                    <td>
+                                        <input type="text" placeholder="输入自定义播放器地址：例如:http://xx.com/player/?url=" name="play_play_pc_player_diy" autocomplete="off" value="<?php echo $CONFIG["play"]['play']['pc']['player_diy']; ?>" class="layui-input" >
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>自动播放</th>
+                                    <td>
+                                        <select name="play_play_pc_autoplay" lay-filter="province">
+                                            <?php foreach (array("关闭", "开启") as $key => $val): ?>
+                                                <option value="<?php echo $key; ?>" <?php echo ($CONFIG["play"]['play']['pc']['autoplay'] == $key) ? "selected" : ''; ?> ><?php echo $val; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </fieldset>
+
+                <fieldset class="layui-elem-field">
+                    <legend>移动端(WAP)配置</legend>
+                    <div class="layui-field-box">
+                        <table class="layui-table">
+                            <tbody>
+                                <tr>
+                                    <th>默认播放器</th>
+                                    <td>
+                                        <select name="play_play_wap_player" lay-filter="province">
+                                            <?php foreach ($arr as $key): ?>
+                                                <option <?php echo ($CONFIG["play"]['play']['wap']['player'] == $key) ? "selected" : ''; ?> ><?php echo $key; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>自定义播放器</th>
+                                    <td>
+                                        <input type="text" placeholder="输入自定义播放器地址：例如:http://xx.com/player/?url=" name="play_play_wap_player_diy" autocomplete="off" value="<?php echo $CONFIG["play"]['play']['wap']['player_diy']; ?>" class="layui-input" >
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>自动播放</th>
+                                    <td>
+                                        <select name="play_play_wap_autoplay" lay-filter="province">
+                                            <?php foreach (array("关闭", "开启") as $key => $val): ?>
+                                                <option value="<?php echo $key; ?>" <?php echo ($CONFIG["play"]['play']['wap']['autoplay'] == $key) ? "selected" : ''; ?> ><?php echo $val; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </fieldset>
+
+                <fieldset class="layui-elem-field">
+                    <legend>其他配置</legend>
+                    <div class="layui-field-box">
+                        <table class="layui-table">
+                            <tbody>
+                                <tr>
+                                    <th>记忆播放(记忆上次播放位置继续观看,目前不支持H5播放器)</th>
+                                    <td>
+                                        <select name="play_play_all_seektime" lay-filter="province">
+                                            <?php foreach (array("关闭", "开启") as $key => $val): ?>
+                                                <option value="<?php echo $key; ?>" <?php echo ($CONFIG["play"]['play']['all']['seektime'] == $key) ? "selected" : ''; ?> ><?php echo $val; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>P2P加速（可在站长工具里查看统计信息,目前只支持dp及ckx播放器)</th>
+                                    <td>
+                                        <select name="play_play_all_p2pinfo" lay-filter="province">
+                                            <?php foreach (array("关闭", "开启") as $key => $val): ?>
+                                                <option value="<?php echo $key; ?>" <?php echo ($CONFIG["play"]['play']['all']['p2pinfo'] == $key) ? "selected" : ''; ?> ><?php echo $val; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>弹幕开关（目前只支持Dplayer播放器)</th>
+                                    <td>
+                                        <select name="play_play_all_danmaku" lay-filter="province">
+                                            <?php foreach (array("关闭", "开启") as $key => $val): ?>
+                                                <option value="<?php echo $key; ?>" <?php echo ($CONFIG["play"]['play']['all']['danmaku'] == $key) ? "selected" : ''; ?> ><?php echo $val; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>全屏点击播放(只对Dplayer播放器有效,关闭后只能底部点击播放)</th>
+                                    <td>
+                                        <select name="play_play_all_ver" lay-filter="province">
+                                            <?php foreach (array("关闭", "开启") as $key => $val): ?>
+                                                <option value="<?php echo $key; ?>" <?php echo ($CONFIG["play"]['play']['all']['ver'] == $key) ? "selected" : ''; ?> ><?php echo $val; ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>
+                                        LOGO开关及样式设置（目前只支持Dplayer播放器)
+                                        <input type="checkbox" id="play_play_all_logo_off" name="play_play_all_logo_off" lay-skin="switch" lay-text="开|关" <?php echo $CONFIG["play"]['play']['all']['logo_off'] == 1 ? "checked" : ''; ?> value=<?php echo $CONFIG["play"]['play']['all']['logo_off']; ?> >
+                                    </th>
+                                    <td>
+                                        <input type="text" name="play_play_all_logo_style" autocomplete="off" value="<?php echo base64_decode($CONFIG["play"]['play']['all']['logo_style']); ?>" class="layui-input" >
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </fieldset>
+
+                <fieldset class="layui-elem-field">
+                    <legend>自定义播放器右键
+                        <input type="checkbox" id="play_play_all_contextmenu_off" name="play_play_all_contextmenu_off" lay-skin="switch" lay-text="开|关" <?php echo $CONFIG["play"]['play']['all']['contextmenu']['off'] == 1 ? "checked" : ''; ?> value=<?php echo $CONFIG["play"]['play']['all']['contextmenu']['off']; ?> >
+                    </legend>
+                    <div class="layui-field-box">
+                        <div class="layui-form-item layui-form-text">
+                            <label class="layui-form-label">
+                                内容（目前仅支持dp,添加格式：显示名称=>链接地址,每行一条）
+                            </label>
+                            <div class="layui-input-block">
+                                <textarea name="play_play_all_contextmenu_val" class="layui-textarea"><?php foreach ($CONFIG["play"]['play']['all']['contextmenu']['val'] as $key => $value) { echo "$key => $value" . "\r\n"; } ?></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="layui-elem-field">
+                    <legend>自动播放器选择
+                        <input type="checkbox" id="play_play_all_autoline_off" name="play_play_all_autoline_off" lay-skin="switch" lay-text="开|关" <?php echo $CONFIG["play"]['play']['all']['autoline']['off'] == 1 ? "checked" : ''; ?> value=<?php echo $CONFIG["play"]['play']['all']['autoline']['off']; ?> >
+                    </legend>
+                    <div class="layui-field-box">
+                        <div class="layui-form-item layui-form-text">
+                            <label class="layui-form-label">
+                                规则（添加格式：视频站域名 => 播放器名称 ，每行一条）
+                            </label>
+                            <div class="layui-input-block">
+                                <textarea name="play_play_all_autoline_val" class="layui-textarea"><?php foreach ($CONFIG["play"]['play']['all']['autoline']['val'] as $key => $value) { echo "$key => $value" . "\r\n"; } ?></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="layui-form-item">
+                    <button class="layui-btn" lay-submit="" lay-filter="*">
+                        保存
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+        <script>
+            layui.use(['form', 'layer'], function () {
+                $ = layui.jquery;
+                var form = layui.form, layer = layui.layer;
+
+                //监听提交
+                form.on('submit(*)', function (data) {
+                    if ("undefined" !== typeof data.field.play_play_all_contextmenu_val) {
+                        data.field.play_play_all_contextmenu_off = $("#play_play_all_contextmenu_off").prop("checked") ? 1 : 0;
+                    }
+                    if ("undefined" !== typeof data.field.play_play_all_autoline_val) {
+                        data.field.play_play_all_autoline_off = $("#play_play_all_autoline_off").prop("checked") ? 1 : 0;
+                        data.field.play_play_all_logo_off = $("#play_play_all_logo_off").prop("checked") ? 1 : 0;
+                    }
+                    x_admin_post("save.php", data.field);
+                    return false;
+                });
+            });
+        </script>
+
+    </body>
+
+</html>
