@@ -6,6 +6,7 @@
 
 | 版本 | 日期时间 | 说明 |
 |------|----------|------|
+| v.0.0.13 | 2026-10-14 06:30 (202610140630) | 补齐 `player/mpv/` 依赖：新增 `images/` 目录（pront / next / line / list），对应 `DPlayer.min.css` 引用的 4 个按钮图标；经 md5 校验，mpv 目录内 6 个 JS/CSS 库与 `player/dplayer/` 完全一致，现依赖已全部齐备 |
 | v.0.0.12 | 2026-10-14 06:27 (202610140627) | `player/mpv/` **播放器库本地化**：将 DPlayer 内核及 HLS / FLV / DASH / WebTorrent 解码库复制至 `player/mpv/` 目录内，页面不再依赖 `player/dplayer/`，可独立、离线运行 |
 | v.0.0.11 | 2026-10-13 21:05 (202610132105) | 新增 9 款 WEB 播放器（本地离线打包，`player/` 目录）：**Artplayer / Video.js / MuiPlayer / Plyr / Aliplayer(阿里云) / TCPlayer(腾讯云) / XGPlayer(西瓜) / NPlayer / MediaElement.js**；新增通用对接核心 `player/_core.js`（统一接入 xyplay：播放列表切换、记忆播放、自定义右键、上下一集、格式识别 m3u8/flv/mp4/dash、播放出错自动回退 h5）；后台「播放器设置」下拉自动列出全部 15 款播放器 |
 | v.0.0.10 | 2026-10-13 20:34 (202610132034) | 后台「系统设置」中**「基本设置」前面新增「播放器设置」**菜单，独立页面（`admin_player.htm`）：可选择电脑端/移动端默认播放器（自动读取 `player/` 目录，ckplayer、ckplayerx、dplayer、h5、mpv、p2p-dplayer 及自定义）、自定义播放器地址、自动播放，以及记忆播放 / P2P加速 / 弹幕 / 全屏点击 / LOGO / 自定义右键 / 自动播放器选择规则；原「播放设置」中重复的播放器标签页已移除，避免两处维护 |
