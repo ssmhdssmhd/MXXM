@@ -17,6 +17,9 @@ $id = filter_input(INPUT_POST, 'id');
 //json 初始化
 $info = array('success' => 0, 'icon' => 6);
 
+//本接口统一返回 JSON，显式声明响应类型，避免被中间层（代理/网关）注入非 JSON 内容
+header('Content-Type: application/json; charset=utf-8');
+
 switch ($type) {
 
     //防火墙规则 关闭	
@@ -335,6 +338,8 @@ switch ($type) {
         exit(json_encode($info));
     case 'recache':
         //if(function_exists("opcache_reset")){opcache_reset();}
+        //缓存目录不存在时先创建，确保一键清理缓存可用
+        if(!is_dir(dirname(__FILE__).'/../cache')){ @mkdir(dirname(__FILE__).'/../cache',0755,true); }
         $cache = new Main_Cache(array("cachetype"=>$CONFIG["chche_config"]["type"],"cacheDir"=>"../cache","cacheprot"=>$CONFIG["chche_config"]["prot"],'cacheTime'=>GlobalBase::is_time($CONFIG["chche_config"]["time"])));
         if($cache->clear_all()){
             $info["success"] = 1;

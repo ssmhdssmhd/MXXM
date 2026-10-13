@@ -80,8 +80,8 @@
                             $('#m_status').html('<font color="#ffb800">' + esc(d.m) + '</font>');
                         }
                     }, "json").fail(function () {
-                        layer.alert('检测失败，请检查服务器网络或防火墙设置！', {icon: 5});
                         $('#m_remote').html('获取失败');
+                        $('#m_status').html('<font color="#ff5722">无法获取远程版本，请检查服务器网络！</font>');
                     });
                 }
 
