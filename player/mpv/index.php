@@ -1,177 +1,58 @@
 <!DOCTYPE html>
 <html lang="zh-cmn-Hans">
+
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="renderer" content="webkit">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-    <title>MPV 播放器 - MXXM</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <meta name="x5-fullscreen" content="true">
+    <meta name="x5-page-mode" content="app">
+    <meta name="full-screen" content="yes">
+    <meta name="browsermode" content="application">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>在线播放 - MXXM</title>
+    <!-- 通用工具（Base64 等） -->
     <script type="text/javascript" src="../../include/class.main.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, "Microsoft YaHei", sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            color: #e8e8e8;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .container {
-            max-width: 720px;
+    <!-- 播放器样式与内核 -->
+    <link rel="stylesheet" href="../dplayer/DPlayer.min.css">
+    <script type="text/javascript" src="../dplayer/DPlayer.min.js"></script>
+    <style type="text/css">
+        html, body {
+            background-color: #000;
+            padding: 0;
+            margin: 0;
+            height: 100%;
             width: 100%;
-            background: rgba(255,255,255,0.06);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 16px;
-            padding: 36px 32px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            color: #999;
+            overflow: hidden;
         }
-        .logo {
-            display: block;
-            max-width: 200px;
-            margin: 0 auto 20px;
+        #video {
+            height: 100% !important;
+            width: 100% !important;
         }
-        h1 {
+        #tips {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
             text-align: center;
-            font-size: 26px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            background: linear-gradient(90deg, #50b2c8, #7c5cff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #aaa;
+            font: 14px/1.8 -apple-system, "Microsoft YaHei", sans-serif;
+            padding: 0 24px;
+            z-index: 10;
         }
-        .subtitle {
-            text-align: center;
-            color: #9aa4b2;
-            font-size: 13px;
-            margin-bottom: 28px;
-        }
-        .url-box {
-            background: rgba(0,0,0,0.35);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 12px 14px;
-            font-family: "Consolas", monospace;
-            font-size: 12px;
-            word-break: break-all;
-            max-height: 80px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-            color: #7ee0ff;
-        }
-        .btn-group {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-        }
-        .btn {
-            flex: 1;
-            min-width: 140px;
-            padding: 13px 16px;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform .15s, box-shadow .15s, opacity .15s;
-            color: #fff;
-        }
-        .btn:active { transform: scale(0.97); }
-        .btn-primary {
-            background: linear-gradient(135deg, #50b2c8, #3d8b9e);
-            box-shadow: 0 4px 14px rgba(80,178,200,0.35);
-        }
-        .btn-primary:hover { box-shadow: 0 6px 20px rgba(80,178,200,0.5); }
-        .btn-secondary {
-            background: linear-gradient(135deg, #7c5cff, #5a3fd6);
-            box-shadow: 0 4px 14px rgba(124,92,255,0.35);
-        }
-        .btn-secondary:hover { box-shadow: 0 6px 20px rgba(124,92,255,0.5); }
-        .btn-ghost {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.18);
-        }
-        .btn-ghost:hover { background: rgba(255,255,255,0.14); }
-        .toast {
-            position: fixed;
-            top: 24px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-20px);
-            background: rgba(46,204,113,0.95);
-            color: #fff;
-            padding: 10px 22px;
-            border-radius: 8px;
-            font-size: 13px;
-            opacity: 0;
-            transition: all .3s;
-            pointer-events: none;
-            z-index: 999;
-        }
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-        .help {
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding-top: 20px;
-        }
-        .help h3 {
-            font-size: 14px;
-            margin-bottom: 10px;
-            color: #50b2c8;
-        }
-        .help ol {
-            padding-left: 20px;
-            font-size: 13px;
-            line-height: 2;
-            color: #b8c0cc;
-        }
-        .help a { color: #7ee0ff; text-decoration: none; }
-        .help a:hover { text-decoration: underline; }
-        .tip {
-            background: rgba(80,178,200,0.1);
-            border-left: 3px solid #50b2c8;
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #9fd5e0;
-            margin-top: 12px;
-        }
+        #tips b { color: #50b2c8; }
     </style>
 </head>
+
 <body>
-    <div class="toast" id="toast"></div>
-    <div class="container">
-        <img src="../../source/images/logo.png" alt="MXXM" class="logo" onerror="this.style.display='none'">
-        <h1>MPV 桌面播放器</h1>
-        <p class="subtitle">解析完成，请使用 MPV 桌面播放器播放本视频</p>
-
-        <div class="url-box" id="urlBox">正在获取视频地址...</div>
-
-        <div class="btn-group">
-            <button class="btn btn-primary" onclick="downloadM3U()">下载 M3U 播放列表</button>
-            <button class="btn btn-secondary" onclick="copyUrl()">复制视频直链</button>
-            <button class="btn btn-ghost" onclick="openMpvGuide()">MPV 安装说明</button>
-        </div>
-
-        <div class="help">
-            <h3>使用步骤</h3>
-            <ol>
-                <li>点击「下载 M3U 播放列表」，得到 <code>.m3u</code> 文件</li>
-                <li>用 <a href="https://github.com/zhongfly/mpv-winbuild/releases" target="_blank">MPV</a> 打开该文件即可播放</li>
-                <li>或点击「复制视频直链」，在 MPV 中按 <code>Ctrl+V</code> 粘贴播放</li>
-                <li>推荐使用本站提供的 <a href="../../source/mpv/README.md" target="_blank">MPV 优化配置</a>，画质与体验更佳</li>
-            </ol>
-            <div class="tip">
-                提示：若未安装 MPV，可前往 <a href="https://github.com/zhongfly/mpv-winbuild/releases" target="_blank">zhongfly/mpv-winbuild</a> 下载最新版，
-                或将本站 <code>source/mpv/</code> 中的 <code>mpv.conf</code>、<code>input.conf</code> 复制到 MPV 的 <code>portable_config</code> 目录。
-            </div>
-        </div>
-    </div>
+    <div id="video"></div>
 
     <script type="text/javascript">
+        // 读取 URL 参数（isurl=true 允许参数值本身包含 & ）
         function _GET(name, isurl) {
             isurl = isurl || false;
             var word = "(^|&)" + name + "=([^&]*)(&|$)";
@@ -182,59 +63,88 @@
             return "";
         }
 
-        // 兼容 base64 / url-encoded 两种传参
-        var rawUrl = _GET("url", true);
-        var videoUrl = "";
-        try {
-            videoUrl = Base64.decode(rawUrl);
-            if (!/^https?:\/\//i.test(videoUrl)) { videoUrl = ""; }
-        } catch (e) {}
-        if (!videoUrl) {
-            try { videoUrl = decodeURIComponent(rawUrl); } catch (e2) { videoUrl = rawUrl; }
-        }
-
-        document.getElementById("urlBox").textContent = videoUrl || "未获取到视频地址";
-
-        function showToast(msg, ok) {
-            var t = document.getElementById("toast");
-            t.textContent = msg;
-            t.style.background = ok ? "rgba(46,204,113,0.95)" : "rgba(231,76,60,0.95)";
-            t.classList.add("show");
-            setTimeout(function(){ t.classList.remove("show"); }, 1800);
-        }
-
-        function downloadM3U() {
-            if (!videoUrl) { showToast("无视频地址", false); return; }
-            var content = "#EXTM3U\n#EXTINF:-1,MXXM 视频\n" + videoUrl + "\n";
-            var blob = new Blob([content], { type: "audio/x-mpegurl" });
-            var a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = "MXXM.m3u";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(a.href);
-            showToast("M3U 播放列表已下载", true);
-        }
-
-        function copyUrl() {
-            if (!videoUrl) { showToast("无视频地址", false); return; }
-            var ta = document.createElement("textarea");
-            ta.value = videoUrl;
-            document.body.appendChild(ta);
-            ta.select();
+        // 解析视频地址：兼容 base64 与 url-encoded 两种传参
+        function parseUrl() {
+            var raw = _GET("url", true);
+            if (!raw) { return ""; }
+            var url = "";
             try {
-                document.execCommand("copy");
-                showToast("视频直链已复制", true);
-            } catch (e) {
-                showToast("复制失败，请手动复制", false);
+                var d = Base64.decode(raw);
+                if (/^https?:\/\//i.test(d) || /^magnet:/i.test(d)) { url = d; }
+            } catch (e) { }
+            if (!url) {
+                try { url = decodeURIComponent(raw); } catch (e2) { url = raw; }
             }
-            document.body.removeChild(ta);
+            return url;
         }
 
-        function openMpvGuide() {
-            window.open("../../source/mpv/README.md", "_blank");
+        // 根据地址后缀判断媒体类型（兼容地址后还带其他参数的情况）
+        function getType(url) {
+            if (/^magnet:/i.test(url)) { return "webtorrent"; }
+            if (/\.m3u8([?#&]|$)/i.test(url)) { return "hls"; }
+            if (/\.flv([?#&]|$)/i.test(url)) { return "flv"; }
+            if (/\.mpd([?#&]|$)/i.test(url)) { return "dash"; }
+            return "normal";
+        }
+
+        // 按需加载对应的解码库
+        function loadLib(type, cb) {
+            var libs = {
+                hls: "../dplayer/hls.min.js",
+                flv: "../dplayer/flv.min.js",
+                dash: "../dplayer/dash.all.min.js",
+                webtorrent: "../dplayer/webtorrent.min.js"
+            };
+            var src = libs[type];
+            if (!src) { cb(); return; }
+            var s = document.createElement("script");
+            s.src = src;
+            s.onload = cb;
+            s.onerror = cb;
+            document.body.appendChild(s);
+        }
+
+        var videoUrl = parseUrl();
+
+        if (!videoUrl) {
+            document.getElementById("video").innerHTML =
+                '<div id="tips">未获取到视频地址<br>请在网址后追加 <b>?url=</b> 视频地址，例如：<br>' +
+                '<b>/player/mpv/?url=https://example.com/video.m3u8</b></div>';
+        } else {
+            var type = getType(videoUrl);
+            loadLib(type, function () {
+                var player = new DPlayer({
+                    container: document.getElementById("video"),
+                    autoplay: true,
+                    theme: "#50b2c8",
+                    hotkey: true,
+                    screenshot: true,
+                    mutex: true,
+                    logo: "../../source/images/logo.png",
+                    video: {
+                        url: videoUrl,
+                        type: type,
+                        pic: ""
+                    }
+                });
+
+                // 移动端内联播放兼容
+                var v = document.querySelector("#video video");
+                if (v) {
+                    v.setAttribute("playsinline", "");
+                    v.setAttribute("x5-playsinline", "");
+                    v.setAttribute("webkit-playsinline", "");
+                    v.setAttribute("x-webkit-airplay", "allow");
+                }
+
+                // 播放出错时给出提示
+                player.on("error", function () {
+                    document.getElementById("video").innerHTML =
+                        '<div id="tips" style="color:#e74c3c">播放失败，可能是地址失效或格式不受支持<br>请刷新重试或更换视频源</div>';
+                });
+            });
         }
     </script>
 </body>
+
 </html>

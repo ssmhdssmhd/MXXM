@@ -6,6 +6,7 @@
 
 | 版本 | 日期时间 | 说明 |
 |------|----------|------|
+| v.0.0.7 | 2026-10-13 14:56 (202610131456) | `player/mpv/` 改为直接可用的**网页播放器**，无需下载任何软件：访问 `域名/player/mpv/?url=视频地址` 即可在线播放，自动识别 m3u8 / flv / mpd / magnet 等格式（基于 DPlayer + HLS / FLV / DASH / WebTorrent），兼容 base64 与 url-encoded 传参，适配移动端内联播放 |
 | v.0.0.6 | 2026-10-13 14:43 (202610131443) | 修复缺失 `cache/` 目录：新增 `cache/.gitkeep` 占位并调整 `.gitignore`（保留目录、忽略运行时缓存文件），确保克隆 / 在线更新后缓存目录始终存在；`Main_Cache` 构造函数与 `api.php` 写入前自动创建缓存目录，避免写入/读取/清理失败 |
 | v.0.0.5 | 2026-10-13 13:15 (202610131315) | 修复在线更新与缓存清理：`admin.php` 统一显式声明 `Content-Type: application/json`，规避中间层注入导致的 JSON 解析异常；移除在线更新页面临时调试代码，功能定型 |
 | v.0.0.4 | 2026-10-13 13:30 (202610131330) | 后台新增「在线更新」功能：实时对比当前版本与远程仓库版本并显示最新提交，一键从仓库拉取最新代码（自动跳过 `save/` 用户配置）；后台顶栏新增「清理缓存」，一键清除服务器缓存 + 浏览器缓存并强制刷新，确保前台加载最新内容 |
@@ -74,22 +75,26 @@ MXXM/
 - 站点图标：`favicon.ico` / `source/images/logo.ico`
 - 模板与播放器 Logo：`templets/byg/images/logo.png`、`player/*/logo.png`
 
-## 🎬 MPV 桌面播放器
+## 🎬 在线网页播放器
 
-项目集成了 MPV 桌面播放器支持，适用于追求高画质与强大功能的用户。
+打开即用，**无需下载任何软件**，直接在浏览器中播放：
 
-- **播放页**：`player/mpv/` — 解析完成后自动生成 M3U 播放列表 / 复制视频直链
-- **配置文件**：`source/mpv/mpv.conf`、`source/mpv/input.conf`
-- **安装说明**：[`source/mpv/README.md`](./source/mpv/README.md)
+```
+域名/player/mpv/?url=视频地址
+```
 
-核心画质方案（整合 Duke Enhanced + MPV_lazy）：
+- 自动识别媒体类型并按需加载解码器（基于 DPlayer）：
+  - `.m3u8` → HLS（hls.js）
+  - `.flv` → FLV（flv.js）
+  - `.mpd` → DASH（dash.js）
+  - `magnet:` → WebTorrent
+  - 其他 → 浏览器原生播放（如直链 mp4）
+- `url` 参数兼容 **明文** 与 **base64** 两种传参
+- 支持 PC / 移动端内联播放，播放出错时给出提示
 
-- 视频输出：`gpu-next` + `d3d11` + `d3d11va` 硬解
-- 缩放：`ewa_lanczossharp`（缩小）/ `lanczos`（放大）/ `spline36`（色度）
-- 时间插值：`mitchell`，色彩：`bt.1886`
-- 可选脚本：uosc（界面）、thumbfast（缩略图）、mpv360（VR）、uosc_danmaku（弹幕）
-
-MPV 主程序推荐下载：[zhongfly/mpv-winbuild](https://github.com/zhongfly/mpv-winbuild/releases)
+> 桌面端 MPV 优化配置（可选，追求极致画质时使用）：`source/mpv/mpv.conf`、`source/mpv/input.conf`，
+> 安装与用法见 [`source/mpv/README.md`](./source/mpv/README.md)；
+> 主程序推荐 [zhongfly/mpv-winbuild](https://github.com/zhongfly/mpv-winbuild/releases)。
 
 ## 🔄 在线更新与缓存清理
 
