@@ -468,6 +468,52 @@ switch ($type) {
         $info['m'] = "更新成功！" . ($newVer !== '' ? "当前版本：" . $newVer : "") . "，建议到「清理缓存」清除缓存后使用。";
         exit(json_encode($info));
 
+    //官替算法 参数设置
+    case 'sf_system':
+        //算法目录（仅允许相对路径，禁止跳转上级或绝对路径）
+        $sfdir = str_replace('\\', '/', trim((string)filter_input(INPUT_POST, 'SF_DIR')));
+        $sfdir = trim($sfdir, '/');
+        if ($sfdir === '' || strpos($sfdir, '..') !== false || strpos($sfdir, ':') !== false) { $sfdir = 'SF'; }
+
+        $sf = array(
+            'ver'     => '0.1',
+            'off'     => (filter_input(INPUT_POST, 'SF_OFF') === '1') ? '0' : '1',
+            'dir'     => $sfdir,
+            'cms'     => trim((string)filter_input(INPUT_POST, 'SF_CMS')),
+            'form'    => trim((string)filter_input(INPUT_POST, 'SF_FORM')),
+            'dytype'  => trim((string)filter_input(INPUT_POST, 'SF_DYTYPE')),
+            'zytype'  => trim((string)filter_input(INPUT_POST, 'SF_ZYTYPE')),
+            'api'     => trim((string)filter_input(INPUT_POST, 'SF_API')),
+            'qggapi'  => trim((string)filter_input(INPUT_POST, 'SF_QGGAPI')),
+            'table'   => trim((string)filter_input(INPUT_POST, 'SF_TABLE')),
+            'db_host' => trim((string)filter_input(INPUT_POST, 'SF_DB_HOST')),
+            'db_user' => trim((string)filter_input(INPUT_POST, 'SF_DB_USER')),
+            'db_pass' => trim((string)filter_input(INPUT_POST, 'SF_DB_PASS')),
+            'db_name' => trim((string)filter_input(INPUT_POST, 'SF_DB_NAME')),
+        );
+        if ($sf['table'] === '') { $sf['table'] = 'mac_vod'; }
+
+        $sfile = dirname(__FILE__) . '/../save/sf.config.php';
+        $scontent = "<?php\n/**\n * 官替算法配置（由后台「官替算法」页面生成，请勿手动修改格式）\n * 算法版本：0.1\n */\nreturn " . var_export($sf, true) . ";\n";
+        if (@file_put_contents($sfile, $scontent) === false) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！')));
+        }
+
+        //算法目录同步：目录变更时把算法文件复制过去，免手动操作文件夹
+        if ($sfdir !== 'SF') {
+            $srcDir = dirname(__FILE__) . '/../SF';
+            $dstDir = dirname(__FILE__) . '/../' . $sfdir;
+            if (!is_dir($dstDir)) { @mkdir($dstDir, 0755, true); }
+            if (is_dir($dstDir)) {
+                foreach (array('index.php', 'ziyuan.php', 'mysql.php', 'md5.php') as $f) {
+                    if (file_exists($srcDir . '/' . $f)) { @copy($srcDir . '/' . $f, $dstDir . '/' . $f); }
+                }
+            }
+        }
+
+        $info['m'] = "官替算法设置已保存";
+        break;
+
     default:
         exit(json_encode(array('success' => 0, 'icon' => 0, 'm' => "参数错误！")));
 }

@@ -6,6 +6,7 @@
 
 | 版本 | 日期时间 | 说明 |
 |------|----------|------|
+| v.0.0.8 | 2026-10-13 17:48 (202610131748) | 新增**官替算法 v0.1**：后台侧边栏「在线更新」上方新增「官替算法」→「算法设置」；算法代码置于仓库根目录 `SF/`（index.php / ziyuan.php / mysql.php / md5.php）；全部参数（算法目录、启用开关、CMS 地址、播放器编码、电影/综艺分类、解析接口、去广告接口、数据表、数据库连接）均可在后台配置，保存后生成 `save/sf.config.php`，**无需打开文件夹修改任何文件**；算法目录变更时后台自动同步算法文件到该目录 |
 | v.0.0.7 | 2026-10-13 14:56 (202610131456) | `player/mpv/` 改为直接可用的**网页播放器**，无需下载任何软件：访问 `域名/player/mpv/?url=视频地址` 即可在线播放，自动识别 m3u8 / flv / mpd / magnet 等格式（基于 DPlayer + HLS / FLV / DASH / WebTorrent），兼容 base64 与 url-encoded 传参，适配移动端内联播放 |
 | v.0.0.6 | 2026-10-13 14:43 (202610131443) | 修复缺失 `cache/` 目录：新增 `cache/.gitkeep` 占位并调整 `.gitignore`（保留目录、忽略运行时缓存文件），确保克隆 / 在线更新后缓存目录始终存在；`Main_Cache` 构造函数与 `api.php` 写入前自动创建缓存目录，避免写入/读取/清理失败 |
 | v.0.0.5 | 2026-10-13 13:15 (202610131315) | 修复在线更新与缓存清理：`admin.php` 统一显式声明 `Content-Type: application/json`，规避中间层注入导致的 JSON 解析异常；移除在线更新页面临时调试代码，功能定型 |
@@ -57,6 +58,7 @@ MXXM/
 ├── include/               # 核心类库（class.main.php / class.db.php）
 ├── video/                 # 各视频源解析类
 ├── player/                # 播放器（ckplayer / dplayer / p2p-dplayer / h5 / mpv）
+├── SF/                    # 官替算法（资源站替换算法 v0.1）
 ├── plus/                  # 插件（微信 / sea_parse / parse）
 ├── templets/              # 前台模板（byg / default）
 ├── source/                # 静态资源（图片 / 视频 / 备份 / mpv 配置）
@@ -95,6 +97,19 @@ MXXM/
 > 桌面端 MPV 优化配置（可选，追求极致画质时使用）：`source/mpv/mpv.conf`、`source/mpv/input.conf`，
 > 安装与用法见 [`source/mpv/README.md`](./source/mpv/README.md)；
 > 主程序推荐 [zhongfly/mpv-winbuild](https://github.com/zhongfly/mpv-winbuild/releases)。
+
+## 🧩 官替算法 v0.1
+
+将官方平台（VIP）地址替换为你的资源站（自定义 CMS）地址，免去手动寻找资源。
+
+- **入口**：后台侧边栏「官替算法」→「算法设置」（`admin/html/admin_sf.htm`），位于「在线更新」上方
+- **算法目录**：仓库根目录 `SF/`（`index.php` 解析入口 / `ziyuan.php` 资源替换核心 / `mysql.php` 数据库连接池 / `md5.php` 调试图）
+- **调用方式**：`域名/SF/?url=官方视频地址`
+- **后台可配置**（保存后生成 `save/sf.config.php`，脚本自动读取，无需打开文件夹改文件）：
+  - 算法目录、启用开关
+  - CMS 地址、播放器编码、电影分类ID、综艺分类ID、解析接口、去广告接口
+  - 数据表、数据库地址 / 用户名 / 密码 / 库名
+- **目录自适应**：修改「算法目录」后，保存时后台会自动把算法文件复制到该目录，免手动操作文件夹
 
 ## 🔄 在线更新与缓存清理
 

@@ -1,0 +1,167 @@
+<?php
+include "block_header.htm";
+//读取官替算法配置
+$SF = @include dirname(__FILE__) . '/../../save/sf.config.php';
+if (!is_array($SF)) { $SF = array(); }
+$SF += array(
+    'ver' => '0.1', 'off' => '0', 'dir' => 'SF', 'cms' => 'https://cmsv10.com',
+    'form' => 'jsm3u8', 'dytype' => '1', 'zytype' => '5', 'api' => '', 'qggapi' => '',
+    'table' => 'mac_vod', 'db_host' => 'localhost', 'db_user' => 'root', 'db_pass' => '', 'db_name' => 'root',
+);
+$SF_DIR_SHOW = $SF['dir'];
+?>
+    <body>
+        <div class="x-nav">
+            <span class="layui-breadcrumb">
+                <a><cite>首页</cite></a>
+                <a><cite>官替算法</cite></a>
+                <a><cite>算法设置</cite></a>
+            </span>
+            <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+        </div>
+        <div class="x-body">
+
+            <blockquote class="layui-elem-quote layui-quote-nm">
+                <h2>官替算法 v<?php echo $SF['ver']; ?></h2><br>
+                作用：将官方平台(VIP)地址替换为你的资源站(自定义CMS)地址，免去手动寻找资源。<br>
+                调用方式：<b>域名/<?php echo htmlspecialchars($SF_DIR_SHOW); ?>/?url=官方视频地址</b><br>
+                本页所有参数保存于 <code>save/sf.config.php</code>，算法脚本自动读取，<b>无需打开文件夹修改任何文件</b>。
+            </blockquote>
+
+            <form class="layui-form layui-form-pane" action="">
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">启用状态</label>
+                    <div class="layui-input-inline">
+                        <input type="checkbox" name="SF_OFF" value="1" lay-skin="switch" lay-text="启用|关闭" <?php if ($SF['off'] != '1') { echo 'checked'; } ?>>
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">关闭后算法接口将拒绝服务</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">算法目录</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_DIR" autocomplete="off" value="<?php echo htmlspecialchars($SF['dir']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux"><span class="x-red">*</span> 算法所在文件夹（相对站点根目录，默认 SF）；保存后会自动把算法文件同步到该目录</div>
+                </div>
+
+                <fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+                    <legend>资源站(CMS)参数</legend>
+                </fieldset>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">CMS 地址</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="SF_CMS" autocomplete="off" value="<?php echo htmlspecialchars($SF['cms']); ?>" class="layui-input" placeholder="https://cmsv10.com">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">播放器编码</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_FORM" autocomplete="off" value="<?php echo htmlspecialchars($SF['form']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">用此播放器编码的数据替换官方地址，例：jsm3u8</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">电影分类ID</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_DYTYPE" autocomplete="off" value="<?php echo htmlspecialchars($SF['dytype']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">电影分类，识别为单集(正片)</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">综艺分类ID</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_ZYTYPE" autocomplete="off" value="<?php echo htmlspecialchars($SF['zytype']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">综艺集数乱，排除综艺不走替换</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">解析接口</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="SF_API" autocomplete="off" value="<?php echo htmlspecialchars($SF['api']); ?>" class="layui-input" placeholder="留空即可；需要二次解析才出地址时填写">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">去广告接口</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="SF_QGGAPI" autocomplete="off" value="<?php echo htmlspecialchars($SF['qggapi']); ?>" class="layui-input" placeholder="留空不启用；如 http://xxx/json.php/?url=">
+                    </div>
+                </div>
+
+                <fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+                    <legend>数据库参数</legend>
+                </fieldset>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">数据表</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_TABLE" autocomplete="off" value="<?php echo htmlspecialchars($SF['table']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">苹果CMS 默认 mac_vod</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">数据库地址</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_DB_HOST" autocomplete="off" value="<?php echo htmlspecialchars($SF['db_host']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">其他服务器填数据库地址，宝塔请设为所有人可访问</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">数据库用户名</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_DB_USER" autocomplete="off" value="<?php echo htmlspecialchars($SF['db_user']); ?>" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">数据库密码</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_DB_PASS" autocomplete="off" value="<?php echo htmlspecialchars($SF['db_pass']); ?>" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">数据库名</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="SF_DB_NAME" autocomplete="off" value="<?php echo htmlspecialchars($SF['db_name']); ?>" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <button class="layui-btn" lay-submit="" lay-filter="*">
+                        保存
+                    </button>
+                </div>
+            </form>
+
+        </div>
+
+        <script>
+            layui.use(['form', 'layer'], function () {
+                $ = layui.jquery;
+                var form = layui.form, layer = layui.layer;
+
+                //监听提交
+                form.on('submit(*)', function (data) {
+                    data.field.type = "sf_system";
+                    if (!data.field.SF_OFF) { data.field.SF_OFF = "0"; }
+                    //发异步，把数据提交给php
+                    x_admin_post("admin.php", data.field);
+                    return false;
+                });
+
+            });
+        </script>
+
+    </body>
+
+</html>

@@ -12,6 +12,10 @@ cache/*
 tmp/
 temp/
 
+# 官替算法运行时缓存
+SF/m3u8/
+SF/Cache/
+
 # 环境
 .env
 .env.local
