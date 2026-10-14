@@ -2,7 +2,7 @@
     {
         "id": 1,
         "name": "XGZYAPI 苹果CMS资源站",
-        "template": "https:\/\/api.xgzyapi.com\/api.php\/provide\/vod\/?ac=list&wd=%s",
+        "template": "https://api.xgzyapi.com/api.php/provide/vod/?ac=list&wd=%s",
         "enabled": 1,
         "role": "primary",
         "method": "get",
@@ -18,7 +18,7 @@
     {
         "id": 2,
         "name": "觅知弹幕播放器",
-        "template": "{SCHEME}:\/\/{HOST_NO_PORT}:9008\/?url=%u",
+        "template": "{SCHEME}://{HOST_NO_PORT}:9008/?url=%u",
         "enabled": 1,
         "role": "fallback",
         "method": "get",
@@ -34,7 +34,7 @@
     {
         "id": 3,
         "name": "蓝光解析 vv00.xyz",
-        "template": "https:\/\/vv00.xyz\/?url=%u",
+        "template": "https://vv00.xyz/?url=%u",
         "enabled": 1,
         "role": "fallback",
         "method": "get",
@@ -50,7 +50,7 @@
     {
         "id": 4,
         "name": "云播解析 m3u8.tv",
-        "template": "https:\/\/jx.m3u8.tv\/jiexi\/?url=%u",
+        "template": "https://jx.m3u8.tv/jiexi/?url=%u",
         "enabled": 1,
         "role": "fallback",
         "method": "get",
@@ -62,5 +62,18 @@
         "updated_at": 1788275252,
         "is_special": 1,
         "proxy": ""
+    },
+    {
+        "name": "吉吉资源站 (jjzyapi)",
+        "template": "http://caiji.jjzyapi.com/api.php/provide/vod/?ac=list&wd=%u&pg=%p",
+        "enabled": true,
+        "role": "primary",
+        "method": "get",
+        "headers": "",
+        "post": "",
+        "parse": "apple",
+        "proxy": "",
+        "is_special": false,
+        "created_at": "2026-10-15 00:00:00"
     }
 ]

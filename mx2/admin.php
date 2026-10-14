@@ -173,6 +173,158 @@ if ($ACTION === 'test_site') {
     exit;
 }
 
+// ---- detect_site：粘贴采集接口 → 自动识别格式 + 生成搜索模板 ----
+if ($ACTION === 'detect_site') {
+    header('Content-Type: application/json; charset=utf-8');
+    $url = trim((string)($_POST['url'] ?? ''));
+    if ($url === '') {
+        echo json_encode(['ok' => false, 'msg' => '请输入采集接口地址'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // 去掉所有已有参数，只保留 scheme + host + path
+    $parts = parse_url($url);
+    if (!$parts || empty($parts['scheme']) || empty($parts['host'])) {
+        echo json_encode(['ok' => false, 'msg' => '无法解析该 URL'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $base = $parts['scheme'] . '://' . $parts['host'];
+    if (!empty($parts['port'])) { $base .= ':' . $parts['port']; }
+    $path = $parts['path'] ?? '';
+
+    // 苹果CMS10 采集接口常见路径：/api.php/provide/vod/
+    // 生成搜索模板：强制 ac=list（搜索列表）+ wd=%u（剧名URL编码）+ pg=%p（页码/集数）
+    $tpl = rtrim($base . $path, '/');
+    $nameFromPath = '自定义资源站';
+    $typeGuess = 'apple'; // 苹果CMS JSON/XML 最常见
+
+    // 尝试从 path 里抽出名字（api.jjzyapi.com → jjzyapi / caiji.xxx.com → xxx）
+    if (preg_match('/api\.([a-z0-9]+)/i', $parts['host'], $m)) {
+        $nameFromPath = strtoupper($m[1]);
+    } elseif (preg_match('/^([a-z0-9]+)\./i', $parts['host'], $m)) {
+        $nameFromPath = strtoupper($m[1]) . '资源站';
+    }
+
+    // 构造探测 URL —— 强制 ac=list，去掉所有 from/at 等筛选参数
+    $probeBase = $tpl;
+    // 如果原始路径带 /provide/vod/，构造完整搜索接口
+    if (strpos($path, '/provide/vod') !== false) {
+        // 苹果CMS 标准搜索接口
+        $probeUrl = $base . '/api.php/provide/vod/?ac=list&wd=%E6%B5%8B%E8%AF%95&pg=1';
+        $tpl      = $base . '/api.php/provide/vod/?ac=list&wd=%u&pg=%p';
+        $typeGuess = 'apple';
+    } else {
+        // 普通搜索接口
+        $probeUrl = $probeBase . (strpos($probeBase, '?') === false ? '?' : '&') . 'wd=%E6%B5%8B%E8%AF%95';
+        $tpl      = $probeBase . (strpos($probeBase, '?') === false ? '?' : '&') . 'wd=%u&page=%p';
+    }
+
+    // 请求一次探测格式
+    $ch = curl_init($probeUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 8,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (mx2 detect)',
+    ]);
+    $body = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $ct = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+    curl_close($ch);
+
+    if (!$body || $httpCode === 0 || $httpCode >= 400) {
+        echo json_encode([
+            'ok' => false,
+            'msg' => "探测失败（HTTP {$httpCode}）：接口超时或拒绝访问",
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // 分析返回格式
+    $bodyTrim = trim($body);
+    if ($bodyTrim !== '' && $bodyTrim[0] === '{') {
+        $typeGuess = 'apple'; // 苹果CMS 也是 JSON
+        $decoded = json_decode($bodyTrim, true);
+        if (is_array($decoded) && !empty($decoded['list']) && is_array($decoded['list'])) {
+            // 标准苹果CMS：{"list":[{vod_name:"..."}]}
+            $typeGuess = 'apple';
+        }
+    } elseif ($bodyTrim !== '' && stripos($bodyTrim, '<?xml') === 0) {
+        $typeGuess = 'apple'; // XML 也是苹果CMS 一种格式
+    } else {
+        $typeGuess = 'text'; // HTML列表页
+    }
+
+    // 尝试找样本（vod_name 字段）
+    $sampleName = '';
+    $sampleUrl  = '';
+    if ($typeGuess === 'apple') {
+        $arr = json_decode($bodyTrim, true);
+        if (is_array($arr) && !empty($arr['list'][0])) {
+            $sampleName = $arr['list'][0]['vod_name'] ?? '';
+            $firstPlay  = $arr['list'][0]['vod_play_url'] ?? '';
+            // 取第一个剧集的 URL
+            if ($firstPlay && preg_match('/https?:\/\/[^\s$#]+/', $firstPlay, $mm)) {
+                $sampleUrl = $mm[0];
+            }
+        }
+    }
+
+    echo json_encode([
+        'ok'       => true,
+        'type'     => $typeGuess,
+        'name'     => $nameFromPath,
+        'template' => $tpl,
+        'parse'    => $typeGuess, // apple / text / json
+        'sample'   => ['name' => $sampleName, 'url' => $sampleUrl],
+        'hint'     => '自动探测完成，模板已生成，可微调后点「确认保存」入库。',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ---- save_site_one：单条新增（配合 detect_site）----
+if ($ACTION === 'save_site_one') {
+    header('Content-Type: application/json; charset=utf-8');
+    $name = trim((string)($_POST['name']     ?? ''));
+    $tpl  = trim((string)($_POST['template'] ?? ''));
+    if ($name === '' || $tpl === '') {
+        echo json_encode(['ok' => false, 'msg' => '站点名称和模板都必填'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $sites = mx2_sites();
+    $newSite = [
+        'name'       => $name,
+        'template'   => $tpl,
+        'url'        => $tpl,
+        'proxy'      => '',
+        'method'     => 'get',
+        'parse'      => '',
+        'headers'    => '',
+        'post'       => '',
+        'role'       => 'primary',
+        'enabled'    => true,
+        'is_special' => false,
+    ];
+    // 去重：同 template 不重复加
+    foreach ($sites as $s) {
+        if (($s['template'] ?? '') === $tpl) {
+            echo json_encode(['ok' => false, 'msg' => '该资源站模板已存在（请直接编辑原记录）'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+    $sites[] = $newSite;
+    $ok = mx2_write_json(MX2_CONFIG . '/sites.json', $sites);
+    if (!$ok) {
+        echo json_encode(['ok' => false, 'msg' => '写入 sites.json 失败，请检查 config/ 目录权限'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    mx2_purge_cache();
+    Logger::log('operation', "自动添加资源站：{$name}", 'success');
+    echo json_encode(['ok' => true, 'msg' => "已添加「{$name}」，缓存已清理"], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 /* ---------------- 渲染 ---------------- */
 
 renderDashboard();
@@ -320,6 +472,55 @@ function renderDashboard() {
                 out.style.color='#fca5a5';
             });
     }
+    /* ---- 苹果CMS采集接口 检测 / 自动添加 ---- */
+    function openDetect(){
+        document.getElementById('dd-url').value='';
+        document.getElementById('dd-name').value='';
+        document.getElementById('dd-tpl').value='';
+        document.getElementById('dd-msg').textContent='粘贴苹果CMS10采集接口地址（如 http://caiji.xxx.com/api.php/provide/vod/from/xxx/at/xml/ ），点「检测」自动生成模板与名称。';
+        document.getElementById('dd-msg').style.color='';
+        document.getElementById('dd-hint').style.display='none';
+        document.getElementById('dd-modal').style.display='flex';
+    }
+    function closeDetect(){ document.getElementById('dd-modal').style.display='none'; }
+    function detectSite(){
+        var url=document.getElementById('dd-url').value.trim();
+        if(!url){alert('请先填写采集接口地址');return;}
+        var msg=document.getElementById('dd-msg');
+        msg.textContent='检测中...';msg.style.color='#e2b93b';
+        document.getElementById('dd-hint').style.display='none';
+        var fd=new FormData();fd.append('action','detect_site');fd.append('url',url);
+        fetch('admin.php',{method:'POST',body:fd}).then(r=>r.json()).then(function(d){
+            if(d.ok){
+                document.getElementById('dd-name').value=d.name||'';
+                document.getElementById('dd-tpl').value=d.template||'';
+                document.getElementById('dd-hint').style.display='block';
+                var smp=d.sample||{};
+                document.getElementById('dd-hint-name').textContent=smp.name||'(无)';
+                document.getElementById('dd-hint-url').textContent=smp.url||'';
+                msg.textContent='✔ 检测成功（'+d.type+'）：可获取真实资源，模板已生成，可修改后保存。';
+                msg.style.color='#2ecc71';
+            }else{
+                msg.textContent='✘ 检测失败：'+(d.msg||'未知错误');
+                msg.style.color='#e74c3c';
+            }
+        }).catch(function(e){msg.textContent='请求失败:'+e;msg.style.color='#e74c3c';});
+    }
+    function saveSiteOne(){
+        var name=document.getElementById('dd-name').value.trim();
+        var tpl=document.getElementById('dd-tpl').value.trim();
+        if(!name||!tpl){alert('请填写站点名称和模板');return;}
+        var msg=document.getElementById('dd-msg');
+        var fd=new FormData();fd.append('action','save_site_one');fd.append('name',name);fd.append('template',tpl);
+        fetch('admin.php',{method:'POST',body:fd}).then(r=>r.json()).then(function(d){
+            if(d.ok){
+                msg.textContent='✔ '+d.msg+'，正在刷新...';msg.style.color='#2ecc71';
+                setTimeout(function(){location.href='admin.php?tab=sites&saved=1';},500);
+            }else{
+                msg.textContent='✘ '+(d.msg||'保存失败');msg.style.color='#e74c3c';
+            }
+        }).catch(function(e){alert('请求失败:'+e);});
+    }
     </script>
     </body></html>
     <?php exit;
@@ -346,6 +547,7 @@ function renderSites($sites) {
                     <span>共 <b><?= count($sites) ?></b> 个资源站</span>
                 </span>
                 <div>
+                    <button type="button" class="btn btn-green" style="background:#6366f1;border-color:#6366f1" onclick="openDetect()">⚡ 检测并自动添加</button>
                     <button type="button" class="btn btn-green" onclick="addRow()">➕ 添加资源站</button>
                     <button type="submit" class="btn btn-primary">💾 立即保存</button>
                 </div>
@@ -457,6 +659,42 @@ function renderSites($sites) {
         </div>
         <button type="button" class="btn btn-primary" onclick="testSite()">🧪 测试该资源站</button>
         <pre id="tt-out" style="display:none;margin-top:14px;background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:12px 14px;font-size:12px;color:#c4b5fd;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow:auto"></pre>
+
+        <!-- ===== 检测并自动添加 弹窗 ===== -->
+        <div id="dd-modal" style="display:none;position:fixed;inset:0;background:rgba(5,10,20,.7);z-index:9999;align-items:center;justify-content:center">
+            <div style="background:#141b2d;border:1px solid #2a3550;border-radius:12px;padding:22px;width:640px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.5);color:#cbd5e1;font-size:13px">
+                <h3 style="margin:0 0 12px;font-size:15px;color:#a5b4fc">⚡ 检测并自动添加资源站（苹果CMS10 采集接口）</h3>
+                <div style="font-size:12px;color:#94a3b8;margin-bottom:12px">只需粘贴采集接口地址，系统会自动探测返回格式、生成「搜索模板」与站点名称。</div>
+                <div style="margin-bottom:12px">
+                    <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px">采集接口地址</label>
+                    <input type="text" id="dd-url" placeholder="如 http://caiji.jjzyapi.com/api.php/provide/vod/from/jjm3u8/at/xml/"
+                           style="width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none;box-sizing:border-box">
+                </div>
+                <div style="margin-top:10px;display:flex;gap:8px">
+                    <button type="button" class="btn btn-primary" onclick="detectSite()">🔍 检测</button>
+                    <button type="button" class="btn" onclick="closeDetect()">取消</button>
+                </div>
+                <div id="dd-hint" style="display:none;background:#10172a;border:1px solid #223;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:12px;color:#9aa4bc">
+                    样本：<span id="dd-hint-name"></span><br>
+                    首条播放地址：<code id="dd-hint-url" style="word-break:break-all;background:#0b1220;padding:2px 6px;border-radius:4px;color:#c4b5fd"></code>
+                </div>
+                <div id="dd-msg" style="margin-top:12px;font-size:13px;color:#94a3b8">粘贴采集接口地址，点「检测」自动生成模板与名称。</div>
+                <div style="margin-top:14px">
+                    <div style="margin-bottom:8px">
+                        <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px">站点名称</label>
+                        <input type="text" id="dd-name" style="width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none;box-sizing:border-box">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px">搜索模板（已自动生成，可微调）</label>
+                        <input type="text" id="dd-tpl" onclick="this.select()" style="width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none;box-sizing:border-box">
+                    </div>
+                </div>
+                <div style="margin-top:16px;text-align:right">
+                    <button type="button" class="btn" onclick="closeDetect()" style="margin-right:8px">关闭</button>
+                    <button type="button" class="btn btn-green" onclick="saveSiteOne()" style="background:#16a34a;border-color:#16a34a;color:#fff">✔ 确认保存入库</button>
+                </div>
+            </div>
+        </div>
     </div>
     <?php
 }
