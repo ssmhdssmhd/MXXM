@@ -485,6 +485,243 @@ switch ($type) {
         $info['m'] = "更新成功！" . ($newVer !== '' ? "当前版本：" . $newVer : "") . "，建议到「清理缓存」清除缓存后使用。";
         exit(json_encode($info));
 
+
+    //官替算法独立更新 检查版本（支持 mx1 / mx2 等模块）
+
+    case 'algo_check':
+
+        $mod = trim((string)($_POST['module'] ?? $_GET['module'] ?? ''));
+
+        if (!in_array($mod, ['mx1', 'mx2'], true)) {{ $info['success'] = 0; $info['icon'] = 5; $info['m'] = "未知的算法模块：{$mod}"; exit(json_encode($info)); }}
+
+        $modNames = ['mx1' => '官替算法 · 算法1', 'mx2' => '官替算法 · 算法2'];
+
+        $label = $modNames[$mod];
+
+
+
+        $localFile = dirname(__FILE__) . '/../' . $mod . '/version.php';
+
+        $local = ['version' => 'v.0.0.0', 'time' => '', 'desc' => ''];
+
+        if (file_exists($localFile)) {{ $lv = @include $localFile; if (is_array($lv)) {{ $local = $lv; }} }}
+
+
+
+        $meta = @include dirname(__FILE__) . '/../version.php';
+
+        $repo = (is_array($meta) && !empty($meta['repo']))   ? $meta['repo']   : 'ssmhdssmhd/MXXM';
+
+        $branch = (is_array($meta) && !empty($meta['branch'])) ? $meta['branch'] : 'main';
+
+
+
+        $json = curl('https://api.github.com/repos/' . $repo . '/commits/' . $branch . '?t=' . time());
+
+        $latestSha = ''; $commit = '';
+
+        if ($json) {{
+
+            $arr = json_decode($json, true);
+
+            if (is_array($arr) && !empty($arr['sha'])) {{
+
+                $latestSha = $arr['sha'];
+
+                $ts = !empty($arr['commit']['author']['date']) ? strtotime($arr['commit']['author']['date']) : 0;
+
+                $date = $ts ? date('Y-m-d H:i:s', $ts) : '';
+
+                $msg = !empty($arr['commit']['message']) ? strtok($arr['commit']['message'], "\n") : '';
+
+                $commit = trim($date . ' ' . $msg) . ' (' . substr($arr['sha'], 0, 7) . ')';
+
+            }}
+
+        }}
+
+
+
+        $remote = ['version' => '', 'time' => '', 'desc' => ''];
+
+        $urls = [];
+
+        if ($latestSha !== '') {{ $urls[] = 'https://raw.githubusercontent.com/' . $repo . '/' . $latestSha . '/' . $mod . '/version.php'; }}
+
+        $urls[] = 'https://raw.githubusercontent.com/' . $repo . '/' . $branch . '/' . $mod . '/version.php?t=' . time();
+
+        foreach ($urls as $u) {{
+
+            $txt = curl($u);
+
+            if ($txt) {{
+
+                if (preg_match("/'version'\s*=>\s*'([^']+)'/i", $txt, $m)) {{ $remote['version'] = $m[1]; }}
+
+                if (preg_match("/'time'\s*=>\s*'([^']+)'/i", $txt, $m))     {{ $remote['time']    = $m[1]; }}
+
+                if (preg_match("/'desc'\s*=>\s*'([^']+)'/i", $txt, $m))     {{ $remote['desc']    = $m[1]; }}
+
+                if ($remote['version'] !== '') break;
+
+            }}
+
+        }}
+
+
+
+        $info['success'] = 1; $info['icon'] = 6;
+
+        $info['m'] = "检测完成 · {$label}";
+
+        $info['label'] = $label;
+
+        $info['local']  = $local['version'];
+
+        $info['local_desc']  = $local['desc'];
+
+        $info['remote'] = $remote['version'] !== '' ? $remote['version'] : '获取失败';
+
+        $info['remote_desc'] = $remote['desc'];
+
+        $info['commit'] = $commit !== '' ? $commit : '—';
+
+        $info['repo']   = $repo . ' @ ' . $branch;
+
+        $info['has_update'] = ($remote['version'] !== '' && strcasecmp(trim($remote['version']), trim($local['version'])) !== 0) ? 1 : 0;
+
+        exit(json_encode($info));
+
+
+
+    case 'algo_run':
+
+        $mod = trim((string)($_POST['module'] ?? $_GET['module'] ?? ''));
+
+        if (!in_array($mod, ['mx1', 'mx2'], true)) {{ $info['success'] = 0; $info['icon'] = 5; $info['m'] = "未知的算法模块：{$mod}"; exit(json_encode($info)); }}
+
+        $modNames = ['mx1' => '官替算法 · 算法1', 'mx2' => '官替算法 · 算法2'];
+
+        $label = $modNames[$mod];
+
+
+
+        $meta = @include dirname(__FILE__) . '/../version.php';
+
+        $repo = (is_array($meta) && !empty($meta['repo']))   ? $meta['repo']   : 'ssmhdssmhd/MXXM';
+
+        $branch = (is_array($meta) && !empty($meta['branch'])) ? $meta['branch'] : 'main';
+
+        $root = dirname(dirname(__FILE__));
+
+        $dstDir = $root . '/' . $mod;
+
+
+
+        if (!class_exists('ZipArchive')) {{ $info['m'] = "服务器未开启 ZipArchive 扩展！"; exit(json_encode($info)); }}
+
+        if (!is_dir($dstDir))             {{ $info['m'] = "本地不存在 {$dstDir} 目录！"; exit(json_encode($info)); }}
+
+        if (!is_writable($dstDir))        {{ $info['m'] = "目录 {$dstDir} 不可写！"; exit(json_encode($info)); }}
+
+
+
+        $data = curl('https://codeload.github.com/' . $repo . '/zip/refs/heads/' . $branch);
+
+        if (!$data || strlen($data) < 100) {{ $info['m'] = "下载更新包失败，请检查服务器网络！"; exit(json_encode($info)); }}
+
+
+
+        $tmpZip = tempnam(sys_get_temp_dir(), 'algo_' . $mod . '_');
+
+        @file_put_contents($tmpZip, $data);
+
+        $zip = new ZipArchive();
+
+        if ($zip->open($tmpZip) !== true) {{ @unlink($tmpZip); $info['m'] = "更新包解压失败！"; exit(json_encode($info)); }}
+
+        $tmpDir = sys_get_temp_dir() . '/mxxm_algo_' . $mod . '_' . uniqid();
+
+        @mkdir($tmpDir, 0755, true);
+
+        $zip->extractTo($tmpDir);
+
+        $zip->close(); @unlink($tmpZip);
+
+
+
+        $dirs = glob($tmpDir . '/*', GLOB_ONLYDIR);
+
+        $srcRoot = !empty($dirs) ? $dirs[0] : $tmpDir;
+
+        $srcModDir = $srcRoot . '/' . $mod;
+
+        if (!is_dir($srcModDir)) {{ mxxm_rmdir($tmpDir); $info['m'] = "远端未找到 {$mod}/ 目录！"; exit(json_encode($info)); }}
+
+
+
+        $backups = [];
+
+        $userCfg = ['mx2' => ['config/sites.json', 'config/settings.json', 'config/mapping.json'], 'mx1' => []];
+
+        foreach (($userCfg[$mod] ?? []) as $rel) {{
+
+            $p = $dstDir . '/' . $rel;
+
+            if (file_exists($p)) {{
+
+                $bak = sys_get_temp_dir() . '/algo_' . $mod . '_bak_' . md5($rel) . '.json';
+
+                @copy($p, $bak);
+
+                $backups[$rel] = $bak;
+
+            }}
+
+        }}
+
+
+
+        mxxm_clean_dir($dstDir);
+
+        mxxm_copy_dir($srcModDir, $dstDir, array());
+
+
+
+        foreach ($backups as $rel => $bak) {{
+
+            $target = $dstDir . '/' . $rel;
+
+            @mkdir(dirname($target), 0755, true);
+
+            @copy($bak, $target);
+
+            @unlink($bak);
+
+        }}
+
+        mxxm_rmdir($tmpDir);
+
+
+
+        $newVer = '';
+
+        $nvFile = $dstDir . '/version.php';
+
+        if (file_exists($nvFile)) {{ $nv = @include $nvFile; if (is_array($nv) && !empty($nv['version'])) {{ $newVer = $nv['version']; }} }}
+
+
+
+        $info['success'] = 1; $info['icon'] = 6;
+
+        $info['module'] = $mod; $info['label'] = $label; $info['version'] = $newVer;
+
+        $info['m'] = "{$label} 更新成功！" . ($newVer ? "当前版本：{$newVer}" : "") . (empty($backups) ? '' : "，用户配置已保留");
+
+        exit(json_encode($info));
+
+
+
     //官替算法 算法1 (mx1) 参数设置
     case 'mx1_system':
         //算法目录（仅允许相对路径，禁止跳转上级或绝对路径）
@@ -819,6 +1056,19 @@ function mxxm_rmdir($dir) {
     }
     closedir($dh);
     return @rmdir($dir);
+}
+
+//算法独立更新：清空模块目录保留结构
+function mxxm_clean_dir($dir) {
+    if (!is_dir($dir)) { return; }
+    $dh = @opendir($dir);
+    if (!$dh) { return; }
+    while (($file = readdir($dh)) !== false) {
+        if ($file === '.' || $file === '..') { continue; }
+        $path = $dir . '/' . $file;
+        if (is_dir($path)) { mxxm_rmdir($path); } else { @unlink($path); }
+    }
+    closedir($dh);
 }
 
 /* ==================== 资源站设置（数据源：blog.ksdiy.cn/dh） ==================== */
