@@ -8,7 +8,8 @@
  * 参考 MXGJ 沫兮官替系统 admin.php 风格，简化为 sites / mapping / settings 三个 tab
  */
 
-require_once __DIR__ . '/bootstrap.php';
+error_reporting(E_ALL); ini_set("display_errors", "1"); ini_set("log_errors", "1");
+require_once __DIR__ . "/bootstrap.php";
 
 session_start();
 
