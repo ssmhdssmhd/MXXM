@@ -133,6 +133,43 @@ if ($ACTION === 'save_settings') {
     mx2_admin_save_ok('settings', '已保存全局设置');
 }
 
+// ---- test_site：单条资源站测试（前端 fetch 调）----
+if ($ACTION === 'test_site') {
+    header('Content-Type: application/json; charset=utf-8');
+    $title    = trim((string)($_POST['title']   ?? ''));
+    $episode  = max(1, (int)($_POST['episode']  ?? 1));
+    $template = trim((string)($_POST['template'] ?? ''));
+    if ($title === '' || $template === '') {
+        echo json_encode(['ok' => false, 'msg' => '请填写剧名和模板'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $timeout = (int)(mx2_settings()['timeout'] ?? 15);
+    // 临时 site 数组：用用户给的模板，走 SiteSearcher::search 一次
+    $site = [
+        'name'       => '测试站',
+        'template'   => $template,
+        'url'        => $template,
+        'method'     => 'get',
+        'parse'      => '',
+        'headers'    => '',
+        'post'       => '',
+        'proxy'      => '',
+        'role'       => 'primary',
+        'enabled'    => true,
+        'is_special' => false,
+    ];
+    // 用反射直接调 SiteSearcher::search
+    $res = SiteSearcher::search([$site], $title, $episode, $timeout);
+    echo json_encode([
+        'ok'    => (int)($res['code'] ?? 0) === 200 && !empty($res['url']),
+        'title' => $title,
+        'ep'    => $episode,
+        'result' => $res,
+        'time'   => round((microtime(true) - ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true))) * 1000, 1) . 'ms',
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
 /* ---------------- 渲染 ---------------- */
 
 renderDashboard();
@@ -252,6 +289,34 @@ function renderDashboard() {
             '<td><button type="button" class="btn btn-danger" onclick="this.closest(\'tr\').remove()">删除</button></td>';
         tbl.appendChild(tr); rowIndex++;
     }
+    function testSite(){
+        var title = document.getElementById('tt-title').value;
+        var ep    = document.getElementById('tt-ep').value;
+        var tpl   = document.getElementById('tt-tpl').value;
+        if(!title||!tpl){alert('请填写剧名和模板');return;}
+        var out=document.getElementById('tt-out');out.style.display='block';out.textContent='测试中...';
+        var fd=new FormData();
+        fd.append('action','test_site');
+        fd.append('title',title);
+        fd.append('episode',ep);
+        fd.append('template',tpl);
+        fetch('admin.php',{method:'POST',body:fd})
+            .then(function(r){return r.json();})
+            .then(function(d){
+                var ok = d.ok ? '✅ 命中' : '❌ 未命中';
+                var r = d.result || {};
+                out.textContent = ok + ' | 耗时 ' + (d.time||'?') + '\n'
+                    + 'code=' + (r.code||'-') + '  msg=' + (r.msg||'-') + '\n'
+                    + 'site=' + (r.site||'-') + '\n'
+                    + (r.url ? 'URL=' + r.url + '\n' : '')
+                    + '--- 完整返回 ---\n' + JSON.stringify(r,null,2);
+                out.style.color = d.ok ? '#4ade80' : '#fca5a5';
+            })
+            .catch(function(e){
+                out.textContent='请求失败：'+e;
+                out.style.color='#fca5a5';
+            });
+    }
     </script>
     </body></html>
     <?php exit;
@@ -364,6 +429,31 @@ function renderSites($sites) {
                 <button type="submit" class="btn btn-primary">💾 保存全部</button>
             </div>
         </form>
+
+        <h3 style="margin-top:32px">🧪 单条资源站测试</h3>
+        <div class="note" style="margin-bottom:14px">
+            填模板后点「测试」，后台会立刻调一次 <code>SiteSearcher::search</code>，看返回 <code>code/url/msg</code>，判断该模板能否正常搜到资源。
+        </div>
+        <div class="form-grid">
+            <div><label>剧名</label><input type="text" id="tt-title" placeholder="如 庆余年"></div>
+            <div><label>集数</label><input type="number" id="tt-ep" value="1" min="1"></div>
+            <div class="full">
+                <label>选择已有资源站（可选）</label>
+                <select id="tt-preset" onchange="if(this.value){document.getElementById('tt-tpl').value=this.value}">
+                    <option value="">-- 手动输入 / 选已有 --</option>
+                    <?php foreach ($sites as $si => $ss): ?>
+                        <?php if (!empty($ss['template'])): ?>
+                        <option value="<?= htmlspecialchars($ss['template']) ?>"><?= htmlspecialchars($ss['name'] ?? '未命名') ?> (<?= htmlspecialchars(mb_substr($ss['template'], 0, 50)) ?>...)</option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="full"><label>搜索模板（%u=剧名URL编码 / %s=剧名原样 / %p=集数）</label>
+                <input type="text" id="tt-tpl" placeholder="如 http://api.example.com/vod?wd=%u&ep=%p">
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="testSite()">🧪 测试该资源站</button>
+        <pre id="tt-out" style="display:none;margin-top:14px;background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:12px 14px;font-size:12px;color:#c4b5fd;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow:auto"></pre>
     </div>
     <?php
 }
@@ -530,9 +620,9 @@ nav{display:flex;flex-direction:column;padding:0 12px}
 .tbl tbody tr.row-disabled{opacity:0.5}
 .tbl .center{text-align:center}
 
-.site-special select,.site-special input[type=text]{width:100%;margin-bottom:4px}
-.site-special select{width:48%;margin-right:2%;display:inline-block}
-.site-special input{width:100%}
+.site-special{min-width:240px}
+.site-special select,.site-special input[type=text]{width:100%;margin-bottom:6px;display:block}
+.site-special select:last-of-type,.site-special input:last-of-type{margin-bottom:0}
 
 /* toggle switch */
 .toggle{position:relative;display:inline-block;width:36px;height:20px;cursor:pointer}
