@@ -476,40 +476,40 @@ switch ($type) {
         $info['m'] = "更新成功！" . ($newVer !== '' ? "当前版本：" . $newVer : "") . "，建议到「清理缓存」清除缓存后使用。";
         exit(json_encode($info));
 
-    //官替算法 参数设置
-    case 'sf_system':
+    //官替算法 算法1 (mx1) 参数设置
+    case 'mx1_system':
         //算法目录（仅允许相对路径，禁止跳转上级或绝对路径）
-        $sfdir = str_replace('\\', '/', trim((string)filter_input(INPUT_POST, 'SF_DIR')));
+        $sfdir = str_replace('\\', '/', trim((string)filter_input(INPUT_POST, 'MX1_DIR')));
         $sfdir = trim($sfdir, '/');
-        if ($sfdir === '' || strpos($sfdir, '..') !== false || strpos($sfdir, ':') !== false) { $sfdir = 'SF'; }
+        if ($sfdir === '' || strpos($sfdir, '..') !== false || strpos($sfdir, ':') !== false) { $sfdir = 'mx1'; }
 
         $sf = array(
             'ver'     => '0.1',
-            'off'     => (filter_input(INPUT_POST, 'SF_OFF') === '1') ? '0' : '1',
+            'off'     => (filter_input(INPUT_POST, 'MX1_OFF') === '1') ? '0' : '1',
             'dir'     => $sfdir,
-            'cms'     => trim((string)filter_input(INPUT_POST, 'SF_CMS')),
-            'form'    => trim((string)filter_input(INPUT_POST, 'SF_FORM')),
-            'dytype'  => trim((string)filter_input(INPUT_POST, 'SF_DYTYPE')),
-            'zytype'  => trim((string)filter_input(INPUT_POST, 'SF_ZYTYPE')),
-            'api'     => trim((string)filter_input(INPUT_POST, 'SF_API')),
-            'qggapi'  => trim((string)filter_input(INPUT_POST, 'SF_QGGAPI')),
-            'table'   => trim((string)filter_input(INPUT_POST, 'SF_TABLE')),
-            'db_host' => trim((string)filter_input(INPUT_POST, 'SF_DB_HOST')),
-            'db_user' => trim((string)filter_input(INPUT_POST, 'SF_DB_USER')),
-            'db_pass' => trim((string)filter_input(INPUT_POST, 'SF_DB_PASS')),
-            'db_name' => trim((string)filter_input(INPUT_POST, 'SF_DB_NAME')),
+            'cms'     => trim((string)filter_input(INPUT_POST, 'MX1_CMS')),
+            'form'    => trim((string)filter_input(INPUT_POST, 'MX1_FORM')),
+            'dytype'  => trim((string)filter_input(INPUT_POST, 'MX1_DYTYPE')),
+            'zytype'  => trim((string)filter_input(INPUT_POST, 'MX1_ZYTYPE')),
+            'api'     => trim((string)filter_input(INPUT_POST, 'MX1_API')),
+            'qggapi'  => trim((string)filter_input(INPUT_POST, 'MX1_QGGAPI')),
+            'table'   => trim((string)filter_input(INPUT_POST, 'MX1_TABLE')),
+            'db_host' => trim((string)filter_input(INPUT_POST, 'MX1_DB_HOST')),
+            'db_user' => trim((string)filter_input(INPUT_POST, 'MX1_DB_USER')),
+            'db_pass' => trim((string)filter_input(INPUT_POST, 'MX1_DB_PASS')),
+            'db_name' => trim((string)filter_input(INPUT_POST, 'MX1_DB_NAME')),
         );
         if ($sf['table'] === '') { $sf['table'] = 'mac_vod'; }
 
-        $sfile = dirname(__FILE__) . '/../save/sf.config.php';
-        $scontent = "<?php\n/**\n * 官替算法配置（由后台「官替算法」页面生成，请勿手动修改格式）\n * 算法版本：0.1\n */\nreturn " . var_export($sf, true) . ";\n";
+        $sfile = dirname(__FILE__) . '/../save/mx1.config.php';
+        $scontent = "<?php\n/**\n * 官替算法 算法1 (mx1) 配置（由后台「官替算法 → 算法1」页面生成，请勿手动修改格式）\n * 算法版本：0.1\n */\nreturn " . var_export($sf, true) . ";\n";
         if (@file_put_contents($sfile, $scontent) === false) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！')));
         }
 
         //算法目录同步：目录变更时把算法文件复制过去，免手动操作文件夹
-        if ($sfdir !== 'SF') {
-            $srcDir = dirname(__FILE__) . '/../SF';
+        if ($sfdir !== 'mx1') {
+            $srcDir = dirname(__FILE__) . '/../mx1';
             $dstDir = dirname(__FILE__) . '/../' . $sfdir;
             if (!is_dir($dstDir)) { @mkdir($dstDir, 0755, true); }
             if (is_dir($dstDir)) {
@@ -519,7 +519,76 @@ switch ($type) {
             }
         }
 
-        $info['m'] = "官替算法设置已保存";
+        $info['m'] = "官替算法 算法1 设置已保存";
+        break;
+
+    //官替算法 算法2 (mx2) 参数设置（基于 MXGJ 核心算法，JSON 配置）
+    case 'mx2_system':
+        $mx2Root = dirname(__FILE__) . '/../mx2';
+        $cfgDir  = $mx2Root . '/config';
+
+        // 1. 基本设置
+        $settings = array(
+            'off'            => (filter_input(INPUT_POST, 'MX2_OFF') === '1') ? '0' : '1',
+            'timeout'        => max(1, (int)filter_input(INPUT_POST, 'MX2_TIMEOUT')),
+            'cache_ttl'      => max(0, (int)filter_input(INPUT_POST, 'MX2_CACHE_TTL')),
+            'replace_domain' => trim((string)filter_input(INPUT_POST, 'MX2_REPLACE_DOMAIN')),
+            'site_control'   => array(
+                'search_interval'      => max(0, (int)filter_input(INPUT_POST, 'MX2_SEARCH_INTERVAL')),
+                'heartbeat_enable'     => filter_input(INPUT_POST, 'MX2_HEARTBEAT') === '1',
+                'heartbeat_interval'   => 300,
+                'heartbeat_timeout'    => 5,
+                'heartbeat_max_fail'   => 3,
+                'cooldown_seconds'     => 600,
+                'rotation_enable'      => false,
+                'rotation_interval'    => 300,
+                'max_sites_per_request'=> max(0, (int)filter_input(INPUT_POST, 'MX2_MAX_SITES')),
+            ),
+            'fallback' => array(
+                'enable'           => filter_input(INPUT_POST, 'MX2_FALLBACK') === '1',
+                'step2_retry_main' => true,
+            ),
+        );
+
+        if (@file_put_contents($cfgDir . '/settings.json', json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败：无法写入 mx2/config/settings.json，请检查目录权限！')));
+        }
+
+        // 2. 资源站列表（JSON 数组）
+        $sitesRaw = trim((string)filter_input(INPUT_POST, 'MX2_SITES'));
+        $sites = json_decode($sitesRaw, true);
+        if (!is_array($sites)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '资源站列表 JSON 格式错误，请检查！')));
+        }
+        if (@file_put_contents($cfgDir . '/sites.json', json_encode(array_values($sites), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败：无法写入 mx2/config/sites.json！')));
+        }
+
+        // 3. cid 映射表（每行 cid=剧名）
+        $cidRaw = trim((string)filter_input(INPUT_POST, 'MX2_CID_MAP'));
+        $cidMap = array();
+        foreach (preg_split('/\r\n|\r|\n/', $cidRaw) as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '=') === false) { continue; }
+            list($k, $v) = explode('=', $line, 2);
+            $k = trim($k); $v = trim($v);
+            if ($k !== '') { $cidMap[$k] = $v; }
+        }
+        // 保留原 mapping 结构，仅替换 cid 段
+        $mapping = json_decode(@file_get_contents($cfgDir . '/mapping.json'), true);
+        if (!is_array($mapping)) { $mapping = array('title' => array(), 'cid' => array(), 'episode' => array()); }
+        $mapping['cid'] = $cidMap;
+        if (@file_put_contents($cfgDir . '/mapping.json', json_encode($mapping, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败：无法写入 mx2/config/mapping.json！')));
+        }
+
+        // 清理搜索缓存，让新配置立即生效
+        $cacheDir = $mx2Root . '/data/cache';
+        if (is_dir($cacheDir)) {
+            foreach (glob($cacheDir . '/*.cache') ?: array() as $f) { @unlink($f); }
+        }
+
+        $info['m'] = "官替算法 算法2 设置已保存";
         break;
 
     //资源站设置 实时更新站点列表（数据源：blog.ksdiy.cn/dh，实时拉取 resources.json）

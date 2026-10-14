@@ -1,24 +1,24 @@
 <?php
 /**
- * 官替算法 v0.1 - 解析入口
- * 用法：域名/SF/?url=官方视频地址
- * 配置由后台「官替算法」页面管理（save/sf.config.php），无需修改本文件
+ * 官替算法 算法1 (mx1) - 解析入口
+ * 用法：域名/mx1/?url=官方视频地址
+ * 配置由后台「官替算法 → 算法1」页面管理（save/mx1.config.php），无需修改本文件
  */
 error_reporting(0);
 header('Content-Type: application/json;charset=utf-8');
 
 //读取后台配置
-$SF = @include dirname(__FILE__) . '/../save/sf.config.php';
-if (!is_array($SF)) { $SF = array(); }
-$SF += array('off' => '0', 'qggapi' => '', 'api' => '');
+$MX1 = @include dirname(__FILE__) . '/../save/mx1.config.php';
+if (!is_array($MX1)) { $MX1 = array(); }
+$MX1 += array('off' => '0', 'qggapi' => '', 'api' => '');
 
-if ($SF['off'] == '1') {
+if ($MX1['off'] == '1') {
     $player['code'] = 403;
     $player['msg'] = '官替算法已关闭';
     die(json_encode($player, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 }
 
-$qggapi = $SF['qggapi']; //去广告解析接口填写处。留空不启用
+$qggapi = $MX1['qggapi']; //去广告解析接口填写处。留空不启用
 
 $url = isset($_GET['url']) ? $_GET['url'] : '';
 if ($url == '') {
@@ -71,14 +71,14 @@ if (isset($json_data['code']) && $json_data['code'] == 200) {
         $player['url']  = $xc['url'];
         $player['link'] = $url;
         $player['name'] = $json_data['name'];
-        $player['from'] = '官替算法 v0.1';
+        $player['from'] = '官替算法 算法1 (mx1)';
         die(json_encode($player, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 }
 $player['code'] = 404;
 $player['msg']  = '解析失败';
 $player['link'] = $url;
-$player['from'] = '官替算法 v0.1';
+$player['from'] = '官替算法 算法1 (mx1)';
 die(json_encode($player, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
 #请求函数

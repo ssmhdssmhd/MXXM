@@ -1,7 +1,7 @@
 <?php
 /**
- * 官替算法 v0.1 - 数据库连接池
- * 连接参数由后台「官替算法」页面配置，保存在 save/sf.config.php，无需修改本文件
+ * 官替算法 算法1 (mx1) - 数据库连接池
+ * 连接参数由后台「官替算法 → 算法1」页面配置，保存在 save/mx1.config.php，无需修改本文件
  */
 
 class mysql {
@@ -14,12 +14,12 @@ class mysql {
 
     public function __construct() {
         //读取后台配置
-        $SF = @include dirname(__FILE__) . '/../save/sf.config.php';
-        if (!is_array($SF)) { $SF = array(); }
-        $this->servername = isset($SF['db_host']) ? $SF['db_host'] : 'localhost';
-        $this->username   = isset($SF['db_user']) ? $SF['db_user'] : 'root';
-        $this->password   = isset($SF['db_pass']) ? $SF['db_pass'] : '';
-        $this->dbname     = isset($SF['db_name']) ? $SF['db_name'] : 'root';
+        $MX1 = @include dirname(__FILE__) . '/../save/mx1.config.php';
+        if (!is_array($MX1)) { $MX1 = array(); }
+        $this->servername = isset($MX1['db_host']) ? $MX1['db_host'] : 'localhost';
+        $this->username   = isset($MX1['db_user']) ? $MX1['db_user'] : 'root';
+        $this->password   = isset($MX1['db_pass']) ? $MX1['db_pass'] : '';
+        $this->dbname     = isset($MX1['db_name']) ? $MX1['db_name'] : 'root';
         $this->initialize();
     }
 

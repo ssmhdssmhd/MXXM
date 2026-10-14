@@ -1,31 +1,31 @@
 <?php
 /**
- * 官替算法 v0.1 - 资源替换核心
+ * 官替算法 算法1 (mx1) - 资源替换核心
  * 用「资源站(自定义 CMS)」的地址替换官方平台地址
- * 配置由后台「官替算法」页面管理（save/sf.config.php），无需修改本文件
+ * 配置由后台「官替算法 → 算法1」页面管理（save/mx1.config.php），无需修改本文件
  */
 error_reporting(0);
 header('Content-Type: application/json; charset=utf-8');
 
 //读取后台配置
-$SF = @include dirname(__FILE__) . '/../save/sf.config.php';
-if (!is_array($SF)) { $SF = array(); }
-$SF += array(
+$MX1 = @include dirname(__FILE__) . '/../save/mx1.config.php';
+if (!is_array($MX1)) { $MX1 = array(); }
+$MX1 += array(
     'off' => '0', 'cms' => 'https://cmsv10.com', 'form' => 'jsm3u8',
     'dytype' => '1', 'zytype' => '5', 'api' => '', 'table' => 'mac_vod',
 );
 
-if ($SF['off'] == '1') {
+if ($MX1['off'] == '1') {
     echo json_encode(['code' => 403, 'msg' => '官替算法已关闭'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit();
 }
 
 /*配置表如下（可在后台修改）*/
-$cms    = $SF['cms'];       //你的cms地址，示例：https://cmsv10.com
-$form   = $SF['form'];      //需要代替播放器编码，用此播放器编码的数据替换官方的地址
-$api    = $SF['api'];       //代替资源需要解析的json接口，留空即可
-$dytype = $SF['dytype'];    //电影分类，用于识别电影集数为1集
-$zytype = $SF['zytype'];    //综艺分类，综艺集数乱需要排除综艺不走替换
+$cms    = $MX1['cms'];       //你的cms地址，示例：https://cmsv10.com
+$form   = $MX1['form'];      //需要代替播放器编码，用此播放器编码的数据替换官方的地址
+$api    = $MX1['api'];       //代替资源需要解析的json接口，留空即可
+$dytype = $MX1['dytype'];    //电影分类，用于识别电影集数为1集
+$zytype = $MX1['zytype'];    //综艺分类，综艺集数乱需要排除综艺不走替换
 
 require_once 'mysql.php';
 
@@ -77,7 +77,7 @@ if (file_exists($cacheFile)) {
     // 如果缓存文件不存在，进行数据库查询
     $conn = $mysql->getConnection();
     if ($conn) {
-        $table = $SF['table'];
+        $table = $MX1['table'];
         $sqlurl_safe = $conn->real_escape_string($sqlurl);
         $sql = "SELECT * FROM `$table` WHERE vod_play_url LIKE '%$sqlurl_safe%' ";
         $result = $conn->query($sql);
@@ -195,7 +195,7 @@ if (isset($json_data['code']) && $json_data['code'] == 200) {
             'type' => $videotype,
             'from' => $json_data['from'] . '‖' . $type_name,
             'name' => $videoname,
-            'source' => '官替算法 v0.1',
+            'source' => '官替算法 算法1 (mx1)',
         ];
     } else {
         $videodata = [

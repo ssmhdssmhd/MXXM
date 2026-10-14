@@ -1,7 +1,7 @@
 <?php
 /**
- * 官替算法 v0.1 - 缓存文件地址查询（调试用）
- * 用法：域名/SF/md5.php?url=视频地址
+ * 官替算法 算法1 (mx1) - 缓存文件地址查询（调试用）
+ * 用法：域名/mx1/md5.php?url=视频地址
  */
 header('Content-Type: application/json; charset=utf-8');
 $url = isset($_GET['url']) ? $_GET['url'] : '';

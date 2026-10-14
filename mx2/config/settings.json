@@ -1,0 +1,21 @@
+{
+    "off": "0",
+    "timeout": 15,
+    "cache_ttl": 600,
+    "replace_domain": "",
+    "site_control": {
+        "search_interval": 10,
+        "heartbeat_enable": false,
+        "heartbeat_interval": 300,
+        "heartbeat_timeout": 5,
+        "heartbeat_max_fail": 3,
+        "cooldown_seconds": 600,
+        "rotation_enable": false,
+        "rotation_interval": 300,
+        "max_sites_per_request": 0
+    },
+    "fallback": {
+        "enable": true,
+        "step2_retry_main": true
+    }
+}

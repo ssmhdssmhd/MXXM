@@ -6,6 +6,7 @@
 
 | 版本 | 日期时间 | 说明 |
 |------|----------|------|
+| v.0.0.15 | 2026-10-15 12:00 (202610151200) | **官替算法重构为双算法架构**：原「官替算法」更名为**算法1 (mx1)**（原数据库匹配法，目录 `SF/` → `mx1/`，配置 `save/sf.config.php` → `save/mx1.config.php`，后台页 `admin_sf.htm` → `admin_mx1.htm`）；新增**算法2 (mx2)**，移植自 `ssmhdssmhd/MXGJ` 沫兮官替系统核心算法（**无需数据库**：官方链接解析 → 映射表 → 页面抓取 → 多线程资源站搜索），目录 `mx2/`（`index.php` / `bootstrap.php` / `lib/{LinkParser,PageResolver,SiteSearcher,Cache,SiteHealth,Logger}.php` / `config/{settings,sites,mapping}.json`），调用方式与算法1一致：`域名/mx2/?url=官方视频地址`；后台「官替算法」侧边栏拆分为「算法1 (mx1)」「算法2 (mx2)」两个子菜单，分别管理各自配置 |
 | v.0.0.14 | 2026-10-14 06:58 (202610140658) | 后台侧边栏「系统设置」中**「云播设置」前面新增「资源站设置」**菜单（`admin/html/admin_ziyuan.htm`）：可设置资源站官网、采集接口、播放器编码、播放器 URL 等；支持**实时更新站点列表**（数据源 `https://blog.ksdiy.cn/dh/`，拉取 `resources.json`）、**单站/一键解析详情**（自动填入该站 m3u8 采集接口、从 `/from/xxx` 提取播放器编码、从详情页提取 `/play/?url=` 播放器地址）、启用开关、**一键同步到云播设置资源列表**（按接口地址去重，追加/覆盖可选）；数据存于 `save/ziyuan.config.php`，无需打开文件夹改任何文件 |
 | v.0.0.13 | 2026-10-14 06:30 (202610140630) | 补齐 `player/mpv/` 依赖：新增 `images/` 目录（pront / next / line / list），对应 `DPlayer.min.css` 引用的 4 个按钮图标；经 md5 校验，mpv 目录内 6 个 JS/CSS 库与 `player/dplayer/` 完全一致，现依赖已全部齐备 |
 | v.0.0.12 | 2026-10-14 06:27 (202610140627) | `player/mpv/` **播放器库本地化**：将 DPlayer 内核及 HLS / FLV / DASH / WebTorrent 解码库复制至 `player/mpv/` 目录内，页面不再依赖 `player/dplayer/`，可独立、离线运行 |
@@ -68,7 +69,8 @@ MXXM/
 │   ├── ckplayer|ckplayerx|dplayer|p2p-dplayer|h5|mpv
 │   ├── artplayer|videojs|muiplayer|plyr   # Artplayer/Video.js/MuiPlayer/Plyr
 │   └── aliplayer|tcplayer|xgplayer|nplayer|mediaelement  # 阿里/腾讯/西瓜/NPlayer/MediaElement
-├── SF/                    # 官替算法（资源站替换算法 v0.1）
+├── mx1/                   # 官替算法 算法1（数据库匹配法，原 SF/）
+├── mx2/                   # 官替算法 算法2（MXGJ 核心算法，无需数据库）
 ├── GZ/                    # 云播放规则库（GZ 规则，随仓库实时自动更新）
 ├── plus/                  # 插件（微信 / sea_parse / parse）
 ├── templets/              # 前台模板（byg / default）
@@ -133,18 +135,30 @@ MXXM/
 - 库文件全部**本地打包**（对应 `player/<名称>/` 内），无外链依赖，可离线运行
 - 新增播放器目录后，后台「播放器设置」下拉会自动出现，无需改代码
 
-## 🧩 官替算法 v0.1
+## 🧩 官替算法（双算法架构）
 
-将官方平台（VIP）地址替换为你的资源站（自定义 CMS）地址，免去手动寻找资源。
+将官方平台（VIP）地址替换为你的资源站地址，免去手动寻找资源。后台侧边栏「官替算法」下提供两套算法，调用方式一致：
 
-- **入口**：后台侧边栏「官替算法」→「算法设置」（`admin/html/admin_sf.htm`），位于「在线更新」上方
-- **算法目录**：仓库根目录 `SF/`（`index.php` 解析入口 / `ziyuan.php` 资源替换核心 / `mysql.php` 数据库连接池 / `md5.php` 调试图）
-- **调用方式**：`域名/SF/?url=官方视频地址`
-- **后台可配置**（保存后生成 `save/sf.config.php`，脚本自动读取，无需打开文件夹改文件）：
-  - 算法目录、启用开关
-  - CMS 地址、播放器编码、电影分类ID、综艺分类ID、解析接口、去广告接口
-  - 数据表、数据库地址 / 用户名 / 密码 / 库名
-- **目录自适应**：修改「算法目录」后，保存时后台会自动把算法文件复制到该目录，免手动操作文件夹
+### 算法1 (mx1) — 数据库匹配法
+
+- **入口**：后台「官替算法」→「算法1 (mx1)」（`admin/html/admin_mx1.htm`）
+- **算法目录**：仓库根目录 `mx1/`（`index.php` 解析入口 / `ziyuan.php` 资源替换核心 / `mysql.php` 数据库连接池 / `md5.php` 调试图）
+- **调用方式**：`域名/mx1/?url=官方视频地址`
+- **原理**：通过数据库匹配官方 URL 与 CMS `vod_play_url`，再从 CMS API 取真实播放地址
+- **后台可配置**（保存后生成 `save/mx1.config.php`）：算法目录、启用开关、CMS 地址、播放器编码、电影/综艺分类ID、解析接口、去广告接口、数据表、数据库连接
+- **目录自适应**：修改「算法目录」后，保存时后台自动把算法文件复制到该目录
+
+### 算法2 (mx2) — MXGJ 多线程搜索法（无需数据库）
+
+- **入口**：后台「官替算法」→「算法2 (mx2)」（`admin/html/admin_mx2.htm`）
+- **算法目录**：仓库根目录 `mx2/`（`index.php` / `bootstrap.php` / `lib/{LinkParser,PageResolver,SiteSearcher,Cache,SiteHealth,Logger}.php` / `config/{settings,sites,mapping}.json`）
+- **调用方式**：`域名/mx2/?url=官方视频地址`（支持腾讯/爱奇艺/优酷/芒果TV/哔哩哔哩/PPTV/搜狐）
+- **原理**（移植自 [MXGJ](https://github.com/ssmhdssmhd/MXGJ) 沫兮官替系统核心算法）：
+  1. 解析官方链接 → 平台 / vid / cid / 集数
+  2. 命中本地映射表（`config/mapping.json`）→ 剧名 + 集数
+  3. 映射未命中时自动抓取官方页面识别剧名+集数并固化映射
+  4. 多线程（curl_multi）并发搜索全部资源站，按集数提取 m3u8
+- **后台可配置**（保存到 `mx2/config/` 下的 JSON 文件）：启用开关、超时、缓存时长、域名替换、频率控制、平替池、资源站列表、cid 映射表
 
 ## 🎯 资源站设置（数据源：blog.ksdiy.cn/dh）
 

@@ -13,8 +13,11 @@ tmp/
 temp/
 
 # 官替算法运行时缓存
-SF/m3u8/
-SF/Cache/
+mx1/m3u8/
+mx1/Cache/
+mx2/data/cache/
+mx2/data/logs/
+mx2/data/site_health.json
 
 # 环境
 .env

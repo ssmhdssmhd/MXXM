@@ -1,0 +1,169 @@
+<?php
+include "block_header.htm";
+//读取官替算法 算法2 配置
+$mx2Root = dirname(__FILE__) . '/../../mx2';
+$settings = json_decode(@file_get_contents($mx2Root . '/config/settings.json'), true);
+if (!is_array($settings)) { $settings = array(); }
+$settings += array(
+    'off' => '0', 'timeout' => 15, 'cache_ttl' => 600, 'replace_domain' => '',
+    'site_control' => array('search_interval' => 10, 'heartbeat_enable' => false, 'max_sites_per_request' => 0),
+    'fallback' => array('enable' => true, 'step2_retry_main' => true),
+);
+$sites = json_decode(@file_get_contents($mx2Root . '/config/sites.json'), true);
+if (!is_array($sites)) { $sites = array(); }
+$mapping = json_decode(@file_get_contents($mx2Root . '/config/mapping.json'), true);
+if (!is_array($mapping)) { $mapping = array('title' => array(), 'cid' => array(), 'episode' => array()); }
+$sc = $settings['site_control'];
+$fb = $settings['fallback'];
+?>
+    <body>
+        <div class="x-nav">
+            <span class="layui-breadcrumb">
+                <a><cite>首页</cite></a>
+                <a><cite>官替算法</cite></a>
+                <a><cite>算法2 (mx2)</cite></a>
+            </span>
+            <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+        </div>
+        <div class="x-body">
+
+            <blockquote class="layui-elem-quote layui-quote-nm">
+                <h2>官替算法 算法2 (mx2)</h2><br>
+                来源：<b>MXGJ 沫兮官替系统</b>核心算法 —— 官方链接解析 → 映射表 → 多线程资源站搜索，<b>无需数据库</b>。<br>
+                调用方式：<b>域名/mx2/?url=官方视频地址</b>（支持腾讯/爱奇艺/优酷/芒果TV/哔哩哔哩/PPTV/搜狐）<br>
+                配置文件位于 <code>mx2/config/</code>（settings.json / sites.json / mapping.json），本页可视化管理。
+            </blockquote>
+
+            <form class="layui-form layui-form-pane" action="">
+
+                <fieldset class="layui-elem-field layui-field-title">
+                    <legend>基本设置</legend>
+                </fieldset>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">启用状态</label>
+                    <div class="layui-input-inline">
+                        <input type="checkbox" name="MX2_OFF" value="1" lay-skin="switch" lay-text="启用|关闭" <?php if ($settings['off'] != '1') { echo 'checked'; } ?>>
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">关闭后算法接口将拒绝服务</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">请求超时(秒)</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="MX2_TIMEOUT" autocomplete="off" value="<?php echo htmlspecialchars($settings['timeout']); ?>" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">缓存时长(秒)</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="MX2_CACHE_TTL" autocomplete="off" value="<?php echo htmlspecialchars($settings['cache_ttl']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">搜索结果缓存时间，0=关闭</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">域名替换</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="MX2_REPLACE_DOMAIN" autocomplete="off" value="<?php echo htmlspecialchars($settings['replace_domain']); ?>" class="layui-input" placeholder="留空直接返回资源站地址；如 https://your-proxy.com/m3u8/">
+                    </div>
+                </div>
+
+                <fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+                    <legend>频率控制</legend>
+                </fieldset>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">搜索间隔(秒)</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="MX2_SEARCH_INTERVAL" autocomplete="off" value="<?php echo htmlspecialchars($sc['search_interval']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">同一资源站两次搜索最短间隔</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">最大并发站数</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="MX2_MAX_SITES" autocomplete="off" value="<?php echo htmlspecialchars($sc['max_sites_per_request']); ?>" class="layui-input">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">每次最多并发请求几个站，0=不限</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">启用心跳</label>
+                    <div class="layui-input-inline">
+                        <input type="checkbox" name="MX2_HEARTBEAT" value="1" lay-skin="switch" lay-text="开启|关闭" <?php if (!empty($sc['heartbeat_enable'])) { echo 'checked'; } ?>>
+                    </div>
+                </div>
+
+                <fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+                    <legend>平替池</legend>
+                </fieldset>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">启用平替</label>
+                    <div class="layui-input-inline">
+                        <input type="checkbox" name="MX2_FALLBACK" value="1" lay-skin="switch" lay-text="开启|关闭" <?php if (!empty($fb['enable'])) { echo 'checked'; } ?>>
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">主池未命中时自动降级到平替资源站</div>
+                </div>
+
+                <fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+                    <legend>资源站列表</legend>
+                </fieldset>
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <textarea name="MX2_SITES" class="layui-textarea" style="min-height:200px;font-family:monospace;font-size:12px;" placeholder='JSON 数组，例：[{"name":"站点名","template":"https://xxx/api.php?ac=videolist&wd=%u","role":"primary","parser":"apple","enabled":true}]'><?php echo htmlspecialchars(json_encode($sites, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></textarea>
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">
+                        模板占位符：%s=剧名 %u=剧名(URL编码) %p=集数；role=primary(主池)/fallback(平替)；parser=apple/json/text
+                    </div>
+                </div>
+
+                <fieldset class="layui-elem-field layui-field-title" style="margin-top:20px;">
+                    <legend>映射表（cid → 剧名）</legend>
+                </fieldset>
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <textarea name="MX2_CID_MAP" class="layui-textarea" style="min-height:150px;font-family:monospace;font-size:12px;" placeholder='每行一条：cid=剧名'><?php
+                            $cidLines = array();
+                            foreach (($mapping['cid'] ?? array()) as $k => $v) {
+                                $cidLines[] = $k . '=' . $v;
+                            }
+                            echo htmlspecialchars(implode("\n", $cidLines));
+                        ?></textarea>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <button class="layui-btn" lay-submit="" lay-filter="*">
+                        保存
+                    </button>
+                    <button type="button" class="layui-btn layui-btn-primary" onclick="location.reload()">重置</button>
+                </div>
+            </form>
+
+        </div>
+
+        <script>
+            layui.use(['form', 'layer'], function () {
+                $ = layui.jquery;
+                var form = layui.form, layer = layui.layer;
+
+                form.on('submit(*)', function (data) {
+                    data.field.type = "mx2_system";
+                    if (!data.field.MX2_OFF) { data.field.MX2_OFF = "0"; }
+                    if (!data.field.MX2_HEARTBEAT) { data.field.MX2_HEARTBEAT = "0"; }
+                    if (!data.field.MX2_FALLBACK) { data.field.MX2_FALLBACK = "0"; }
+                    x_admin_post("admin.php", data.field);
+                    return false;
+                });
+            });
+        </script>
+
+    </body>
+
+</html>
