@@ -175,8 +175,7 @@ function mx2_b64url_decode(string $s): string
     return $dec === false ? '' : $dec;
 }
 
-function mx2_json_out(array $data, int $status = 200): void
-{
+function mx2_json_out(array $data, int $status = 200){
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     $callback = isset($_GET['callback']) ? preg_replace('/[^A-Za-z0-9_.]/', '', $_GET['callback']) : '';
@@ -189,8 +188,7 @@ function mx2_json_out(array $data, int $status = 200): void
     exit;
 }
 
-function mx2_apply_proxy($ch, string $url): void
-{
+function mx2_apply_proxy($ch, string $url){
     $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
     $host   = strtolower((string)parse_url($url, PHP_URL_HOST));
 
@@ -318,7 +316,7 @@ function mx2_admin_is_ajax(): bool {
         && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
 }
 
-function mx2_admin_save_ok(string $tab, string $msg = '已保存'): never {
+function mx2_admin_save_ok(string $tab, string $msg = '已保存') {
     mx2_purge_cache();
     if (mx2_admin_is_ajax()) {
         header('Content-Type: application/json; charset=utf-8');
@@ -329,7 +327,7 @@ function mx2_admin_save_ok(string $tab, string $msg = '已保存'): never {
     exit;
 }
 
-function mx2_admin_save_fail(string $file, string $hint = ''): never {
+function mx2_admin_save_fail(string $file, string $hint = '') {
     $envOk = is_dir(MX2_CONFIG) && is_writable(MX2_CONFIG);
     $hint = $hint !== '' ? $hint : (
         $envOk ? "写入文件失败：" . $file . "（磁盘空间 / 目录权限）"
@@ -349,7 +347,7 @@ function mx2_admin_save_fail(string $file, string $hint = ''): never {
 }
 
 /** 清理运行时缓存：搜索缓存、站点健康 */
-function mx2_purge_cache(): void {
+function mx2_purge_cache() {
     $cacheDir = MX2_CACHE;
     if (is_dir($cacheDir)) {
         foreach (glob($cacheDir . '/*.cache') ?: array() as $f) { @unlink($f); }

@@ -34,8 +34,7 @@ class Logger
         return isset(self::TYPES[$type]) ? $type : 'error';
     }
 
-    public static function log(string $type, string $msg, string $level = 'info', array $extra = []): void
-    {
+    public static function log(string $type, string $msg, string $level = 'info', array $extra = [])    {
         $type = self::sanitize($type);
         $file = self::file($type);
 

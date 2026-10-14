@@ -26,8 +26,7 @@ class SiteHealth
         return $s;
     }
 
-    protected static function save(array $state): void
-    {
+    protected static function save(array $state)    {
         @mkdir(MX2_DATA, 0755, true);
         mx2_write_json(self::file(), $state);
     }
@@ -112,8 +111,7 @@ class SiteHealth
         return $pool;
     }
 
-    public static function record(bool $ok, string $key, int $ms = 0): void
-    {
+    public static function record(bool $ok, string $key, int $ms = 0)    {
         $state = self::state();
         $ctl   = self::control();
         $h     = $state['sites'][$key] ?? self::defaultHealth();
@@ -177,14 +175,12 @@ class SiteHealth
         return ['ok' => true, 'rows' => $rows, 'at' => date('Y-m-d H:i:s'), 'msg' => '心跳检测完成'];
     }
 
-    public static function reset(): void
-    {
+    public static function reset()    {
         $state = ['last_heartbeat' => 0, 'sites' => []];
         self::save($state);
     }
 
-    protected static function heartbeatIfDue(array $sites, array $ctl): void
-    {
+    protected static function heartbeatIfDue(array $sites, array $ctl)    {
         $state = self::state();
         $now   = time();
         if ($now - (int)$state['last_heartbeat'] < (int)$ctl['heartbeat_interval']) {
