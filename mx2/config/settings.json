@@ -17,5 +17,6 @@
     "fallback": {
         "enable": true,
         "step2_retry_main": true
-    }
+    },
+    "admin_password": "moxi123"
 }

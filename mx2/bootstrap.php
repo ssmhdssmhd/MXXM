@@ -308,3 +308,65 @@ function mx2_auto_mapping(array $parsed, string $name, int $episode): bool
 
     return false;
 }
+
+/* ---------------------------------------------------------------------------
+ * 后台管理辅助（mx2/admin.php 使用）
+ * ------------------------------------------------------------------------- */
+
+function mx2_admin_is_ajax(): bool {
+    return !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+        && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+}
+
+function mx2_admin_save_ok(string $tab, string $msg = '已保存'): never {
+    mx2_purge_cache();
+    if (mx2_admin_is_ajax()) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => true, 'msg' => $msg], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    header('Location: admin.php?tab=' . urlencode($tab) . '&saved=1');
+    exit;
+}
+
+function mx2_admin_save_fail(string $file, string $hint = ''): never {
+    $envOk = is_dir(MX2_CONFIG) && is_writable(MX2_CONFIG);
+    $hint = $hint !== '' ? $hint : (
+        $envOk ? "写入文件失败：" . $file . "（磁盘空间 / 目录权限）"
+               : MX2_CONFIG . " 目录不可写，请 chmod 777 " . MX2_CONFIG
+    );
+    http_response_code(500);
+    echo '<!doctype html><html><head><meta charset="utf-8"><title>保存失败</title>';
+    echo '<style>body{font-family:-apple-system,Segoe UI,sans-serif;background:#fef2f2;color:#7f1d1d;padding:40px;line-height:1.7}';
+    echo '.box{max-width:640px;margin:40px auto;background:#fff;border:1px solid #fecaca;border-radius:12px;padding:28px}';
+    echo 'h1{color:#b91c1c;margin-top:0;font-size:18px}code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:12px}</style></head><body>';
+    echo '<div class="box"><h1>🚨 保存失败</h1>';
+    echo '<p><strong>' . htmlspecialchars($hint) . '</strong></p>';
+    echo '<p>目标文件：<code>' . htmlspecialchars($file) . '</code></p>';
+    echo '<p style="font-size:12px;color:#94a3b8;margin-top:12px">检查 <code>' . MX2_DATA . '/logs/</code> 可以看到详细日志</p>';
+    echo '<p><a href="javascript:history.back()" style="color:#4f7cff;text-decoration:none">← 返回上一页</a></p></div></body></html>';
+    exit;
+}
+
+/** 清理运行时缓存：搜索缓存、站点健康 */
+function mx2_purge_cache(): void {
+    $cacheDir = MX2_CACHE;
+    if (is_dir($cacheDir)) {
+        foreach (glob($cacheDir . '/*.cache') ?: array() as $f) { @unlink($f); }
+        foreach (glob($cacheDir . '/*') ?: array() as $f) { if (is_file($f)) @unlink($f); }
+    }
+    $health = MX2_DATA . '/site_health.json';
+    if (is_file($health)) { @unlink($health); }
+}
+
+/** settings.json 加 admin_password 字段默认值 */
+function mx2_admin_password(): string {
+    $st = mx2_settings();
+    if (!empty($st['admin_password'])) {
+        return (string)$st['admin_password'];
+    }
+    // 首次访问自动补默认密码 moxi123 到 settings.json
+    $st['admin_password'] = 'moxi123';
+    mx2_write_json(MX2_CONFIG . '/settings.json', $st);
+    return 'moxi123';
+}

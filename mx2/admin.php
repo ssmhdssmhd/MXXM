@@ -1,0 +1,562 @@
+<?php
+/**
+ * 官替算法 算法2 (mx2) - 资源站管理后台
+ *
+ * 独立后台，URL 形如：域名/mx2/admin.php?tab=sites
+ * 登录密码默认 moxi123（存在 mx2/config/settings.json 的 admin_password 字段）
+ *
+ * 参考 MXGJ 沫兮官替系统 admin.php 风格，简化为 sites / mapping / settings 三个 tab
+ */
+
+require_once __DIR__ . '/bootstrap.php';
+
+session_start();
+
+$ACTION = $_POST['action'] ?? ($_GET['action'] ?? '');
+$TAB    = $_GET['tab'] ?? 'sites';
+$SAVED  = isset($_GET['saved']) ? 1 : 0;
+$ERROR  = $_GET['error'] ?? '';
+
+function isLoggedIn(): bool {
+    return !empty($_SESSION['mx2_admin']);
+}
+
+/* ---------------- ACTION ---------------- */
+
+if ($ACTION === 'login') {
+    $pwd = $_POST['password'] ?? '';
+    if ($pwd !== '' && $pwd === mx2_admin_password()) {
+        $_SESSION['mx2_admin'] = true;
+        Logger::log('login', '后台登录成功', 'success', ['ip' => $_SERVER['REMOTE_ADDR'] ?? '']);
+        header('Location: admin.php');
+        exit;
+    }
+    Logger::log('login', '后台登录失败（密码错误）', 'error', ['ip' => $_SERVER['REMOTE_ADDR'] ?? '']);
+    echo '<script>alert("密码错误");location.href="admin.php";</script>';
+    exit;
+}
+
+if ($ACTION === 'logout') {
+    $_SESSION = [];
+    session_destroy();
+    header('Location: admin.php');
+    exit;
+}
+
+if (!isLoggedIn()) {
+    renderLogin();
+    exit;
+}
+
+// ---- save_sites ----
+if ($ACTION === 'save_sites') {
+    $list  = isset($_POST['sites']) && is_array($_POST['sites']) ? array_values($_POST['sites']) : [];
+    $clean = [];
+    foreach ($list as $s) {
+        $name = trim($s['name'] ?? '');
+        $url  = trim($s['template'] ?? ($s['url'] ?? ''));
+        if ($name === '' || $url === '') continue;
+        $method = strtolower(trim($s['method'] ?? ''));
+        if (!in_array($method, ['post'], true)) $method = 'get';
+        $parse  = strtolower(trim($s['parse'] ?? ''));
+        if (!in_array($parse, ['json', 'text', 'apple'], true)) $parse = '';
+        $role   = strtolower(trim($s['role'] ?? 'primary'));
+        if (!in_array($role, ['primary', 'fallback'], true)) $role = 'primary';
+        $clean[] = [
+            'name'       => $name,
+            'url'        => $url,
+            'template'   => $url,
+            'proxy'      => trim($s['proxy'] ?? ''),
+            'enabled'    => array_key_exists('enabled', $s) ? !empty($s['enabled']) : true,
+            'is_special' => array_key_exists('is_special', $s) ? !empty($s['is_special']) : false,
+            'role'       => $role,
+            'method'     => $method,
+            'headers'    => trim($s['headers'] ?? ''),
+            'post'       => trim($s['post'] ?? ''),
+            'parse'      => $parse,
+        ];
+    }
+    if (!mx2_write_json(MX2_CONFIG . '/sites.json', $clean)) {
+        mx2_admin_save_fail(MX2_CONFIG . '/sites.json');
+    }
+    Logger::log('operation', '保存资源站列表（共 ' . count($clean) . ' 个）', 'success');
+    mx2_admin_save_ok('sites', '已保存 ' . count($clean) . ' 个资源站');
+}
+
+// ---- save_mapping ----
+if ($ACTION === 'save_mapping') {
+    $oldMap = mx2_mapping_data();
+    $mapping = ['title' => [], 'cid' => [], 'episode' => []];
+    if (!empty($oldMap['stock']))    $mapping['stock']    = $oldMap['stock'];
+    if (!empty($oldMap['disabled'])) $mapping['disabled'] = $oldMap['disabled'];
+
+    $titles  = $_POST['map_title']  ?? [];
+    $targets = $_POST['map_target'] ?? [];
+    if (is_array($titles)) {
+        foreach ($titles as $i => $t) {
+            $t  = trim($t ?? '');
+            $ta = trim($targets[$i] ?? '');
+            if ($t === '' || $ta === '') continue;
+            $mapping['title'][$t] = $ta;
+        }
+    }
+    $cids   = $_POST['map_cid']       ?? [];
+    $ctargs = $_POST['map_cid_target'] ?? [];
+    if (is_array($cids)) {
+        foreach ($cids as $i => $c) {
+            $c  = trim($c ?? '');
+            $ct = trim($ctargs[$i] ?? '');
+            if ($c === '' || $ct === '') continue;
+            $mapping['cid'][$c] = $ct;
+        }
+    }
+    if (!mx2_write_json(MX2_CONFIG . '/mapping.json', $mapping)) {
+        mx2_admin_save_fail(MX2_CONFIG . '/mapping.json');
+    }
+    Logger::log('operation', '保存映射表（title ' . count($mapping['title']) . ' / cid ' . count($mapping['cid']) . '）', 'success');
+    mx2_admin_save_ok('mapping', '已保存映射表');
+}
+
+// ---- save_settings ----
+if ($ACTION === 'save_settings') {
+    $st = mx2_settings();
+    $pwd = trim($_POST['admin_password'] ?? '');
+    if ($pwd !== '') { $st['admin_password'] = $pwd; }
+    $st['off']       = (!empty($_POST['off'])) ? '1' : '0';
+    $st['timeout']   = max(1, (int)($_POST['timeout']   ?? 15));
+    $st['cache_ttl'] = max(0, (int)($_POST['cache_ttl'] ?? 600));
+    $st['replace_domain'] = trim($_POST['replace_domain'] ?? '');
+    if (!mx2_write_json(MX2_CONFIG . '/settings.json', $st)) {
+        mx2_admin_save_fail(MX2_CONFIG . '/settings.json');
+    }
+    Logger::log('operation', '保存算法2 全局设置', 'success');
+    mx2_admin_save_ok('settings', '已保存全局设置');
+}
+
+/* ---------------- 渲染 ---------------- */
+
+renderDashboard();
+
+/* ============ 函数定义 ============ */
+
+function renderLogin() {
+    $cur = $_SERVER['REQUEST_URI'] ?? '';
+    ?>
+    <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+    <title>算法2 资源站管理后台 - 登录</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#e2e8f0}
+        .box{width:380px;background:rgba(15,23,42,0.7);backdrop-filter:blur(20px);border:1px solid rgba(99,102,241,0.3);border-radius:16px;padding:40px 32px;box-shadow:0 20px 60px rgba(0,0,0,0.4)}
+        h1{font-size:20px;margin-bottom:8px;background:linear-gradient(135deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;background-clip:text;color:transparent}
+        p.sub{font-size:12px;color:#64748b;margin-bottom:28px}
+        label{display:block;font-size:12px;color:#94a3b8;margin-bottom:8px}
+        input[type=password]{width:100%;padding:12px 14px;background:rgba(30,41,59,0.8);border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;transition:border-color 0.2s}
+        input[type=password]:focus{border-color:#6366f1}
+        button{width:100%;margin-top:20px;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:transform 0.15s,box-shadow 0.2s;box-shadow:0 4px 14px rgba(99,102,241,0.3)}
+        button:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,0.5)}
+        .tip{margin-top:18px;font-size:11px;color:#475569;text-align:center}
+    </style></head><body>
+    <div class="box">
+        <h1>🔐 官替算法 算法2 (mx2)</h1>
+        <p class="sub">资源站管理后台 · 默认密码 <code style="color:#a5b4fc">moxi123</code></p>
+        <form method="post">
+            <input type="hidden" name="action" value="login">
+            <label>登录密码</label>
+            <input type="password" name="password" autofocus placeholder="输入管理密码">
+            <button type="submit">登 录</button>
+        </form>
+        <div class="tip">首次访问请使用默认密码，登录后到「设置」页修改</div>
+    </div></body></html>
+    <?php exit;
+}
+
+function renderDashboard() {
+    global $TAB, $SAVED, $ERROR;
+
+    $sites   = mx2_sites();
+    $mapping = mx2_mapping_data();
+    $st      = mx2_settings();
+
+    $tabs = [
+        'sites'    => '🛰️ 资源站列表',
+        'mapping'  => '🗺️ 剧名 / cid 映射',
+        'settings' => '⚙️ 全局设置',
+        'logout'   => '🚪 退出',
+    ];
+    ?>
+    <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+    <title>算法2 (mx2) 资源站管理后台</title>
+    <?php mx2_admin_css(); ?>
+    </head><body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo">MX2</div>
+                <div class="brand-title">官替算法</div>
+                <div class="brand-sub">算法2 · MXGJ 移植</div>
+            </div>
+            <nav>
+                <?php foreach ($tabs as $k => $label): ?>
+                    <?php if ($k === 'logout'): ?>
+                        <a href="admin.php?action=logout" class="nav-item nav-logout">🚪 退出登录</a>
+                    <?php else: ?>
+                        <a href="admin.php?tab=<?= $k ?>" class="nav-item <?= $TAB === $k ? 'active' : '' ?>"><?= $label ?></a>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </nav>
+            <div class="links">
+                <a href="../../" target="_blank">← 主后台</a>
+                <span class="sep">|</span>
+                <a href="../" target="_blank">站点根</a>
+            </div>
+        </aside>
+
+        <main class="main">
+            <?php if ($SAVED): ?>
+                <div class="flash flash-ok">✅ 已保存并清理缓存</div>
+            <?php endif; ?>
+            <?php if ($ERROR !== ''): ?>
+                <div class="flash flash-err">⚠️ <?= htmlspecialchars($ERROR) ?></div>
+            <?php endif; ?>
+
+            <?php
+            switch ($TAB) {
+                case 'mapping':  renderMapping($mapping); break;
+                case 'settings': renderSettings($st); break;
+                case 'sites':
+                default:         renderSites($sites); break;
+            }
+            ?>
+        </main>
+    </div>
+    <script>
+    var rowIndex = <?= count($sites) ?>;
+    function addRow(){
+        var tbl = document.getElementById('site-tbl');
+        if(!tbl) return;
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><input type="text" name="sites['+rowIndex+'][name]" placeholder="站点"></td>'+
+            '<td><input type="text" name="sites['+rowIndex+'][template]" placeholder="http://api.example.com/vod?wd=%u&ep=%p" onclick="this.select()"></td>'+
+            '<td><input type="text" name="sites['+rowIndex+'][proxy]" placeholder="如 https://vv00.xyz?url="></td>'+
+            '<td class="site-special">'+
+                '<select name="sites['+rowIndex+'][method]"><option value="get" selected>GET</option><option value="post">POST</option></select>'+
+                '<select name="sites['+rowIndex+'][parse]"><option value="">自动</option><option value="json">JSON</option><option value="text">纯文本</option><option value="apple">苹果CMS</option></select>'+
+                '<input type="text" name="sites['+rowIndex+'][headers]" placeholder="自定义Header（每行 Key: Value）">'+
+                '<input type="text" name="sites['+rowIndex+'][post]" placeholder="POST体（如 wd=%u&ep=%p）">'+
+            '</td>'+
+            '<td><select name="sites['+rowIndex+'][role]"><option value="primary" selected>主用</option><option value="fallback">平替</option></select></td>'+
+            '<td class="center"><label class="toggle"><input type="checkbox" name="sites['+rowIndex+'][is_special]" value="1"><span class="slider"></span></label></td>'+
+            '<td class="center"><label class="toggle"><input type="checkbox" checked disabled><span class="slider"></span></label></td>'+
+            '<td><button type="button" class="btn btn-danger" onclick="this.closest(\'tr\').remove()">删除</button></td>';
+        tbl.appendChild(tr); rowIndex++;
+    }
+    </script>
+    </body></html>
+    <?php exit;
+}
+
+/* ---- tab=sites ---- */
+function renderSites($sites) {
+    ?>
+    <div class="panel">
+        <h2>🛰️ 资源站列表</h2>
+        <div class="note">
+            <b>模板占位符</b>：<code>%s</code>=剧名（原样）、<code>%u</code>/<code>%t</code>=剧名（URL编码）、<code>%p</code>=集数<br>
+            <b>示例 JSON 源</b>：<code>http://api.example.com/vod?wd=%u&ep=%p</code>
+            <b>示例列表页</b>：<code>http://your.site/search?wd=%s&page=%p</code><br>
+            <b>跟随播放链接</b>（中转前缀）：仅该站命中时拼接，如 <code>https://vv00.xyz?url=</code> → 返回 <code>https://vv00.xyz?url=真实地址</code>。留空直接返回原地址。<br>
+            <b>特殊调用</b>：资源站要求 POST / 自定义 Header / 特殊返回格式时启用。默认 GET + 自动识别解析。
+        </div>
+
+        <form method="post" id="form-sites">
+            <input type="hidden" name="action" value="save_sites">
+            <div class="toolbar">
+                <span class="status">
+                    <span class="dot"></span>
+                    <span>共 <b><?= count($sites) ?></b> 个资源站</span>
+                </span>
+                <div>
+                    <button type="button" class="btn btn-green" onclick="addRow()">➕ 添加资源站</button>
+                    <button type="submit" class="btn btn-primary">💾 立即保存</button>
+                </div>
+            </div>
+
+            <table id="site-tbl" class="tbl">
+                <thead>
+                    <tr>
+                        <th style="width:110px">站点名称</th>
+                        <th>搜索地址模板</th>
+                        <th style="width:200px">跟随播放</th>
+                        <th style="width:240px">方法 · 解析</th>
+                        <th style="width:90px">角色</th>
+                        <th style="width:70px">特殊站</th>
+                        <th style="width:60px">启用</th>
+                        <th style="width:100px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if ($sites): foreach ($sites as $i => $s): ?>
+                    <?php
+                        $enabled  = array_key_exists('enabled', $s) ? !empty($s['enabled']) : true;
+                        $method   = strtolower(trim($s['method'] ?? ''));
+                        $parse    = strtolower(trim($s['parse'] ?? ''));
+                        $special  = !empty($s['is_special']);
+                        $role     = strtolower(trim($s['role'] ?? 'primary'));
+                    ?>
+                    <tr class="<?= $enabled ? '' : 'row-disabled' ?>">
+                        <td><input type="text" name="sites[<?= $i ?>][name]" value="<?= htmlspecialchars($s['name']) ?>" required></td>
+                        <td><input type="text" name="sites[<?= $i ?>][template]" value="<?= htmlspecialchars($s['template']) ?>" onclick="this.select()" required></td>
+                        <td><input type="text" name="sites[<?= $i ?>][proxy]" value="<?= htmlspecialchars($s['proxy'] ?? '') ?>" placeholder="如 https://vv00.xyz?url="></td>
+                        <td class="site-special">
+                            <select name="sites[<?= $i ?>][method]">
+                                <option value="get"  <?= $method !== 'post' ? 'selected' : '' ?>>GET</option>
+                                <option value="post" <?= $method === 'post'  ? 'selected' : '' ?>>POST</option>
+                            </select>
+                            <select name="sites[<?= $i ?>][parse]">
+                                <option value=""      <?= $parse === ''       ? 'selected' : '' ?>>自动</option>
+                                <option value="json"  <?= $parse === 'json'   ? 'selected' : '' ?>>JSON</option>
+                                <option value="text"  <?= $parse === 'text'   ? 'selected' : '' ?>>纯文本</option>
+                                <option value="apple" <?= $parse === 'apple'  ? 'selected' : '' ?>>苹果CMS</option>
+                            </select>
+                            <input type="text" name="sites[<?= $i ?>][headers]" value="<?= htmlspecialchars($s['headers'] ?? '') ?>" placeholder="自定义Header（每行 Key: Value）">
+                            <input type="text" name="sites[<?= $i ?>][post]"     value="<?= htmlspecialchars($s['post'] ?? '') ?>"     placeholder="POST体（如 wd=%u&ep=%p）">
+                        </td>
+                        <td>
+                            <select name="sites[<?= $i ?>][role]">
+                                <option value="primary" <?= $role !== 'fallback' ? 'selected' : '' ?>>主用</option>
+                                <option value="fallback"<?= $role === 'fallback' ? 'selected' : '' ?>>平替</option>
+                            </select>
+                        </td>
+                        <td class="center">
+                            <label class="toggle"><input type="checkbox" name="sites[<?= $i ?>][is_special]" value="1" <?= $special ? 'checked' : '' ?>><span class="slider"></span></label>
+                        </td>
+                        <td class="center">
+                            <label class="toggle"><input type="checkbox" name="sites[<?= $i ?>][enabled]" value="1" <?= $enabled ? 'checked' : '' ?>><span class="slider"></span></label>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">删除</button>
+                        </td>
+                    </tr>
+                <?php endforeach; else: ?>
+                    <tr>
+                        <td><input type="text" name="sites[0][name]" placeholder="站点A"></td>
+                        <td><input type="text" name="sites[0][template]" placeholder="http://api.example.com/vod?wd=%u&ep=%p"></td>
+                        <td><input type="text" name="sites[0][proxy]" placeholder="如 https://vv00.xyz?url="></td>
+                        <td class="site-special">
+                            <select name="sites[0][method]"><option value="get" selected>GET</option><option value="post">POST</option></select>
+                            <select name="sites[0][parse]"><option value="">自动</option><option value="json">JSON</option><option value="text">纯文本</option><option value="apple">苹果CMS</option></select>
+                            <input type="text" name="sites[0][headers]" placeholder="自定义Header">
+                            <input type="text" name="sites[0][post]" placeholder="POST体">
+                        </td>
+                        <td><select name="sites[0][role]"><option value="primary" selected>主用</option><option value="fallback">平替</option></select></td>
+                        <td class="center"><label class="toggle"><input type="checkbox" name="sites[0][is_special]" value="1"><span class="slider"></span></label></td>
+                        <td class="center"><label class="toggle"><input type="checkbox" name="sites[0][enabled]" value="1" checked><span class="slider"></span></label></td>
+                        <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">删除</button></td>
+                    </tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+
+            <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end">
+                <button type="button" class="btn btn-green" onclick="addRow()">➕ 再加一行</button>
+                <button type="submit" class="btn btn-primary">💾 保存全部</button>
+            </div>
+        </form>
+    </div>
+    <?php
+}
+
+/* ---- tab=mapping ---- */
+function renderMapping($mapping) {
+    $titles = isset($mapping['title']) && is_array($mapping['title']) ? $mapping['title'] : [];
+    $cids   = isset($mapping['cid'])   && is_array($mapping['cid'])   ? $mapping['cid']   : [];
+    ?>
+    <div class="panel">
+        <h2>🗺️ 剧名 / cid 映射表</h2>
+        <div class="note">
+            映射表帮算法把官方链接识别成「剧名 + 集数」。cid 是视频在官方平台的唯一 ID，剧名是你资源库里的真实剧名。<br>
+            命中优先级：vid映射 → cid映射 → 剧名映射 → 页面抓取兜底。<br>
+            <b>格式</b>：每行一对，左边=key，右边=value。
+        </div>
+
+        <form method="post">
+            <input type="hidden" name="action" value="save_mapping">
+
+            <h3 style="margin-top:22px">📛 剧名映射（旧名 → 新名）</h3>
+            <table class="tbl">
+                <thead><tr><th style="width:40%">原剧名</th><th>映射到</th><th style="width:80px"></th></tr></thead>
+                <tbody>
+                <?php $i = 0; foreach ($titles as $k => $v): ?>
+                    <tr>
+                        <td><input type="text" name="map_title[<?= $i ?>]" value="<?= htmlspecialchars($k) ?>"></td>
+                        <td><input type="text" name="map_target[<?= $i ?>]" value="<?= htmlspecialchars($v) ?>"></td>
+                        <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">删</button></td>
+                    </tr>
+                    <?php $i++; endforeach; ?>
+                </tbody>
+            </table>
+
+            <h3 style="margin-top:28px">🆔 cid 映射（官方cid → 剧名）</h3>
+            <table class="tbl">
+                <thead><tr><th style="width:40%">官方 cid</th><th>剧名</th><th style="width:80px"></th></tr></thead>
+                <tbody>
+                <?php $i = 0; foreach ($cids as $k => $v): ?>
+                    <tr>
+                        <td><input type="text" name="map_cid[<?= $i ?>]" value="<?= htmlspecialchars($k) ?>"></td>
+                        <td><input type="text" name="map_cid_target[<?= $i ?>]" value="<?= htmlspecialchars($v) ?>"></td>
+                        <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">删</button></td>
+                    </tr>
+                    <?php $i++; endforeach; ?>
+                </tbody>
+            </table>
+
+            <div style="margin-top:22px;display:flex;gap:10px;justify-content:flex-end">
+                <button type="submit" class="btn btn-primary">💾 保存映射表</button>
+            </div>
+        </form>
+    </div>
+    <?php
+}
+
+/* ---- tab=settings ---- */
+function renderSettings($st) {
+    $st += [
+        'off'            => '0',
+        'timeout'        => 15,
+        'cache_ttl'      => 600,
+        'replace_domain' => '',
+    ];
+    $pwd = mx2_admin_password();
+    ?>
+    <div class="panel">
+        <h2>⚙️ 全局设置</h2>
+
+        <form method="post">
+            <input type="hidden" name="action" value="save_settings">
+
+            <div class="form-grid">
+                <div>
+                    <label>启用开关</label>
+                    <select name="off">
+                        <option value="0" <?= $st['off'] !== '1' ? 'selected' : '' ?>>启用</option>
+                        <option value="1" <?= $st['off'] === '1'  ? 'selected' : '' ?>>关闭</option>
+                    </select>
+                </div>
+                <div>
+                    <label>搜索超时（秒）</label>
+                    <input type="number" name="timeout" value="<?= (int)$st['timeout'] ?>" min="1" max="60">
+                </div>
+                <div>
+                    <label>缓存有效期（秒）</label>
+                    <input type="number" name="cache_ttl" value="<?= (int)$st['cache_ttl'] ?>" min="0">
+                </div>
+                <div class="full">
+                    <label>跟随播放链接（中转前缀，全局）</label>
+                    <input type="text" name="replace_domain" value="<?= htmlspecialchars($st['replace_domain']) ?>" placeholder="如 https://vv00.xyz?url= （留空直接返回资源站地址）">
+                </div>
+                <div class="full">
+                    <label>后台管理密码（留空保留原密码）</label>
+                    <input type="text" name="admin_password" value="" placeholder="当前默认：<?= htmlspecialchars($pwd) ?>；输入新值则替换">
+                    <div class="hint">首次访问自动写入默认密码 moxi123，请尽快修改</div>
+                </div>
+            </div>
+
+            <div style="margin-top:22px;display:flex;gap:10px;justify-content:flex-end">
+                <button type="submit" class="btn btn-primary">💾 保存设置</button>
+            </div>
+        </form>
+    </div>
+    <?php
+}
+
+/* ---- 样式 ---- */
+function mx2_admin_css() { ?>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#0b1220;color:#cbd5e1;font-size:14px;line-height:1.6}
+a{color:#a5b4fc;text-decoration:none}
+a:hover{text-decoration:underline}
+
+.layout{display:flex;min-height:100vh}
+.sidebar{width:230px;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);border-right:1px solid rgba(99,102,241,0.15);padding:24px 0;position:sticky;top:0;height:100vh}
+.brand{padding:0 24px 24px;border-bottom:1px solid rgba(99,102,241,0.15);margin-bottom:16px}
+.logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;letter-spacing:1px;margin-bottom:10px}
+.brand-title{font-size:15px;font-weight:600;color:#e2e8f0}
+.brand-sub{font-size:11px;color:#64748b;margin-top:2px}
+nav{display:flex;flex-direction:column;padding:0 12px}
+.nav-item{padding:11px 14px;border-radius:8px;font-size:13px;color:#94a3b8;margin-bottom:4px;transition:all 0.15s;display:block}
+.nav-item:hover{background:rgba(99,102,241,0.1);color:#cbd5e1;text-decoration:none}
+.nav-item.active{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:500}
+.nav-logout{margin-top:auto;color:#fca5a5}
+.links{margin-top:auto;padding:16px 24px;border-top:1px solid rgba(99,102,241,0.1);font-size:11px;color:#475569}
+.links .sep{margin:0 8px}
+
+.main{flex:1;padding:28px 32px;max-width:calc(100vw - 230px);overflow-x:auto}
+
+.flash{padding:12px 18px;border-radius:8px;margin-bottom:20px;font-size:13px}
+.flash-ok{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:#86efac}
+.flash-err{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#fca5a5}
+
+.panel{background:#111827;border:1px solid rgba(99,102,241,0.15);border-radius:12px;padding:24px 28px;margin-bottom:24px}
+.panel h2{font-size:17px;margin:0 0 14px;color:#e2e8f0;background:linear-gradient(135deg,#a5b4fc,#c4b5fd);-webkit-background-clip:text;background-clip:text;color:transparent}
+.panel h3{font-size:14px;color:#cbd5e1;margin:0 0 12px}
+.note{background:rgba(99,102,241,0.08);border-left:3px solid #6366f1;padding:12px 16px;border-radius:4px;font-size:12px;color:#94a3b8;margin-bottom:18px}
+.note b{color:#a5b4fc}
+.note code{background:rgba(30,41,59,0.8);padding:1px 6px;border-radius:4px;font-size:11px;color:#c4b5fd}
+.hint{font-size:11px;color:#64748b;margin-top:4px}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#1e293b,#1e1b4b);padding:14px 18px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);margin-bottom:14px}
+.toolbar .status{display:flex;align-items:center;gap:10px;font-size:13px;color:#cbd5e1}
+.toolbar .dot{width:10px;height:10px;background:#4ade80;border-radius:50%;box-shadow:0 0 8px rgba(74,222,128,0.5)}
+.toolbar b{color:#a5b4fc}
+
+.btn{padding:8px 14px;background:#334155;border:1px solid #475569;border-radius:8px;color:#cbd5e1;font-size:12px;cursor:pointer;transition:all 0.15s}
+.btn:hover{background:#475569}
+.btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;font-weight:600;padding:10px 22px}
+.btn-primary:hover{box-shadow:0 4px 14px rgba(99,102,241,0.4);transform:translateY(-1px)}
+.btn-green{background:#16a34a;border-color:#16a34a;color:#fff}
+.btn-green:hover{background:#15803d}
+.btn-danger{background:#dc2626;border-color:#dc2626;color:#fff;padding:6px 12px;font-size:11px}
+.btn-danger:hover{background:#b91c1c}
+
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th,.tbl td{padding:8px 6px;border-bottom:1px solid rgba(99,102,241,0.08);text-align:left;vertical-align:top}
+.tbl th{background:#0f172a;font-weight:500;color:#94a3b8;font-size:11px;padding:10px 6px}
+.tbl input[type=text],.tbl select{width:100%;padding:6px 8px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:12px;outline:none}
+.tbl input[type=text]:focus,.tbl select:focus{border-color:#6366f1}
+.tbl tbody tr:hover{background:rgba(99,102,241,0.04)}
+.tbl tbody tr.row-disabled{opacity:0.5}
+.tbl .center{text-align:center}
+
+.site-special select,.site-special input[type=text]{width:100%;margin-bottom:4px}
+.site-special select{width:48%;margin-right:2%;display:inline-block}
+.site-special input{width:100%}
+
+/* toggle switch */
+.toggle{position:relative;display:inline-block;width:36px;height:20px;cursor:pointer}
+.toggle input{display:none}
+.toggle .slider{position:absolute;inset:0;background:#334155;border-radius:20px;transition:0.2s}
+.toggle .slider:before{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;background:#fff;border-radius:50%;transition:0.2s}
+.toggle input:checked+.slider{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+.toggle input:checked+.slider:before{transform:translateX(16px)}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid .full{grid-column:1/-1}
+.form-grid label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px}
+.form-grid input[type=text],.form-grid input[type=number],.form-grid select{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none}
+.form-grid input:focus,.form-grid select:focus{border-color:#6366f1}
+
+@media (max-width: 1024px){
+    .sidebar{width:180px}
+    .main{max-width:calc(100vw - 180px);padding:20px}
+    .form-grid{grid-template-columns:1fr}
+}
+@media (max-width: 768px){
+    .layout{flex-direction:column}
+    .sidebar{width:100%;height:auto;position:static;padding:16px}
+    .main{max-width:100%;padding:16px}
+}
+</style>
+<?php }
