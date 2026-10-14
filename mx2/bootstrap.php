@@ -18,7 +18,7 @@ define('MX2_NAME', '官替算法 算法2 (mx2)');
 define('MX2_VERSION', '1.0.0');
 
 if (!defined('MX2_ROOT')) {
-    define('MX2_ROOT', dirname(__DIR__));
+    define('MX2_ROOT', __DIR__);
 }
 define('MX2_CONFIG', MX2_ROOT . '/config');
 define('MX2_DATA', MX2_ROOT . '/data');

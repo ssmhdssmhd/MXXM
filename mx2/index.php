@@ -98,11 +98,11 @@ if ($name === '') {
     $pageRes = Cache::get($pgKey);
     if (!is_array($pageRes) || empty($pageRes['title'])) {
         $pageRes = PageResolver::resolve($raw, $episode, (int)$settings['timeout']);
-        if (!empty($pageRes['title'])) {
+        if (!empty($pageRes['title']) && !mx2_is_garbage_title($pageRes['title'])) {
             Cache::set($pgKey, $pageRes, 600);
         }
     }
-    if (!empty($pageRes['title'])) {
+    if (!empty($pageRes['title']) && !mx2_is_garbage_title($pageRes['title'])) {
         $nameFrom = $pageRes['title'];
         $name     = $pageRes['title'];
         if (!empty($pageRes['episode'])) {
