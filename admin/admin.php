@@ -371,21 +371,14 @@ switch ($type) {
         $repo = !empty($meta['repo']) ? $meta['repo'] : 'ssmhdssmhd/MXXM';
         $branch = !empty($meta['branch']) ? $meta['branch'] : 'main';
 
-        //远程版本（实时从仓库 raw 获取）
-        $remote = array('version' => '', 'time' => '');
-        $raw = 'https://raw.githubusercontent.com/' . $repo . '/' . $branch . '/version.php?t=' . time();
-        $txt = curl($raw);
-        if ($txt) {
-            if (preg_match("/'version'\s*=>\s*'([^']+)'/i", $txt, $m)) { $remote['version'] = $m[1]; }
-            if (preg_match("/'time'\s*=>\s*'([^']+)'/i", $txt, $m)) { $remote['time'] = $m[1]; }
-        }
-
-        //最新提交信息
+        //最新提交信息（同时拿到 commit SHA，用于精确拉 version.php —— 绕开 raw CDN 缓存）
         $commit = '';
+        $latestSha = '';
         $json = curl('https://api.github.com/repos/' . $repo . '/commits/' . $branch . '?t=' . time());
         if ($json) {
             $arr = json_decode($json, true);
             if (is_array($arr) && !empty($arr['sha'])) {
+                $latestSha = $arr['sha'];
                 $ts = !empty($arr['commit']['author']['date']) ? strtotime($arr['commit']['author']['date']) : 0;
                 $date = $ts ? date('Y-m-d H:i:s', $ts) : '';
                 $msg = !empty($arr['commit']['message']) ? strtok($arr['commit']['message'], "\n") : '';
@@ -393,8 +386,24 @@ switch ($type) {
             }
         }
 
-        $info['local'] = $meta['version'];
-        $info['repo'] = $repo . ' @ ' . $branch;
+        //远程版本：优先用 commit SHA 精确拉（100% 不受 CDN 缓存影响）；fallback 到 branch ref
+        $remote = array('version' => '', 'time' => '');
+        $urls = array();
+        if ($latestSha !== '') {
+            $urls[] = 'https://raw.githubusercontent.com/' . $repo . '/' . $latestSha . '/version.php';
+        }
+        $urls[] = 'https://raw.githubusercontent.com/' . $repo . '/' . $branch . '/version.php?t=' . time();
+        foreach ($urls as $u) {
+            $txt = curl($u);
+            if ($txt) {
+                if (preg_match("/'version'\s*=>\s*'([^']+)'/i", $txt, $m)) { $remote['version'] = $m[1]; }
+                if (preg_match("/'time'\s*=>\s*'([^']+)'/i", $txt, $m))     { $remote['time']    = $m[1]; }
+                if ($remote['version'] !== '') break;
+            }
+        }
+
+        $info['local']  = $meta['version'];
+        $info['repo']   = $repo . ' @ ' . $branch;
         $info['commit'] = $commit !== '' ? $commit : '获取失败';
 
         if ($remote['version'] === '') {
