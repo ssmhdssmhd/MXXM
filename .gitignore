@@ -40,3 +40,8 @@ mx2/config/sites.json
 mx2/config/mapping.json
 mx2/data/
 mx2/config/.env.ini
+
+# ===== mx2 运行时配置（在线更新会覆盖用户修改，仅保留 .dist 默认模板）=====
+/mx2/config/sites.json
+/mx2/config/settings.json
+/mx2/config/mapping.json
