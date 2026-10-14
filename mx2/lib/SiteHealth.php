@@ -7,18 +7,18 @@
 
 class SiteHealth
 {
-    protected static function file(): string
+    protected static function file()
     {
         return MX2_DATA . '/site_health.json';
     }
 
-    protected static function keyFor(array $site): string
+    protected static function keyFor(array $site)
     {
         $tpl = (string)($site['template'] ?? ($site['url'] ?? ''));
         return md5(mx2_lower(trim($tpl)));
     }
 
-    protected static function state(): array
+    protected static function state()
     {
         $s = mx2_read_json(self::file(), ['last_heartbeat' => 0, 'sites' => []]);
         if (!isset($s['last_heartbeat'])) { $s['last_heartbeat'] = 0; }
@@ -31,7 +31,7 @@ class SiteHealth
         mx2_write_json(self::file(), $state);
     }
 
-    protected static function defaultHealth(): array
+    protected static function defaultHealth()
     {
         return [
             'enabled'     => true,
@@ -44,7 +44,7 @@ class SiteHealth
         ];
     }
 
-    protected static function control(): array
+    protected static function control()
     {
         $sc = mx2_settings()['site_control'] ?? [];
         return array_merge([
@@ -60,7 +60,7 @@ class SiteHealth
         ], is_array($sc) ? $sc : []);
     }
 
-    public static function usable(array $sites, int $timeout): array
+    public static function usable(array $sites, int $timeout)
     {
         $ctl = self::control();
 
@@ -134,7 +134,7 @@ class SiteHealth
         self::save($state);
     }
 
-    public static function probeAllNow(): array
+    public static function probeAllNow()
     {
         $ctl   = self::control();
         $sites = mx2_sites();
@@ -217,7 +217,7 @@ class SiteHealth
         @unlink($lock);
     }
 
-    protected static function probe(array $sites, int $timeout): array
+    protected static function probe(array $sites, int $timeout)
     {
         if ($timeout <= 0) { $timeout = 5; }
         $handles = [];
@@ -252,7 +252,7 @@ class SiteHealth
         return $out;
     }
 
-    protected static function probeUrl(array $site): string
+    protected static function probeUrl(array $site)
     {
         $tpl = (string)($site['template'] ?? ($site['url'] ?? ''));
         if ($tpl === '') { return ''; }

@@ -144,6 +144,9 @@ if ($cachedResult && isset($cachedResult['code'], $cachedResult['url'])) {
     $cachedResult = null;
 }
 
+// 剧名预处理：清洗出短名（去掉书名号/括号/副标题/描述尾巴）
+$cleanName = mx2_clean_title($name);
+
 // 4. 搜索资源站
 $sites = mx2_sites();
 
@@ -157,6 +160,20 @@ if ($cachedResult) {
         (int)$settings['timeout'],
         $fallbackCfg
     );
+    // 二级 fallback：原始长剧名搜不到，用清洗后的短名再搜一次
+    if (($result['code'] ?? 0) !== 200
+        && $cleanName !== ''
+        && $cleanName !== $name
+        && mb_strlen($cleanName) >= 2) {
+        Logger::log('search', '原始剧名未命中，改用短名重试：' . $cleanName, 'info');
+        $result = SiteSearcher::searchWithFallback(
+            $sites,
+            $cleanName,
+            $episode,
+            (int)$settings['timeout'],
+            $fallbackCfg
+        );
+    }
     if (($result['code'] ?? 0) === 200 && !empty($result['url'])) {
         $result['time'] = $now;
         Cache::set($primaryKey, $result, (int)$settings['cache_ttl']);

@@ -8,7 +8,7 @@
 
 class LinkParser
 {
-    public static function parse(string $url): array
+    public static function parse(string $url)
     {
         $url = trim($url);
         $base = ['platform' => '通用', 'vid' => '', 'cid' => '', 'title' => '', 'episode' => 0];
@@ -94,7 +94,7 @@ class LinkParser
         return $base;
     }
 
-    protected static function host(string $url, array $needles): bool
+    protected static function host(string $url, array $needles)
     {
         $host = strtolower((string)parse_url($url, PHP_URL_HOST));
         $low  = mx2_lower($url);
@@ -109,7 +109,7 @@ class LinkParser
         return false;
     }
 
-    protected static function query(string $url): array
+    protected static function query(string $url)
     {
         $q = [];
         parse_str((string)parse_url($url, PHP_URL_QUERY), $q);

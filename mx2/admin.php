@@ -20,7 +20,7 @@ $TAB    = $_GET['tab'] ?? 'sites';
 $SAVED  = isset($_GET['saved']) ? 1 : 0;
 $ERROR  = $_GET['error'] ?? '';
 
-function isLoggedIn(): bool {
+function isLoggedIn() {
     return !empty($_SESSION['mx2_admin']);
 }
 

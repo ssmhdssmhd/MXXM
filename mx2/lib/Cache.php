@@ -61,7 +61,7 @@ class Cache
         return $data['value'];
     }
 
-    public static function set(string $key, $value, int $ttl = 600): bool
+    public static function set(string $key, $value, int $ttl = 600)
     {
         if (!is_dir(MX2_CACHE)) {
             @mkdir(MX2_CACHE, 0755, true);
@@ -76,12 +76,12 @@ class Cache
         return @file_put_contents(self::file($key), serialize($data), LOCK_EX) !== false;
     }
 
-    public static function file(string $key): string
+    public static function file(string $key)
     {
         return MX2_CACHE . '/' . md5($key) . '.cache';
     }
 
-    public static function clearAll(): int
+    public static function clearAll()
     {
         $n = 0;
         foreach (glob(MX2_CACHE . '/*.cache') ?: [] as $f) {

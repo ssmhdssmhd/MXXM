@@ -14,7 +14,7 @@ class SiteSearcher
         int $episode,
         int $timeout = 15,
         array $fallbackCfg = []
-    ): array {
+    ) {
         $fallbackEnable = !empty($fallbackCfg['enable']);
 
         $primaryPool = mx2_sites_by_role($sites, 'primary');
@@ -54,7 +54,7 @@ class SiteSearcher
         return $result;
     }
 
-    public static function search(array $sites, string $title, int $episode, int $timeout = 15): array
+    public static function search(array $sites, string $title, int $episode, int $timeout = 15)
     {
         $title   = trim($title ?? '');
         $episode = max(0, (int)$episode);
@@ -161,7 +161,7 @@ class SiteSearcher
         ];
     }
 
-    protected static function buildUrl(array $site, string $title, int $episode): string
+    protected static function buildUrl(array $site, string $title, int $episode)
     {
         $tpl = $site['template'] ?? ($site['url'] ?? '');
         if (!is_string($tpl) || $tpl === '') {
@@ -175,7 +175,7 @@ class SiteSearcher
         return $tpl;
     }
 
-    protected static function buildRequest(array $site, string $title, int $episode): array
+    protected static function buildRequest(array $site, string $title, int $episode)
     {
         $method = mx2_lower(trim((string)($site['method'] ?? '')));
         if (!in_array($method, ['post'], true)) { $method = 'get'; }
@@ -208,7 +208,7 @@ class SiteSearcher
         ];
     }
 
-    protected static function normalizeHeaders(array $site): array
+    protected static function normalizeHeaders(array $site)
     {
         $h = $site['headers'] ?? '';
         $out = [];
@@ -263,7 +263,7 @@ class SiteSearcher
         return $ch;
     }
 
-    protected static function origin(string $url): string
+    protected static function origin(string $url)
     {
         $parts = parse_url($url);
         if (!isset($parts['scheme'], $parts['host'])) {
@@ -272,7 +272,7 @@ class SiteSearcher
         return $parts['scheme'] . '://' . $parts['host'] . ($parts['port'] ?? '') . '/';
     }
 
-    protected static function parseBody(string $body, int $episode = 0, string $mode = ''): array
+    protected static function parseBody(string $body, int $episode = 0, string $mode = '')
     {
         $body = ltrim($body, "\xEF\xBB\xBF \t\r\n");
         if ($body === '') {
@@ -321,7 +321,7 @@ class SiteSearcher
         return ['url' => '', 'msg' => '非标准返回', 'w' => 0];
     }
 
-    protected static function extractAppleList(array $list, int $episode): string
+    protected static function extractAppleList(array $list, int $episode)
     {
         $all    = [];
         $target = '';
@@ -371,7 +371,7 @@ class SiteSearcher
         return '';
     }
 
-    protected static function finalizeUrl(string $url, array $site): string
+    protected static function finalizeUrl(string $url, array $site)
     {
         $replace = mx2_settings()['replace_domain'] ?? '';
         if (is_string($replace) && $replace !== '') {

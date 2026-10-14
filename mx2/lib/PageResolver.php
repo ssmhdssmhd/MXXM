@@ -22,7 +22,7 @@ class PageResolver
         '视频网站', '播放器', '登录', '注册',
     ];
 
-    public static function resolve(string $url, int $fallbackEpisode = 0, int $timeout = 15): array
+    public static function resolve(string $url, int $fallbackEpisode = 0, int $timeout = 15)
     {
         $attempts = [$url];
         $m = self::mobileVariant($url);
@@ -97,7 +97,7 @@ class PageResolver
         return $url2;
     }
 
-    protected static function isRejected(string $title): bool
+    protected static function isRejected(string $title)
     {
         $low = mx2_lower($title);
         foreach (self::REJECT_WORDS as $w) {
@@ -108,7 +108,7 @@ class PageResolver
         return false;
     }
 
-    protected static function fetch(string $url, int $timeout): string
+    protected static function fetch(string $url, int $timeout)
     {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -131,7 +131,7 @@ class PageResolver
         return $body;
     }
 
-    protected static function extractTitle(string $html): string
+    protected static function extractTitle(string $html)
     {
         if (preg_match('~<title[^>]*>(.*?)</title>~is', $html, $m)) {
             $title = trim(html_entity_decode($m[1] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8'));
@@ -141,7 +141,7 @@ class PageResolver
         return '';
     }
 
-    protected static function clean(string $raw, int &$episode): string
+    protected static function clean(string $raw, int &$episode)
     {
         $s = $raw;
 
@@ -174,7 +174,7 @@ class PageResolver
         return mb_substr($s, 0, 60);
     }
 
-    protected static function stripTailWords(string $seg): string
+    protected static function stripTailWords(string $seg)
     {
         $tails = ['视频', '全集', '高清', '完整版', '完整', '在线', '剧场版', '国语版', '粤语版', '国语', '粤语', '超清', '会员版', '官方', '中字', '无水印', '蓝光', 'HD版'];
         $prev = '';

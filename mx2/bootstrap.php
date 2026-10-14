@@ -61,7 +61,7 @@ function mx2_read_json(string $file, $default = [])
     return is_array($data) ? $data : $default;
 }
 
-function mx2_write_json(string $file, array $data): bool
+function mx2_write_json(string $file, array $data)
 {
     $dir = dirname($file);
     if (!is_dir($dir)) {
@@ -81,7 +81,7 @@ function mx2_write_json(string $file, array $data): bool
  * 配置读取
  * ------------------------------------------------------------------------- */
 
-function mx2_settings(): array
+function mx2_settings()
 {
     $defaults = [
         'off' => '0',
@@ -113,7 +113,7 @@ function mx2_settings(): array
     return $out;
 }
 
-function mx2_sites(): array
+function mx2_sites()
 {
     $raw = mx2_read_json(MX2_CONFIG . '/sites.json', []);
     foreach ($raw as $i => $s) {
@@ -127,12 +127,12 @@ function mx2_sites(): array
     return $raw;
 }
 
-function mx2_mapping_data(): array
+function mx2_mapping_data()
 {
     return mx2_read_json(MX2_CONFIG . '/mapping.json', ['title' => [], 'cid' => [], 'episode' => []]);
 }
 
-function mx2_sites_by_role(array $sites, string $role = 'primary'): array
+function mx2_sites_by_role(array $sites, string $role = 'primary')
 {
     if ($role === 'all') return $sites;
     $out = [];
@@ -144,7 +144,7 @@ function mx2_sites_by_role(array $sites, string $role = 'primary'): array
     return $out;
 }
 
-function mx2_mapping_enabled(array $mapping, string $sec, string $key): bool
+function mx2_mapping_enabled(array $mapping, string $sec, string $key)
 {
     $disabled = $mapping['disabled'][$sec] ?? [];
     return is_array($disabled) ? !in_array($key, $disabled, true) : true;
@@ -154,17 +154,17 @@ function mx2_mapping_enabled(array $mapping, string $sec, string $key): bool
  * 工具函数
  * ------------------------------------------------------------------------- */
 
-function mx2_lower(string $s): string
+function mx2_lower(string $s)
 {
     return function_exists('mb_strtolower') ? mb_strtolower($s) : strtolower($s);
 }
 
-function mx2_b64url(string $s): string
+function mx2_b64url(string $s)
 {
     return rtrim(strtr(base64_encode($s), '+/', '-_'), '=');
 }
 
-function mx2_b64url_decode(string $s): string
+function mx2_b64url_decode(string $s)
 {
     $s = strtr(trim($s ?? ''), '-_', '+/');
     $pad = strlen($s) % 4;
@@ -218,7 +218,7 @@ function mx2_apply_proxy($ch, string $url){
     }
 }
 
-function mx2_current_host(): string
+function mx2_current_host()
 {
     static $cached = null;
     if ($cached !== null) { return $cached; }
@@ -236,13 +236,13 @@ function mx2_current_host(): string
     return $cached;
 }
 
-function mx2_player_url(string $rawUrl): string
+function mx2_player_url(string $rawUrl)
 {
     $host = mx2_current_host();
     return $host . '/mx2/player.php?url=' . rawurlencode($rawUrl);
 }
 
-function mx2_request_id(): string
+function mx2_request_id()
 {
     static $rid = null;
     if ($rid !== null) return $rid;
@@ -250,7 +250,29 @@ function mx2_request_id(): string
     return $rid;
 }
 
-function mx2_is_garbage_title(string $title): bool
+
+//剧名预处理：去掉书名号、括号内容、副标题描述，提取核心剧名（用于资源站搜索匹配）
+function mx2_clean_title($title)
+{
+    $t = trim((string)$title);
+    if ($t === "") return "";
+    //1. 去掉全角/半角书名号
+    $t = preg_replace("/[《》【】〈〉《》]|<[^>]+>/u", "", $t);
+    //2. 去掉结尾描述尾巴（更新至X集/完结/第X季）
+    $t = preg_replace("/(?:更新至|已更新至|更新到|已更新到|共|全)[^，。,.;；]*?(?:集|季|话)/u", "", $t);
+    $t = preg_replace("/(?:第\s*\d+\s*季|第\s*\d+\s*部|全集|完结|正片)/u", "", $t);
+    //3. 去掉所有全角/半角括号里的内容
+    $t = preg_replace("/[（(].*?[）)]/u", "", $t);
+    //4. 去掉常见描述性前缀/后缀
+    $t = preg_replace("/^(?:最新|20\d{2}|高清|蓝光|4K|1080P|720P|HD|在线观看|免费观看)/u", "", $t);
+    $t = preg_replace("/(?:高清|蓝光|4K|1080P|720P|HD|完整版|抢先看|免费在线观看)$/u", "", $t);
+    //5. 多空格压缩 + 去掉标点
+    $t = preg_replace("/[\s]+/u", " ", $t);
+    $t = trim($t, " ，。,.:：！!？?、·~～");
+    return $t;
+}
+
+function mx2_is_garbage_title($title)
 {
     $t = trim($title);
     if ($t === '') return true;
@@ -274,7 +296,7 @@ function mx2_is_garbage_title(string $title): bool
     return false;
 }
 
-function mx2_auto_mapping(array $parsed, string $name, int $episode): bool
+function mx2_auto_mapping(array $parsed, string $name, int $episode)
 {
     if (mx2_is_garbage_title($name)) {
         return false;
@@ -311,7 +333,7 @@ function mx2_auto_mapping(array $parsed, string $name, int $episode): bool
  * 后台管理辅助（mx2/admin.php 使用）
  * ------------------------------------------------------------------------- */
 
-function mx2_admin_is_ajax(): bool {
+function mx2_admin_is_ajax() {
     return !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
         && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
 }
@@ -358,7 +380,7 @@ function mx2_purge_cache() {
 }
 
 /** settings.json 加 admin_password 字段默认值 */
-function mx2_admin_password(): string {
+function mx2_admin_password() {
     $st = mx2_settings();
     if (!empty($st['admin_password'])) {
         return (string)$st['admin_password'];

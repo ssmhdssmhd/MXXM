@@ -14,7 +14,7 @@ class Logger
 
     const MAX_PER_TYPE = 500;
 
-    public static function dir(): string
+    public static function dir()
     {
         $dir = MX2_DATA . '/logs';
         if (!is_dir($dir)) {
@@ -23,13 +23,13 @@ class Logger
         return $dir;
     }
 
-    public static function file(string $type): string
+    public static function file(string $type)
     {
         $type = self::sanitize($type);
         return self::dir() . '/' . $type . '.json';
     }
 
-    private static function sanitize(string $type): string
+    private static function sanitize(string $type)
     {
         return isset(self::TYPES[$type]) ? $type : 'error';
     }
@@ -51,14 +51,14 @@ class Logger
         @file_put_contents($file, json_encode($rows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), LOCK_EX);
     }
 
-    public static function read(string $type, int $limit = 100): array
+    public static function read(string $type, int $limit = 100)
     {
         $type = self::sanitize($type);
         $rows = self::readAll(self::file($type));
         return $limit > 0 ? array_slice($rows, 0, $limit) : $rows;
     }
 
-    private static function readAll(string $file): array
+    private static function readAll(string $file)
     {
         if (!is_file($file)) {
             return [];
@@ -71,7 +71,7 @@ class Logger
         return is_array($data) ? $data : [];
     }
 
-    public static function clear(string $type): int
+    public static function clear(string $type)
     {
         $type = self::sanitize($type);
         $file = self::file($type);
@@ -80,7 +80,7 @@ class Logger
         return $n;
     }
 
-    public static function clearAll(): array
+    public static function clearAll()
     {
         $out = [];
         foreach (self::TYPES as $type => $label) {
