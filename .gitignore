@@ -33,3 +33,10 @@ Thumbs.db
 build/
 dist/
 *.phar
+
+# ===== mx2 运行时数据（用户生产环境修改后被 git 覆盖会导致配置丢失）=====
+mx2/config/settings.json
+mx2/config/sites.json
+mx2/config/mapping.json
+mx2/data/
+mx2/config/.env.ini
