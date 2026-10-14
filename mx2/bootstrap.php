@@ -254,22 +254,54 @@ function mx2_request_id()
 //剧名预处理：去掉书名号、括号内容、副标题描述，提取核心剧名（用于资源站搜索匹配）
 function mx2_clean_title($title)
 {
-    $t = trim((string)$title);
-    if ($t === "") return "";
-    //1. 去掉全角/半角书名号
-    $t = preg_replace("/[《》【】〈〉《》]|<[^>]+>/u", "", $t);
-    //2. 去掉结尾描述尾巴（更新至X集/完结/第X季）
-    $t = preg_replace("/(?:更新至|已更新至|更新到|已更新到|共|全)[^，。,.;；]*?(?:集|季|话)/u", "", $t);
-    $t = preg_replace("/(?:第\s*\d+\s*季|第\s*\d+\s*部|全集|完结|正片)/u", "", $t);
-    //3. 去掉所有全角/半角括号里的内容
-    $t = preg_replace("/[（(].*?[）)]/u", "", $t);
-    //4. 去掉常见描述性前缀/后缀
-    $t = preg_replace("/^(?:最新|20\d{2}|高清|蓝光|4K|1080P|720P|HD|在线观看|免费观看)/u", "", $t);
-    $t = preg_replace("/(?:高清|蓝光|4K|1080P|720P|HD|完整版|抢先看|免费在线观看)$/u", "", $t);
-    //5. 多空格压缩 + 去掉标点
-    $t = preg_replace("/[\s]+/u", " ", $t);
-    $t = trim($t, " ，。,.:：！!？?、·~～");
-    return $t;
+    $orig = trim((string)$title);
+    if ($orig === "") return "";
+
+    //1. 先尝试直接用书名号里的内容 —— 这通常就是核心片名
+    if (preg_match('/《\s*([^》]{2,20})\s*》/u', $orig, $m)) {
+        $candidate = trim($m[1]);
+        if (mb_strlen($candidate, 'UTF-8') >= 2) {
+            return $candidate;
+        }
+    }
+
+    //2. 去掉全角/半角书名号、尖括号
+    $t = preg_replace('/[《》【】〈〉《》]|<[^>]+>/u', '', $orig);
+
+    //3. 去掉所有全角/半角括号里的内容（副标题、演员、年份、地区）
+    $t = preg_replace('/[（(].*?[）)]/u', '', $t);
+
+    //4. 去掉结尾描述尾巴（更新至X集/完结/第X季/全集/正片）
+    $t = preg_replace('/(?:更新至|已更新至|更新到|已更新到|共|全)[^，。,.;；]*?(?:集|季|话|部)/u', '', $t);
+    $t = preg_replace('/(?:第\s*\d+\s*季|第\s*\d+\s*部|全集|完结|正片|蓝光|高清|4K|1080P|720P|HD)/u', '', $t);
+
+    //5. 去掉常见描述性前缀
+    $t = preg_replace('/^(?:最新|20\d{2}|高清|蓝光|4K|1080P|720P|HD|在线观看|免费观看|在线播放)/u', '', $t);
+
+    //6. 去掉所有标点和空格，取连续中文/英文
+    $t = preg_replace('/[^\p{L}\p{N}]/u', '', $t);
+
+    //7. 如果清洗后依然过长（>15字，说明是描述性长标题），只取最长的连续中文/英文词组
+    if (mb_strlen($t, 'UTF-8') > 15) {
+        preg_match_all('/[\x{4e00}-\x{9fa5}A-Za-z2-4]+/u', $t, $parts);
+        if (!empty($parts[0])) {
+            // 取字符数最多的词组（通常是核心片名）
+            $longest = '';
+            foreach ($parts[0] as $p) {
+                if (mb_strlen($p, 'UTF-8') > mb_strlen($longest, 'UTF-8')) {
+                    $longest = $p;
+                }
+            }
+            $t = $longest;
+        }
+    }
+
+    //8. 最长兜底：截断到 20 字
+    if (mb_strlen($t, 'UTF-8') > 20) {
+        $t = mb_substr($t, 0, 20, 'UTF-8');
+    }
+
+    return trim($t);
 }
 
 function mx2_is_garbage_title($title)
