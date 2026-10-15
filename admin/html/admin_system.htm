@@ -494,6 +494,109 @@
 
 
                 <div class="layui-tab-item">
+
+                    <?php
+                    $RES = @include dirname(__FILE__) . '/../../save/resolve.config.php';
+                    if (!is_array($RES)) { $RES = array(); }
+                    $RES += array('mode' => 'auto', 'mx1_url' => '', 'mx2_url' => '', 'timeout' => 10, 'enabled' => '1');
+                    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                    $defMx1 = $scheme . '://' . $host . '/mx1/index.php';
+                    $defMx2 = $scheme . '://' . $host . '/mx2/index.php';
+                    $callUrl = $scheme . '://' . $host . '/resolve/?url=官方视频地址';
+                    ?>
+
+                    <fieldset class="layui-elem-field layui-field-title" style="margin-top:0px">
+                        <legend>官替算法 统一解析调度 ⚡ 自动选最快</legend>
+                    </fieldset>
+                    <div style="padding:10px 15px;background:#fff9e6;border-left:4px solid #ffb800;margin-bottom:15px;font-size:13px;border-radius:4px">
+                        <b>📌 对外入口</b>：<code style="background:#f0f0f0;padding:2px 6px;border-radius:3px"><?php echo htmlspecialchars($callUrl); ?></code> （<b>暂不缓存</b>，速度优先）
+                        <br><b>📌 自动模式</b>：同时请求 mx1 + mx2，<b>首个 code=200 立即返回</b>
+                        <br><b>📌 固定模式</b>：只用算法1 / 只用算法2
+                    </div>
+
+                    <form class="layui-form layui-form-pane" style="margin-top:0px">
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">启用状态</label>
+                            <div class="layui-input-inline">
+                                <input type="checkbox" name="resolve_enabled" value="1" lay-skin="switch" lay-text="启用|关闭" <?php echo $RES['enabled'] !== '0' ? 'checked' : ''; ?>>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">关闭后 <code>/resolve/</code> 直接返回 403</div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">调度模式</label>
+                            <div class="layui-input-inline" style="width:240px">
+                                <select name="resolve_mode">
+                                    <option value="auto" <?php if ($RES['mode']==='auto') echo 'selected'; ?>>⚡ 自动选最快（推荐）</option>
+                                    <option value="mx1"  <?php if ($RES['mode']==='mx1')  echo 'selected'; ?>>只用算法 1 (mx1)</option>
+                                    <option value="mx2"  <?php if ($RES['mode']==='mx2')  echo 'selected'; ?>>只用算法 2 (mx2)</option>
+                                </select>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">auto 模式：并行请求两个算法，首个成功立即返回</div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">算法1 接口</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="resolve_mx1_url" autocomplete="off"
+                                    value="<?php echo htmlspecialchars($RES['mx1_url']); ?>"
+                                    placeholder="留空 = <?php echo htmlspecialchars($defMx1); ?>"
+                                    class="layui-input">
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">可填绝对 URL 指向另一台服务器的 mx1</div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">算法2 接口</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="resolve_mx2_url" autocomplete="off"
+                                    value="<?php echo htmlspecialchars($RES['mx2_url']); ?>"
+                                    placeholder="留空 = <?php echo htmlspecialchars($defMx2); ?>"
+                                    class="layui-input">
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">同上，留空自动用本站点 /mx2/index.php</div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">等待上限</label>
+                            <div class="layui-input-inline">
+                                <input type="number" name="resolve_timeout" autocomplete="off"
+                                    value="<?php echo (int)$RES['timeout']; ?>" min="1" max="30" step="1" class="layui-input">
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">auto 模式最多等多少秒；到时两者都没成功返回 404</div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <button type="button" class="layui-btn layui-btn-normal" id="btn-resolve-save">💾 保存解析调度</button>
+                            <span id="resolve-save-result" style="margin-left:12px;font-size:12px"></span>
+                        </div>
+
+                    </form>
+
+                    <script>
+                    $('#btn-resolve-save').on('click', function () {
+                        var btn = $(this), res = $('#resolve-save-result');
+                        btn.prop('disabled', true).text('保存中…');
+                        $.post("admin.php", {
+                            type: "resolve_settings",
+                            resolve_mode:    $('select[name="resolve_mode"]').val(),
+                            resolve_mx1_url: $('input[name="resolve_mx1_url"]').val(),
+                            resolve_mx2_url: $('input[name="resolve_mx2_url"]').val(),
+                            resolve_timeout: $('input[name="resolve_timeout"]').val(),
+                            resolve_enabled: $('input[name="resolve_enabled"]:checked').val() ? '1' : '0',
+                        }, function (d) {
+                            btn.prop('disabled', false).text('💾 保存解析调度');
+                            res.css('color', d.success == 1 ? '#5fb878' : '#ff5722').text(d.m);
+                        }, "json").fail(function () {
+                            btn.prop('disabled', false).text('💾 保存解析调度');
+                            res.css('color','#ff5722').text('请求失败');
+                        });
+                    });
+                    </script>
+
+
                     <form class="layui-form layui-form-pane" action="">
 
                         <div class="layui-form-item layui-form-text">

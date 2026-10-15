@@ -837,6 +837,61 @@ switch ($type) {
         $info['m'] = "官替算法 算法2 设置已保存";
         break;
 
+
+    //官替算法 算法1 数据库连接测试
+    case 'mx1_db_test':
+        header('Content-Type: application/json; charset=utf-8');
+        $host = trim((string)($_POST['db_host'] ?? 'localhost'));
+        $user = trim((string)($_POST['db_user'] ?? ''));
+        $pass = (string)($_POST['db_pass'] ?? '');
+        $name = trim((string)($_POST['db_name'] ?? ''));
+        $start = microtime(true);
+        if (!function_exists('mysqli_init') && !extension_loaded('mysqli')) {
+            echo json_encode(['success' => 0, 'icon' => 5, 'm' => '服务器未开启 mysqli 扩展！']);
+            exit;
+        }
+        mysqli_report(MYSQLI_REPORT_OFF);
+        $conn = @new mysqli($host, $user, $pass, $name, 3306);
+        $ms = (int)((microtime(true) - $start) * 1000);
+        if ($conn->connect_error) {
+            echo json_encode(['success' => 0, 'icon' => 5, 'm' => '连接失败：' . $conn->connect_error . '（耗时 ' . $ms . ' ms）', 'ms' => $ms], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $ver = @$conn->query("SELECT VERSION()");
+        $verStr = $ver ? trim($ver->fetch_row()[0]) : '版本未知';
+        $dbOk = true;
+        if ($name !== '') {
+            $dbChk = @$conn->query("SHOW DATABASES LIKE " . $conn->real_escape_string($name));
+            $dbOk = $dbChk && $dbChk->num_rows > 0;
+        }
+        @$conn->close();
+        if (!$dbOk) {
+            echo json_encode(['success' => 0, 'icon' => 5, 'm' => '连接成功，但数据库「' . $name . '」不存在或无权限访问（MySQL ' . $verStr . '，耗时 ' . $ms . ' ms）', 'ms' => $ms], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        echo json_encode(['success' => 1, 'icon' => 6, 'm' => '✅ 数据库连接成功！MySQL ' . $verStr . '，耗时 ' . $ms . ' ms', 'ms' => $ms, 'version' => $verStr], JSON_UNESCAPED_UNICODE);
+        exit;
+
+    //官替算法 统一解析调度 设置保存
+    case 'resolve_settings':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = [
+            'mode'     => trim((string)($_POST['resolve_mode'] ?? 'auto')),
+            'mx1_url'  => trim((string)($_POST['resolve_mx1_url']  ?? '')),
+            'mx2_url'  => trim((string)($_POST['resolve_mx2_url']  ?? '')),
+            'timeout'  => max(1, (int)($_POST['resolve_timeout'] ?? 10)),
+            'enabled'  => (string)($_POST['resolve_enabled'] ?? '1') === '1' ? '1' : '0',
+        ];
+        if (!in_array($cfg['mode'], ['mx1', 'mx2', 'auto'], true)) { $cfg['mode'] = 'auto'; }
+        $sfile = dirname(__FILE__) . '/../save/resolve.config.php';
+        $scontent = "<?php\n/**\n * 官替算法 统一解析调度 配置\n * 后台 → 系统设置 → 解析设置 页面生成\n */\nreturn " . var_export($cfg, true) . ";\n";
+        if (@file_put_contents($sfile, $scontent) === false) {
+            echo json_encode(['success' => 0, 'icon' => 5, 'm' => '保存失败：无法写入 save/resolve.config.php，请检查 save 目录权限'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        echo json_encode(['success' => 1, 'icon' => 6, 'm' => '✅ 解析调度设置已保存', 'cfg' => $cfg], JSON_UNESCAPED_UNICODE);
+        exit;
+
     //资源站设置 实时更新站点列表（数据源：blog.ksdiy.cn/dh，实时拉取 resources.json）
     case 'ziyuan_update':
         $cfg = zy_load();

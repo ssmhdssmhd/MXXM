@@ -1,0 +1,9 @@
+RewriteEngine On
+# 让 /resolve/?url=xxx 也能走 index.php（Apache 默认已支持 DirectoryIndex，这行是保险）
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [L,QSA]
+
+<IfModule mod_headers.c>
+    Header set X-MXXM-Resolve "1"
+</IfModule>

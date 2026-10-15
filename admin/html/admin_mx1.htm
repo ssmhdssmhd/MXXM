@@ -137,6 +137,15 @@ $MX1_DIR_SHOW = $MX1['dir'];
                 </div>
 
                 <div class="layui-form-item">
+                    <label class="layui-form-label">&nbsp;</label>
+                    <div class="layui-input-inline" style="display:flex;gap:10px;align-items:center">
+                        <button type="button" class="layui-btn layui-btn-warm" id="btn-db-test">🔗 测试数据库连接</button>
+                        <span id="db-test-result" style="font-size:12px"></span>
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">立即用当前表单里的参数尝试连接数据库，<b>不会保存任何数据</b></div>
+                </div>
+
+                <div class="layui-form-item">
                     <button class="layui-btn" lay-submit="" lay-filter="*">
                         保存
                     </button>
@@ -154,9 +163,28 @@ $MX1_DIR_SHOW = $MX1['dir'];
                 form.on('submit(*)', function (data) {
                     data.field.type = "mx1_system";
                     if (!data.field.MX1_OFF) { data.field.MX1_OFF = "0"; }
-                    //发异步，把数据提交给php
                     x_admin_post("admin.php", data.field);
                     return false;
+                });
+
+                // 数据库连接测试
+                $('#btn-db-test').on('click', function () {
+                    var btn = $(this), res = $('#db-test-result');
+                    btn.prop('disabled', true).text('测试中…');
+                    res.html('<i class="layui-icon layui-anim layui-anim-rotate layui-anim-loop">ဂ</i> 连接中…').css('color','#888');
+                    $.post("admin.php", {
+                        type: "mx1_db_test",
+                        db_host: $('input[name="MX1_DB_HOST"]').val(),
+                        db_user: $('input[name="MX1_DB_USER"]').val(),
+                        db_pass: $('input[name="MX1_DB_PASS"]').val(),
+                        db_name: $('input[name="MX1_DB_NAME"]').val(),
+                    }, function (d) {
+                        btn.prop('disabled', false).text('🔗 测试数据库连接');
+                        res.css('color', d.success == 1 ? '#5fb878' : '#ff5722').html((d.success == 1 ? '✅ ' : '❌ ') + d.m);
+                    }, "json").fail(function () {
+                        btn.prop('disabled', false).text('🔗 测试数据库连接');
+                        res.css('color', '#ff5722').html('请求失败');
+                    });
                 });
 
             });
