@@ -841,35 +841,98 @@ switch ($type) {
     //官替算法 算法1 数据库连接测试
     case 'mx1_db_test':
         header('Content-Type: application/json; charset=utf-8');
+        // 全局关 mysqli 异常（PHP 8.1+ 默认抛 mysqli_sql_exception，必须在任何 mysqli 操作前设置）
+        if (function_exists('mysqli_report')) { @mysqli_report(MYSQLI_REPORT_OFF); }
+
         $host = trim((string)($_POST['db_host'] ?? 'localhost'));
         $user = trim((string)($_POST['db_user'] ?? ''));
         $pass = (string)($_POST['db_pass'] ?? '');
         $name = trim((string)($_POST['db_name'] ?? ''));
+        $port = 3306;
+        if (preg_match('/^([^:]+):(\d+)$/', $host, $m)) {
+            $host = $m[1];
+            $port = (int)$m[2];
+        }
         $start = microtime(true);
         if (!function_exists('mysqli_init') && !extension_loaded('mysqli')) {
-            echo json_encode(['success' => 0, 'icon' => 5, 'm' => '服务器未开启 mysqli 扩展！']);
+            echo json_encode(['success' => 0, 'icon' => 5, 'm' => '服务器未开启 mysqli 扩展！请联系宝塔/php.ini 安装'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        mysqli_report(MYSQLI_REPORT_OFF);
-        $conn = @new mysqli($host, $user, $pass, $name, 3306);
+
+        // 整个连接过程 try/catch 兜底，PHP 各版本行为差异很大
+        $conn = null; $err = ''; $verStr = ''; $dbOk = true;
+        try {
+            // 先试 socket（db_host=localhost 走 socket 更快更稳）
+            if ($host === 'localhost' && function_exists('mysqli_init')) {
+                $conn = mysqli_init();
+                if ($conn) {
+                    @mysqli_options($conn, MYSQLI_OPT_CONNECT_TIMEOUT, 5);
+                    $ok = @mysqli_real_connect($conn, $host, $user, $pass, '', null);
+                    if (!$ok) {
+                        $err = mysqli_connect_error() ?: 'socket 连接失败';
+                        $conn = null;
+                        // socket 不行再试 TCP 127.0.0.1
+                        $host = '127.0.0.1';
+                        $conn = mysqli_init();
+                        @mysqli_options($conn, MYSQLI_OPT_CONNECT_TIMEOUT, 5);
+                        $ok = @mysqli_real_connect($conn, $host, $user, $pass, '', $port);
+                        if (!$ok) { $err = mysqli_connect_error() ?: 'TCP 连接也失败'; $conn = null; }
+                    }
+                }
+            } else {
+                // 指定 IP / 自定义端口 / 非 localhost：走标准 TCP
+                if (function_exists('mysqli_init')) {
+                    $conn = mysqli_init();
+                    if ($conn) {
+                        @mysqli_options($conn, MYSQLI_OPT_CONNECT_TIMEOUT, 5);
+                        $ok = @mysqli_real_connect($conn, $host, $user, $pass, '', $port);
+                        if (!$ok) { $err = mysqli_connect_error() ?: '连接失败'; $conn = null; }
+                    } else {
+                        $err = 'mysqli_init() 返回 null';
+                    }
+                } else {
+                    $conn = @mysqli_connect($host, $user, $pass, '', $port);
+                    if (!$conn) { $err = mysqli_connect_error() ?: '连接失败'; }
+                }
+            }
+
+            if ($conn) {
+                $verRes = @mysqli_query($conn, "SELECT VERSION()");
+                $verStr = $verRes ? trim(mysqli_fetch_row($verRes)[0]) : '版本未知';
+                if ($name !== '') {
+                    $safe = mysqli_real_escape_string($conn, $name);
+                    $dbChk = @mysqli_query($conn, "SHOW DATABASES LIKE '" . $safe . "'");
+                    $dbOk = $dbChk && mysqli_num_rows($dbChk) > 0;
+                }
+                @mysqli_close($conn);
+            }
+        } catch (Throwable $e) {
+            $err = get_class($e) . ': ' . $e->getMessage();
+            $conn = null;
+        } catch (Exception $e) {
+            $err = 'Exception: ' . $e->getMessage();
+            $conn = null;
+        }
+
         $ms = (int)((microtime(true) - $start) * 1000);
-        if ($conn->connect_error) {
-            echo json_encode(['success' => 0, 'icon' => 5, 'm' => '连接失败：' . $conn->connect_error . '（耗时 ' . $ms . ' ms）', 'ms' => $ms], JSON_UNESCAPED_UNICODE);
+        if (!$conn) {
+            echo json_encode(['success' => 0, 'icon' => 5,
+                'm' => '❌ 连接失败：' . $err . '（host=' . $host . ':' . $port . '，耗时 ' . $ms . ' ms）',
+                'ms' => $ms,
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        $ver = @$conn->query("SELECT VERSION()");
-        $verStr = $ver ? trim($ver->fetch_row()[0]) : '版本未知';
-        $dbOk = true;
-        if ($name !== '') {
-            $dbChk = @$conn->query("SHOW DATABASES LIKE " . $conn->real_escape_string($name));
-            $dbOk = $dbChk && $dbChk->num_rows > 0;
-        }
-        @$conn->close();
         if (!$dbOk) {
-            echo json_encode(['success' => 0, 'icon' => 5, 'm' => '连接成功，但数据库「' . $name . '」不存在或无权限访问（MySQL ' . $verStr . '，耗时 ' . $ms . ' ms）', 'ms' => $ms], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['success' => 0, 'icon' => 5,
+                'm' => '⚠️ 连上 MySQL 了（' . $verStr . '），但数据库「' . $name . '」不存在或无权限访问（耗时 ' . $ms . ' ms）',
+                'ms' => $ms, 'version' => $verStr,
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        echo json_encode(['success' => 1, 'icon' => 6, 'm' => '✅ 数据库连接成功！MySQL ' . $verStr . '，耗时 ' . $ms . ' ms', 'ms' => $ms, 'version' => $verStr], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['success' => 1, 'icon' => 6,
+            'm' => '✅ 数据库连接成功！MySQL ' . $verStr . '，host=' . $host . ':' . $port . '，耗时 ' . $ms . ' ms',
+            'ms' => $ms, 'version' => $verStr,
+        ], JSON_UNESCAPED_UNICODE);
         exit;
 
     //官替算法 统一解析调度 设置保存
