@@ -6,7 +6,7 @@ if (!is_array($MX1)) { $MX1 = array(); }
 $MX1 += array(
     'ver' => '0.1', 'off' => '0', 'dir' => 'mx1', 'cms' => 'https://cmsv10.com',
     'form' => 'jsm3u8', 'dytype' => '1', 'zytype' => '5', 'api' => '', 'qggapi' => '',
-    'table' => 'mac_vod', 'db_host' => 'localhost', 'db_user' => 'root', 'db_pass' => '', 'db_name' => 'root',
+    'table' => 'mac_vod', 'db_host' => 'localhost', 'db_user' => 'root', 'db_pass' => '', 'db_name' => 'root', 'db_port' => '3306',
 );
 $MX1_DIR_SHOW = $MX1['dir'];
 ?>
@@ -120,6 +120,14 @@ $MX1_DIR_SHOW = $MX1['dir'];
                     <div class="layui-input-inline">
                         <input type="text" name="MX1_DB_USER" autocomplete="off" value="<?php echo htmlspecialchars($MX1['db_user']); ?>" class="layui-input">
                     </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">数据库端口</label>
+                    <div class="layui-input-inline">
+                        <input type="number" name="MX1_DB_PORT" autocomplete="off" value="<?php echo htmlspecialchars($MX1['db_port'] ?? '3306'); ?>" class="layui-input" min="1" max="65535" step="1">
+                    </div>
+                    <div class="layui-form-mid layui-word-aux">MySQL 默认 3306；宝塔面板自定义端口请填这里，<b>留空自动 3306</b></div>
                 </div>
 
                 <div class="layui-form-item">

@@ -11,6 +11,7 @@ class mysql {
     private $username;
     private $dbname;
     private $password;
+    private $port = 3306;
 
     public function __construct() {
         //读取后台配置
@@ -20,13 +21,19 @@ class mysql {
         $this->username   = isset($MX1['db_user']) ? $MX1['db_user'] : 'root';
         $this->password   = isset($MX1['db_pass']) ? $MX1['db_pass'] : '';
         $this->dbname     = isset($MX1['db_name']) ? $MX1['db_name'] : 'root';
+        $this->port       = (int)($MX1['db_port'] ?? 3306);
+        // 兼容 host:port 格式
+        if (preg_match('/^([^:]+):(\d+)$/', $this->servername, $m)) {
+            $this->servername = $m[1];
+            $this->port = (int)$m[2];
+        }
         $this->initialize();
     }
 
     private function initialize() {
         $this->pool = new SplQueue();
         for ($i = 0; $i < $this->maxConnections; $i++) {
-            $conn = new mysqli($this->servername, $this->username, $this->password, $this->dbname);
+            $conn = new mysqli($this->servername, $this->username, $this->password, $this->dbname, $this->port);
             if ($conn->connect_error) {
                 die("连接失败: " . $conn->connect_error);
             }

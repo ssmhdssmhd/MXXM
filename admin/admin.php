@@ -744,6 +744,7 @@ switch ($type) {
             'db_user' => trim((string)filter_input(INPUT_POST, 'MX1_DB_USER')),
             'db_pass' => trim((string)filter_input(INPUT_POST, 'MX1_DB_PASS')),
             'db_name' => trim((string)filter_input(INPUT_POST, 'MX1_DB_NAME')),
+            'db_port' => trim((string)filter_input(INPUT_POST, 'MX1_DB_PORT', FILTER_SANITIZE_NUMBER_INT)) ?: '3306',
         );
         if ($sf['table'] === '') { $sf['table'] = 'mac_vod'; }
 
@@ -848,10 +849,16 @@ switch ($type) {
         $user = trim((string)($_POST['db_user'] ?? ''));
         $pass = (string)($_POST['db_pass'] ?? '');
         $name = trim((string)($_POST['db_name'] ?? ''));
+        // 1) 先看 host 里有没有 :port 格式（兼容老用户填法）
         $port = 3306;
         if (preg_match('/^([^:]+):(\d+)$/', $host, $m)) {
             $host = $m[1];
             $port = (int)$m[2];
+        }
+        // 2) 再看有没有独立的 db_port 字段（优先）
+        $portField = trim((string)($_POST['db_port'] ?? ''));
+        if ($portField !== '' && is_numeric($portField)) {
+            $port = max(1, min(65535, (int)$portField));
         }
         $start = microtime(true);
         if (!function_exists('mysqli_init') && !extension_loaded('mysqli')) {
