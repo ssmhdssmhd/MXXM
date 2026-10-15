@@ -93,6 +93,7 @@ if ($ACTION === 'save_mapping') {
     if (!empty($oldMap['stock']))    $mapping['stock']    = $oldMap['stock'];
     if (!empty($oldMap['disabled'])) $mapping['disabled'] = $oldMap['disabled'];
 
+    // 剧名映射
     $titles  = $_POST['map_title']  ?? [];
     $targets = $_POST['map_target'] ?? [];
     if (is_array($titles)) {
@@ -103,7 +104,8 @@ if ($ACTION === 'save_mapping') {
             $mapping['title'][$t] = $ta;
         }
     }
-    $cids   = $_POST['map_cid']       ?? [];
+    // cid 映射
+    $cids   = $_POST['map_cid']        ?? [];
     $ctargs = $_POST['map_cid_target'] ?? [];
     if (is_array($cids)) {
         foreach ($cids as $i => $c) {
@@ -113,10 +115,24 @@ if ($ACTION === 'save_mapping') {
             $mapping['cid'][$c] = $ct;
         }
     }
+    // vid-episode 映射（格式：vid:xxx => {name, episode}）
+    $vids   = $_POST['map_vid']    ?? [];
+    $vnames = $_POST['map_vid_name'] ?? [];
+    $veps   = $_POST['map_vid_ep']  ?? [];
+    if (is_array($vids)) {
+        foreach ($vids as $i => $v) {
+            $v  = trim($v ?? '');
+            $vn = trim($vnames[$i] ?? '');
+            $ve = (int)($veps[$i] ?? 0);
+            if ($v === '' || $vn === '') continue;
+            $key = strpos($v, 'vid:') === 0 ? $v : ('vid:' . $v);
+            $mapping['episode'][$key] = ['name' => $vn, 'episode' => $ve > 0 ? $ve : 1];
+        }
+    }
     if (!mx2_write_json(MX2_CONFIG . '/mapping.json', $mapping)) {
         mx2_admin_save_fail(MX2_CONFIG . '/mapping.json');
     }
-    Logger::log('operation', '保存映射表（title ' . count($mapping['title']) . ' / cid ' . count($mapping['cid']) . '）', 'success');
+    Logger::log('operation', '保存映射表（title ' . count($mapping['title']) . ' / cid ' . count($mapping['cid']) . ' / episode ' . count($mapping['episode']) . '）', 'success');
     mx2_admin_save_ok('mapping', '已保存映射表');
 }
 
@@ -701,53 +717,137 @@ function renderSites($sites) {
 
 /* ---- tab=mapping ---- */
 function renderMapping($mapping) {
-    $titles = isset($mapping['title']) && is_array($mapping['title']) ? $mapping['title'] : [];
-    $cids   = isset($mapping['cid'])   && is_array($mapping['cid'])   ? $mapping['cid']   : [];
+    $titles   = isset($mapping['title'])   && is_array($mapping['title'])   ? $mapping['title']   : [];
+    $cids     = isset($mapping['cid'])     && is_array($mapping['cid'])     ? $mapping['cid']     : [];
+    $episodes = isset($mapping['episode']) && is_array($mapping['episode']) ? $mapping['episode'] : [];
     ?>
     <div class="panel">
-        <h2>🗺️ 剧名 / cid 映射表</h2>
+        <h2>🗺️ 剧名 / cid / vid 映射表</h2>
         <div class="note">
-            映射表帮算法把官方链接识别成「剧名 + 集数」。cid 是视频在官方平台的唯一 ID，剧名是你资源库里的真实剧名。<br>
-            命中优先级：vid映射 → cid映射 → 剧名映射 → 页面抓取兜底。<br>
-            <b>格式</b>：每行一对，左边=key，右边=value。
+            映射表帮算法把官方链接识别成「剧名 + 集数」。命中优先级：<b>vid映射 → cid映射 → 剧名映射 → 页面抓取兜底</b>。<br>
+            <b>推荐用法</b>：官方链接如果有 vid（爱奇艺 v_xu2nlnxuac 里的 xu2nlnxuac），用 vid 映射最准；cid 是平台专辑/剧集 ID；剧名映射处理"官方名 ≠ 资源站名"的情况。
         </div>
 
         <form method="post">
             <input type="hidden" name="action" value="save_mapping">
 
-            <h3 style="margin-top:22px">📛 剧名映射（旧名 → 新名）</h3>
-            <table class="tbl">
+            <!-- ===== 1. vid → 剧名+集数 映射 ===== -->
+            <h3 style="margin-top:22px">🎬 vid 映射（精准，推荐优先填）</h3>
+            <div class="note" style="font-size:12px;color:#888;margin:-8px 0 10px">官方视频链接里的唯一 ID（如 iqiyi.com/<b>v_xu2nlnxuac</b>.html 里的 <b>xu2nlnxuac</b>）。</div>
+            <table class="tbl" id="tbl-vid">
+                <thead><tr>
+                    <th style="width:220px">官方 vid</th>
+                    <th>剧名</th>
+                    <th style="width:100px">集数</th>
+                    <th style="width:80px"></th>
+                </tr></thead>
+                <tbody>
+                <?php $i = 0; foreach ($episodes as $k => $v):
+                    $vid = strpos($k, 'vid:') === 0 ? substr($k, 4) : $k;
+                    $name = is_array($v) ? ($v['name'] ?? '') : $v;
+                    $ep   = is_array($v) ? ($v['episode'] ?? 1) : 1;
+                ?>
+                    <tr>
+                        <td><input type="text" name="map_vid[<?= $i ?>]"    value="<?= htmlspecialchars($vid) ?>"    placeholder="xu2nlnxuac"></td>
+                        <td><input type="text" name="map_vid_name[<?= $i ?>]" value="<?= htmlspecialchars($name) ?>"  placeholder="猛攻"></td>
+                        <td><input type="number" name="map_vid_ep[<?= $i ?>]" value="<?= (int)$ep ?>" min="0" step="1"></td>
+                        <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">删</button></td>
+                    </tr>
+                <?php $i++; endforeach; ?>
+                </tbody>
+            </table>
+            <button type="button" class="btn" onclick="addRow('tbl-vid', 3)">➕ 添加一条 vid 映射</button>
+
+            <!-- ===== 2. cid → 剧名 映射 ===== -->
+            <h3 style="margin-top:28px">🆔 cid 映射（官方 cid → 剧名）</h3>
+            <div class="note" style="font-size:12px;color:#888;margin:-8px 0 10px">cid 是平台专辑/剧集 ID（如 iqiyi.com/<b>a_19rrhb3xy</b>.html 里的 <b>19rrhb3xy</b>）。</div>
+            <table class="tbl" id="tbl-cid">
+                <thead><tr><th style="width:260px">官方 cid</th><th>剧名</th><th style="width:80px"></th></tr></thead>
+                <tbody>
+                <?php $i = 0; foreach ($cids as $k => $v): ?>
+                    <tr>
+                        <td><input type="text" name="map_cid[<?= $i ?>]"         value="<?= htmlspecialchars($k) ?>"></td>
+                        <td><input type="text" name="map_cid_target[<?= $i ?>]"  value="<?= htmlspecialchars($v) ?>"></td>
+                        <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">删</button></td>
+                    </tr>
+                <?php $i++; endforeach; ?>
+                </tbody>
+            </table>
+            <button type="button" class="btn" onclick="addRow('tbl-cid', 2)">➕ 添加一条 cid 映射</button>
+
+            <!-- ===== 3. 剧名 → 新剧名 映射 ===== -->
+            <h3 style="margin-top:28px">📛 剧名映射（旧名 → 新名）</h3>
+            <div class="note" style="font-size:12px;color:#888;margin:-8px 0 10px">处理"官方剧名 ≠ 资源库剧名"的情况。<b>这是最后命中的兜底映射</b>，优先用 vid/cid 映射。</div>
+            <table class="tbl" id="tbl-title">
                 <thead><tr><th style="width:40%">原剧名</th><th>映射到</th><th style="width:80px"></th></tr></thead>
                 <tbody>
                 <?php $i = 0; foreach ($titles as $k => $v): ?>
                     <tr>
-                        <td><input type="text" name="map_title[<?= $i ?>]" value="<?= htmlspecialchars($k) ?>"></td>
+                        <td><input type="text" name="map_title[<?= $i ?>]"  value="<?= htmlspecialchars($k) ?>"></td>
                         <td><input type="text" name="map_target[<?= $i ?>]" value="<?= htmlspecialchars($v) ?>"></td>
                         <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">删</button></td>
                     </tr>
-                    <?php $i++; endforeach; ?>
+                <?php $i++; endforeach; ?>
                 </tbody>
             </table>
-
-            <h3 style="margin-top:28px">🆔 cid 映射（官方cid → 剧名）</h3>
-            <table class="tbl">
-                <thead><tr><th style="width:40%">官方 cid</th><th>剧名</th><th style="width:80px"></th></tr></thead>
-                <tbody>
-                <?php $i = 0; foreach ($cids as $k => $v): ?>
-                    <tr>
-                        <td><input type="text" name="map_cid[<?= $i ?>]" value="<?= htmlspecialchars($k) ?>"></td>
-                        <td><input type="text" name="map_cid_target[<?= $i ?>]" value="<?= htmlspecialchars($v) ?>"></td>
-                        <td><button type="button" class="btn btn-danger" onclick="this.closest('tr').remove()">删</button></td>
-                    </tr>
-                    <?php $i++; endforeach; ?>
-                </tbody>
-            </table>
+            <button type="button" class="btn" onclick="addRow('tbl-title', 2)">➕ 添加一条剧名映射</button>
 
             <div style="margin-top:22px;display:flex;gap:10px;justify-content:flex-end">
                 <button type="submit" class="btn btn-primary">💾 保存映射表</button>
             </div>
         </form>
     </div>
+    <script>
+    function addRow(tblId, colCount) {
+        var tbl = document.getElementById(tblId);
+        if (!tbl) return;
+        var tbody = tbl.querySelector('tbody');
+        var row = document.createElement('tr');
+        var nameBase = '';
+        if (tblId === 'tbl-vid')    nameBase = ['map_vid', 'map_vid_name', 'map_vid_ep'];
+        if (tblId === 'tbl-cid')    nameBase = ['map_cid', 'map_cid_target'];
+        if (tblId === 'tbl-title')  nameBase = ['map_title', 'map_target'];
+        // 重新编号（以当前行数作为序号）
+        var curIdx = tbody.children.length;
+        for (var i = 0; i < colCount; i++) {
+            var td = document.createElement('td');
+            var inp = document.createElement('input');
+            inp.type = (tblId === 'tbl-vid' && i === 2) ? 'number' : 'text';
+            inp.name = nameBase[i] + '[' + curIdx + ']';
+            inp.style.cssText = 'width:100%;padding:8px 10px;background:#141b2d;border:1px solid #2a3550;border-radius:6px;color:#e2e8f0;font-size:13px;outline:none';
+            td.appendChild(inp);
+            row.appendChild(td);
+        }
+        var tdDel = document.createElement('td');
+        var btnDel = document.createElement('button');
+        btnDel.type = 'button';
+        btnDel.className = 'btn btn-danger';
+        btnDel.textContent = '删';
+        btnDel.onclick = function() { this.closest('tr').remove(); };
+        tdDel.appendChild(btnDel);
+        row.appendChild(tdDel);
+        tbody.appendChild(row);
+    }
+    // 表单提交前重新给所有 input 顺序编号，避免中间删行导致 index 跳空
+    document.addEventListener('submit', function(e) {
+        var form = e.target;
+        var inputs = form.querySelectorAll('input[name*="["]');
+        var groups = {};
+        inputs.forEach(function(inp) {
+            var m = inp.name.match(/^([^\[]+)\[(\d+)\]$/);
+            if (m) {
+                var key = m[1];
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(inp);
+            }
+        });
+        Object.keys(groups).forEach(function(key) {
+            groups[key].forEach(function(inp, idx) {
+                inp.name = key + '[' + idx + ']';
+            });
+        });
+    });
+    </script>
     <?php
 }
 
