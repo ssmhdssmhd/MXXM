@@ -962,6 +962,104 @@ switch ($type) {
         echo json_encode(['success' => 1, 'icon' => 6, 'm' => '✅ 解析调度设置已保存', 'cfg' => $cfg], JSON_UNESCAPED_UNICODE);
         exit;
 
+    //广告设置（前台调用解析接口时展示的广告）
+    case 'ad_system':
+        $adCfg = array(
+            'off'      => (string)($_POST['AD_OFF'] ?? '0') === '1' ? '1' : '0',
+            'time'     => max(0, min(60, (int)($_POST['AD_TIME'] ?? 5))),
+            'skip'     => (string)($_POST['AD_SKIP'] ?? '0') === '1' ? '1' : '0',
+            'pc_code'  => base64_encode((string)($_POST['AD_PC_CODE'] ?? '')),
+            'wap_code' => base64_encode((string)($_POST['AD_WAP_CODE'] ?? '')),
+        );
+        $sfile = dirname(__FILE__) . '/../save/ad.config.php';
+        $scontent = "<?php\n/**\n * 前台广告配置（由后台「广告设置」页面生成，请勿手动修改格式）\n */\nreturn " . var_export($adCfg, true) . ";\n";
+        if (@file_put_contents($sfile, $scontent) === false) {
+            echo json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败：无法写入 save/ad.config.php，请检查 save 目录权限！'), JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        echo json_encode(array('success' => 1, 'icon' => 6, 'm' => '✅ 广告设置已保存'), JSON_UNESCAPED_UNICODE);
+        exit;
+
+    //解析线路 接口检测（测试接口好坏）
+    case 'jx_test':
+        @set_time_limit(30);
+        $line = trim((string)($_POST['jx'] ?? ''));
+        $testUrl = trim((string)($_POST['test_url'] ?? ''));
+        if ($testUrl === '') { $testUrl = 'https://www.iqiyi.com/v_xu2nlnxuac.html'; }
+
+        //线路格式：名称=>接口地址，也兼容直接传接口地址
+        $name = $line;
+        $api  = $line;
+        if (strpos($line, '=>') !== false) {
+            $arr  = explode('=>', $line, 2);
+            $name = trim($arr[0]);
+            $api  = trim($arr[1]);
+        }
+        if ($name === '') { $name = $api; }
+        if ($api === '' || stripos($api, 'http') !== 0) {
+            echo json_encode(array('success' => 0, 'name' => $name, 'state' => 'bad', 'm' => '接口地址无效'), JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        //拼接测试地址
+        if (substr($api, -1) === '=' || substr($api, -1) === '?') {
+            $target = $api . rawurlencode($testUrl);
+        } elseif (strpos($api, '?') !== false) {
+            $target = $api . '&url=' . rawurlencode($testUrl);
+        } else {
+            $target = $api . '?url=' . rawurlencode($testUrl);
+        }
+
+        $start = microtime(true);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $target);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 6);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_ENCODING, '');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        $body = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        $ms   = (int)((microtime(true) - $start) * 1000);
+        $size = $body === false ? 0 : strlen($body);
+
+        if ($body === false || $code === 0) {
+            echo json_encode(array(
+                'success' => 0, 'name' => $name, 'state' => 'bad', 'code' => 0, 'ms' => $ms, 'size' => 0,
+                'm' => '❌ 连接失败：' . ($err !== '' ? $err : '无法访问'),
+            ), JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $state = 'warn';
+        if ($code >= 200 && $code < 400) {
+            $hit = preg_match('/m3u8|\.mp4|<video|iframe|jwplayer|dplayer|player|location\.href|window\.location/i', $body);
+            $bad = preg_match('/域名出售|域名转让|站点暂停|无法访问|not\s*found|404\s*not\s*found/i', $body);
+            if ($hit && !$bad) { $state = 'good'; }
+        } else {
+            $state = 'bad';
+        }
+
+        if ($state === 'good') {
+            $msg = '✅ 可用';
+        } elseif ($state === 'warn') {
+            $msg = '⚠️ 可访问，但未识别到播放内容';
+        } else {
+            $msg = '❌ 不可用（HTTP ' . $code . '）';
+        }
+
+        echo json_encode(array(
+            'success' => $state === 'good' ? 1 : 0,
+            'name' => $name, 'state' => $state, 'code' => $code, 'ms' => $ms, 'size' => $size, 'm' => $msg,
+        ), JSON_UNESCAPED_UNICODE);
+        exit;
+
     //资源站设置 实时更新站点列表（数据源：blog.ksdiy.cn/dh，实时拉取 resources.json）
     case 'ziyuan_update':
         $cfg = zy_load();

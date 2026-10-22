@@ -356,10 +356,15 @@ $CONFIG=array (
   ),
   'jx_url' => 
   array (
-    0 => '推荐线路=>https://jx.xmflv.com/?url=',
-    1 => '备用线路1=>https://jx.aidouer.net/?url=',
-    2 => '备用线路2=>https://api.jiexi.la/?url=',
-    3 => '备用线路3=>https://jx.ap2p.cn/?url=',
+    0 => '沫兮主线=>https://jx.lxyy.club/index.php?url=',
+    1 => '沫兮备1=>https://bfq.txnp.cn/player?url=',
+    2 => '沫兮备2=>https://bd.jx.cn/?url=',
+    3 => '沫兮备3=>https://jiexi.789jiexi.com/?url=',
+    4 => '沫兮备4=>https://jx.202617.xyz/tv.php?url=',
+    5 => '推荐线路=>https://jx.xmflv.com/?url=',
+    6 => '备用线路1=>https://jx.aidouer.net/?url=',
+    7 => '备用线路2=>https://api.jiexi.la/?url=',
+    8 => '备用线路3=>https://jx.ap2p.cn/?url=',
   ),
   'jx_link' => 
   array (

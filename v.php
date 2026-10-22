@@ -7,6 +7,17 @@ define('FCPATH', str_replace("\\", "/", str_replace(SELF, '', __FILE__)));
  require_once FCPATH.'/include/class.main.php';
 //加载配置文件
 require_once(FCPATH."save/config.php");  
+//加载前台广告配置
+$AD = array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '');
+if (file_exists(FCPATH . 'save/ad.config.php')) {
+    $ADTMP = @include FCPATH . 'save/ad.config.php';
+    if (is_array($ADTMP)) { $AD = array_merge($AD, $ADTMP); }
+}
+$AD_ON   = ((string)$AD['off'] === '1');
+$AD_TIME = max(0, (int)$AD['time']);
+$AD_SKIP = ((string)$AD['skip'] === '1');
+$AD_PC   = base64_decode($AD['pc_code']);
+$AD_WAP  = base64_decode($AD['wap_code']);
 //接收参数
 
 $url=filter_input(INPUT_GET, "url") ? filter_input(INPUT_GET, "url") :filter_input(INPUT_GET, "v");
@@ -65,6 +76,7 @@ object-fit:contain;
 <body style="overflow-y:hidden;">
 <div id="loading" align="center"><strong><br><br><br><br><br><span class="tips">服务器正在解析中,请稍等....<font class="timemsg">0</font>s</span></strong><span class="timeout" style="display:none;color:#f90;">解析响应超时，请刷新重试！</span></div>
 <div id="a1" class="content" style="display:none;"></div>
+<div id="parsead" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:#000;z-index:99;overflow:hidden;"></div>
 <div id="error" class="content" style="display:none;font-weight:bold;padding-top:90px;" align="center"></div>
 
 
@@ -118,7 +130,7 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
 
 				//$("#loading").hide();$("#error").show();$("#error").html("解析失败,已上报至服务器" + word);
                                   //setTimeout(function(){urlplay(api+url);}, 3000);
- 				urlplay(api+url);				
+ 				parseplay(api+url);				
          }  
    }else{
 
@@ -126,16 +138,59 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
       //$("#loading").hide();$("#error").show();$("#error").html("解析失败,已上报至服务器" + word);
    	  //setTimeout(function(){urlplay(api+url);}, 2000);
           
-      urlplay(api+url);    
+      parseplay(api+url);    
    }  
 
  }
 
-   function urlplay(url){	  		
-     
-   	  $("#loading").hide();$("#a1").show();
-      $("#a1").html('<iframe  width="100%" height="100%" src="' + url+'" frameborder="0" border="0" marginwidth="0" marginheight="0" scrolling="no" allowfullscreen="true" ></iframe>');         		    
+   //广告配置（由后台「广告设置」生成，自动识别电脑端 / 移动端）
+   var AD_ON = <?php echo $AD_ON ? 'true' : 'false'; ?>;
+   var AD_TIME = <?php echo $AD_TIME; ?>;
+   var AD_SKIP = <?php echo $AD_SKIP ? 'true' : 'false'; ?>;
+   var AD_PC = <?php echo json_encode($AD_PC, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+   var AD_WAP = <?php echo json_encode($AD_WAP, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
+   function playframe(url, show){
+   	  $("#loading").hide();
+      $("#a1").html('<iframe  width="100%" height="100%" src="' + url+'" frameborder="0" border="0" marginwidth="0" marginheight="0" scrolling="no" allowfullscreen="true" ></iframe>');
+      if(show === false){ $("#a1").hide(); } else { $("#a1").show(); }
+   }
+
+   function urlplay(url){
+      playframe(url);
+  }
+
+   //解析接口调用前展示广告
+   function parseplay(url){
+      if(!AD_ON){ playframe(url); return; }
+      var mobile = is_mobile();
+      var code = mobile ? AD_WAP : AD_PC;
+      if(!code || $.trim(code)===""){ code = mobile ? AD_PC : AD_WAP; }
+      if(!code || $.trim(code)===""){ playframe(url); return; }
+
+      $("#loading").hide();$("#a1").hide();
+      //先加载解析页面（隐藏），广告结束后再显示，避免广告时间浪费在等待解析上
+      playframe(url, false);
+      var ad = $("#parsead");
+      var skip = '<div class="xyad-skip" style="position:absolute;right:12px;top:12px;z-index:99;padding:5px 12px;background:rgba(0,0,0,.65);color:#fff;border-radius:20px;font-size:12px;'+(AD_SKIP?'cursor:pointer':'')+'">'+(AD_SKIP?'跳过广告 ':'广告 ')+AD_TIME+'s</div>';
+      ad.html('<div style="position:relative;width:100%;height:100%;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center">'+
+          '<div style="max-width:100%;max-height:100%;overflow:hidden;text-align:center">'+code+'</div>'+skip+'</div>').show();
+
+      var left = AD_TIME, done = false;
+      function finish(){
+          if(done){ return; }
+          done = true;
+          ad.hide().empty();
+          $("#a1").show();
+      }
+      function tick(){
+          if(left<=0){ finish(); return; }
+          ad.find('.xyad-skip').text((AD_SKIP?'跳过广告 ':'广告 ')+left+'s');
+          left--;
+          setTimeout(tick, 1000);
+      }
+      if(AD_SKIP){ ad.find('.xyad-skip').on('click', finish); }
+      if(left<=0){ finish(); } else { tick(); }
   }
    
  function  video_next(){	  
@@ -143,7 +198,7 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
  
  function  video_line(){
 	 
- urlplay(api+url);
+ parseplay(api+url);
  }
  
  function getcip(){$.get("https://data.video.iqiyi.com/v.f4v",function(cdnip){sip=cdnip.match(/\d+\.\d+\.\d+\.\d+/);cip=sip[0];player();});}

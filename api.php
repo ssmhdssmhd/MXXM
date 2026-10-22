@@ -83,6 +83,20 @@ switch ($tp) {
         $CONFIG["play"]['define']['jx_link'] = $CONFIG["jx_link"];
         $CONFIG["play"]['define']['jx_url'] = $CONFIG["jx_url"];
         $CONFIG["play"]['define']['live_url'] = $CONFIG["live_url"];
+        //前台解析广告配置（自动识别电脑端 / 移动端）
+        $ADCONFIG = array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '');
+        $adFile = FCPATH . '/save/ad.config.php';
+        if (file_exists($adFile)) {
+            $adTmp = @include $adFile;
+            if (is_array($adTmp)) { $ADCONFIG = array_merge($ADCONFIG, $adTmp); }
+        }
+        $CONFIG["play"]['define']['ad'] = array(
+            'off'      => (string)$ADCONFIG['off'],
+            'time'     => (int)$ADCONFIG['time'],
+            'skip'     => (string)$ADCONFIG['skip'],
+            'pc_code'  => base64_decode($ADCONFIG['pc_code']),
+            'wap_code' => base64_decode($ADCONFIG['wap_code']),
+        );
         $CONFIG["play"]['define']['jx_link'] = $CONFIG["jx_link"];
         $CONFIG["play"]['define']['url_jmp'] = $YUN_DATA["url_jmp"];
         $CONFIG["play"]['define']['timeout'] = $CONFIG["timeout"];

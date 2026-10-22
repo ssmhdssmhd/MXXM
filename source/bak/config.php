@@ -331,13 +331,18 @@ $CONFIG=array (
   ),
   'jx_url' => 
   array (
-    0 => '推荐线路=>https://jx.fwwmy1.cn/?url=',
-    1 => '备用线路1=>https://v.nmbaojie.com/mingri/mingri.php?url=',
-    2 => '备用线路2=>https://jx.618g.com/?url=',
-    3 => '备用线路3=> https://www.nxflv.com/?url=',
-    4 => '备用线路4=>https://www.jiexila.com/?url=',
-    5 => '备用线路5=>https://jx.99yyw.com/99/?url=',
-    6 => '备用线路6=>https://607p.com/?url=',
+    0 => '沫兮主线=>https://jx.lxyy.club/index.php?url=',
+    1 => '沫兮备1=>https://bfq.txnp.cn/player?url=',
+    2 => '沫兮备2=>https://bd.jx.cn/?url=',
+    3 => '沫兮备3=>https://jiexi.789jiexi.com/?url=',
+    4 => '沫兮备4=>https://jx.202617.xyz/tv.php?url=',
+    5 => '推荐线路=>https://jx.fwwmy1.cn/?url=',
+    6 => '备用线路1=>https://v.nmbaojie.com/mingri/mingri.php?url=',
+    7 => '备用线路2=>https://jx.618g.com/?url=',
+    8 => '备用线路3=> https://www.nxflv.com/?url=',
+    9 => '备用线路4=>https://www.jiexila.com/?url=',
+    10 => '备用线路5=>https://jx.99yyw.com/99/?url=',
+    11 => '备用线路6=>https://607p.com/?url=',
   ),
   'jx_link' => 
   array (

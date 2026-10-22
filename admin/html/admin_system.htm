@@ -619,6 +619,36 @@
                             </button>
                         </div>
                     </form>
+
+                    <fieldset class="layui-elem-field" style="margin-top:15px">
+                        <legend>接口检测（测试解析线路好坏）</legend>
+                        <div class="layui-field-box">
+                            <div class="layui-form-item">
+                                <label class="layui-form-label">测试视频地址</label>
+                                <div class="layui-input-block">
+                                    <input type="text" id="jx-test-url" autocomplete="off" value="https://www.iqiyi.com/v_xu2nlnxuac.html" class="layui-input" placeholder="用于测试的官方视频地址">
+                                </div>
+                            </div>
+                            <div class="layui-form-item">
+                                <button type="button" class="layui-btn layui-btn-normal" id="btn-jx-test-all">测试全部线路</button>
+                                <span id="jx-test-tip" style="margin-left:10px;font-size:12px;color:#999">检测依据：HTTP 状态、响应耗时与页面内容特征，结果仅供参考</span>
+                            </div>
+                            <table class="layui-table" id="jx-test-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:60px">序号</th>
+                                        <th>线路名称</th>
+                                        <th>检测结果</th>
+                                        <th style="width:90px">HTTP</th>
+                                        <th style="width:90px">耗时</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="5" style="text-align:center;color:#999">点击「测试全部线路」开始检测</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </fieldset>
                 </div>
 
 
@@ -701,6 +731,61 @@
                                 x_admin_post("save.php", data.field);
                                 return false;
                             });
+
+                    //解析线路 接口检测
+                    var jxTesting = false;
+                    $('#btn-jx-test-all').on('click', function () {
+                        if (jxTesting) { return; }
+                        var lines = ($('textarea[name="jx_url"]').val() || '').split(/\r?\n/);
+                        var list = [];
+                        for (var i = 0; i < lines.length; i++) {
+                            var t = $.trim(lines[i]);
+                            if (t !== '') { list.push(t); }
+                        }
+                        if (list.length === 0) { layer.msg('请先在「解析线路设置」中添加线路'); return; }
+
+                        jxTesting = true;
+                        var btn = $(this).prop('disabled', true).text('检测中…');
+                        var tbody = $('#jx-test-table tbody').empty();
+                        for (var j = 0; j < list.length; j++) {
+                            var name = list[j].indexOf('=>') !== -1 ? list[j].split('=>')[0] : list[j];
+                            tbody.append($('<tr>')
+                                .append($('<td>').text(j + 1))
+                                .append($('<td>').text($.trim(name)))
+                                .append($('<td class="jx-r">').html('<span style="color:#999">等待中</span>'))
+                                .append($('<td class="jx-c">').text('-'))
+                                .append($('<td class="jx-m">').text('-')));
+                        }
+
+                        var idx = 0, okCount = 0;
+                        function next() {
+                            if (idx >= list.length) {
+                                jxTesting = false;
+                                btn.prop('disabled', false).text('测试全部线路');
+                                $('#jx-test-tip').text('检测完成：可用 ' + okCount + ' / ' + list.length + ' 条');
+                                return;
+                            }
+                            $('#jx-test-tip').text('正在检测第 ' + (idx + 1) + ' / ' + list.length + ' 条…');
+                            var tr = tbody.find('tr').eq(idx);
+                            tr.find('.jx-r').html('<span style="color:#1e9fff">检测中…</span>');
+                            $.post("admin.php", {
+                                type: "jx_test",
+                                jx: list[idx],
+                                test_url: $('#jx-test-url').val()
+                            }, function (d) {
+                                var color = d.state === 'good' ? '#5fb878' : (d.state === 'warn' ? '#ffb800' : '#ff5722');
+                                tr.find('.jx-r').html($('<span>').css('color', color).text(d.m || '检测失败'));
+                                tr.find('.jx-c').text(d.code || '-');
+                                tr.find('.jx-m').text((typeof d.ms === 'number' ? d.ms + ' ms' : '-'));
+                                if (d.state === 'good') { okCount++; }
+                                idx++; next();
+                            }, "json").fail(function () {
+                                tr.find('.jx-r').html('<span style="color:#ff5722">请求失败</span>');
+                                idx++; next();
+                            });
+                        }
+                        next();
+                    });
                     });
     </script>
 
