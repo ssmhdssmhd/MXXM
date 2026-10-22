@@ -3,7 +3,7 @@
 $ADFILE = dirname(__FILE__) . '/../../save/ad.config.php';
 $AD = @include $ADFILE;
 if (!is_array($AD)) { $AD = array(); }
-$AD += array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '');
+$AD += array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '', 'block' => '0', 'block_mode' => 'strict', 'block_param' => '');
 ?>
 <body>
     <div class="x-nav">
@@ -21,7 +21,8 @@ $AD += array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_c
             本功能用于在<strong>调用解析线路（解析接口）时</strong>向前台播放广告；<br>
             系统会<strong>自动识别电脑端 / 移动端</strong>，分别调用对应的广告代码；<br>
             广告代码支持 HTML（图片、视频、JS 均可），倒计时结束后自动进入解析播放，可设置是否允许跳过；<br>
-            设置关闭或广告代码为空时，不显示广告，保持原有解析体验。
+            设置关闭或广告代码为空时，不显示广告，保持原有解析体验；<br>
+            「解析页去广告」用于屏蔽解析接口页面自带的弹窗广告 / 劫持跳转，不影响自有广告的展示。
         </blockquote>
 
         <form class="layui-form layui-form-pane" action="">
@@ -51,6 +52,41 @@ $AD += array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_c
                             <input type="checkbox" name="AD_SKIP" lay-skin="switch" lay-text="允许|禁止" <?php echo $AD['skip'] === '1' ? 'checked' : ''; ?>>
                         </div>
                         <div class="layui-form-mid layui-word-aux">允许时，用户可点击右上角按钮跳过广告</div>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="layui-elem-field">
+                <legend>解析页去广告（屏蔽解析接口页面中的广告）</legend>
+                <div class="layui-field-box">
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">启用状态</label>
+                        <div class="layui-input-inline">
+                            <input type="checkbox" name="AD_BLOCK" lay-skin="switch" lay-text="开启|关闭" <?php echo $AD['block'] === '1' ? 'checked' : ''; ?>>
+                        </div>
+                        <div class="layui-form-mid layui-word-aux">开启后，前台解析 iframe 会自动限制解析页的广告行为</div>
+                    </div>
+
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">拦截模式</label>
+                        <div class="layui-input-inline">
+                            <select name="AD_BLOCK_MODE">
+                                <option value="strict" <?php echo $AD['block_mode'] === 'strict' ? 'selected' : ''; ?>>严格（禁止弹窗广告 + 禁止劫持跳转）</option>
+                                <option value="popup" <?php echo $AD['block_mode'] === 'popup' ? 'selected' : ''; ?>>兼容（仅禁止劫持跳转，保留弹窗）</option>
+                            </select>
+                        </div>
+                        <div class="layui-form-mid layui-word-aux">若解析页需要登录 / 支付弹窗，请选择「兼容」</div>
+                    </div>
+
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">附加参数</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="AD_BLOCK_PARAM" autocomplete="off" value="<?php echo htmlspecialchars($AD['block_param']); ?>" class="layui-input" placeholder="可选，追加到解析接口地址后，例如：&ad=0（留空不追加）">
+                        </div>
+                    </div>
+
+                    <div class="layui-form-mid layui-word-aux" style="padding-left:15px">
+                        说明：跨域页面无法直接删除其内部元素，本功能通过限制解析页的弹窗、顶层跳转等广告行为实现屏蔽；如解析站自身支持去广告参数，可在「附加参数」中填写。
                     </div>
                 </div>
             </fieldset>
@@ -97,6 +133,7 @@ $AD += array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_c
                 data.field.type = "ad_system";
                 data.field.AD_OFF = $('input[name="AD_OFF"]').prop('checked') ? '1' : '0';
                 data.field.AD_SKIP = $('input[name="AD_SKIP"]').prop('checked') ? '1' : '0';
+                data.field.AD_BLOCK = $('input[name="AD_BLOCK"]').prop('checked') ? '1' : '0';
                 x_admin_post("admin.php", data.field);
                 return false;
             });

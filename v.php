@@ -8,7 +8,7 @@ define('FCPATH', str_replace("\\", "/", str_replace(SELF, '', __FILE__)));
 //加载配置文件
 require_once(FCPATH."save/config.php");  
 //加载前台广告配置
-$AD = array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '');
+$AD = array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '', 'block' => '0', 'block_mode' => 'strict', 'block_param' => '');
 if (file_exists(FCPATH . 'save/ad.config.php')) {
     $ADTMP = @include FCPATH . 'save/ad.config.php';
     if (is_array($ADTMP)) { $AD = array_merge($AD, $ADTMP); }
@@ -18,6 +18,10 @@ $AD_TIME = max(0, (int)$AD['time']);
 $AD_SKIP = ((string)$AD['skip'] === '1');
 $AD_PC   = base64_decode($AD['pc_code']);
 $AD_WAP  = base64_decode($AD['wap_code']);
+//解析页去广告
+$AD_BLOCK      = ((string)$AD['block'] === '1');
+$AD_BLOCK_MODE = ((string)$AD['block_mode'] === 'popup') ? 'popup' : 'strict';
+$AD_BLOCK_PARAM = trim((string)$AD['block_param']);
 //接收参数
 
 $url=filter_input(INPUT_GET, "url") ? filter_input(INPUT_GET, "url") :filter_input(INPUT_GET, "v");
@@ -149,10 +153,31 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
    var AD_SKIP = <?php echo $AD_SKIP ? 'true' : 'false'; ?>;
    var AD_PC = <?php echo json_encode($AD_PC, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
    var AD_WAP = <?php echo json_encode($AD_WAP, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+   //解析页去广告
+   var AD_BLOCK = <?php echo $AD_BLOCK ? 'true' : 'false'; ?>;
+   var AD_BLOCK_MODE = <?php echo json_encode($AD_BLOCK_MODE); ?>;
+   var AD_BLOCK_PARAM = <?php echo json_encode($AD_BLOCK_PARAM, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+   //解析 iframe 的 sandbox 限制（屏蔽解析页弹窗 / 劫持跳转广告）
+   function adframeattr(){
+      if(!AD_BLOCK){ return ''; }
+      if(AD_BLOCK_MODE === 'popup'){
+          return ' sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-popups-to-escape-sandbox"';
+      }
+      return ' sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"';
+   }
+
+   //解析接口附加去广告参数
+   function adparam(url){
+      if(!AD_BLOCK || !AD_BLOCK_PARAM){ return url; }
+      var p = AD_BLOCK_PARAM;
+      if(p.charAt(0) !== '&' && p.charAt(0) !== '?'){ p = '&' + p; }
+      return url + p;
+   }
 
    function playframe(url, show){
    	  $("#loading").hide();
-      $("#a1").html('<iframe  width="100%" height="100%" src="' + url+'" frameborder="0" border="0" marginwidth="0" marginheight="0" scrolling="no" allowfullscreen="true" ></iframe>');
+      $("#a1").html('<iframe  width="100%" height="100%" src="' + url+'" frameborder="0" border="0" marginwidth="0" marginheight="0" scrolling="no" allow="autoplay; fullscreen; encrypted-media" allowfullscreen="true"' + adframeattr() + '></iframe>');
       if(show === false){ $("#a1").hide(); } else { $("#a1").show(); }
    }
 
@@ -162,6 +187,7 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
 
    //解析接口调用前展示广告
    function parseplay(url){
+      url = adparam(url);
       if(!AD_ON){ playframe(url); return; }
       var mobile = is_mobile();
       var code = mobile ? AD_WAP : AD_PC;

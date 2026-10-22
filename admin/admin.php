@@ -970,6 +970,9 @@ switch ($type) {
             'skip'     => (string)($_POST['AD_SKIP'] ?? '0') === '1' ? '1' : '0',
             'pc_code'  => base64_encode((string)($_POST['AD_PC_CODE'] ?? '')),
             'wap_code' => base64_encode((string)($_POST['AD_WAP_CODE'] ?? '')),
+            'block'    => (string)($_POST['AD_BLOCK'] ?? '0') === '1' ? '1' : '0',
+            'block_mode' => (string)($_POST['AD_BLOCK_MODE'] ?? 'strict') === 'popup' ? 'popup' : 'strict',
+            'block_param' => trim((string)($_POST['AD_BLOCK_PARAM'] ?? '')),
         );
         $sfile = dirname(__FILE__) . '/../save/ad.config.php';
         $scontent = "<?php\n/**\n * 前台广告配置（由后台「广告设置」页面生成，请勿手动修改格式）\n */\nreturn " . var_export($adCfg, true) . ";\n";

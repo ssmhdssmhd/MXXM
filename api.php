@@ -84,7 +84,7 @@ switch ($tp) {
         $CONFIG["play"]['define']['jx_url'] = $CONFIG["jx_url"];
         $CONFIG["play"]['define']['live_url'] = $CONFIG["live_url"];
         //前台解析广告配置（自动识别电脑端 / 移动端）
-        $ADCONFIG = array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '');
+        $ADCONFIG = array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '', 'block' => '0', 'block_mode' => 'strict', 'block_param' => '');
         $adFile = FCPATH . '/save/ad.config.php';
         if (file_exists($adFile)) {
             $adTmp = @include $adFile;
@@ -96,6 +96,9 @@ switch ($tp) {
             'skip'     => (string)$ADCONFIG['skip'],
             'pc_code'  => base64_decode($ADCONFIG['pc_code']),
             'wap_code' => base64_decode($ADCONFIG['wap_code']),
+            'block'    => (string)$ADCONFIG['block'],
+            'block_mode' => (string)$ADCONFIG['block_mode'],
+            'block_param' => (string)$ADCONFIG['block_param'],
         );
         $CONFIG["play"]['define']['jx_link'] = $CONFIG["jx_link"];
         $CONFIG["play"]['define']['url_jmp'] = $YUN_DATA["url_jmp"];

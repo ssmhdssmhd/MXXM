@@ -6,6 +6,7 @@
 
 | 版本 | 日期时间 | 说明 |
 |------|----------|------|
+| v.0.0.30 | 2026-10-22 00:20 (202610220020) | **广告设置新增「解析页去广告」**：可开启屏蔽解析接口页面自带的弹窗广告与劫持跳转（iframe 通过 `sandbox` 限制，严格模式禁弹窗+禁顶层跳转，兼容模式仅禁跳转），支持在解析接口地址后追加自定义去广告参数（如 `&ad=0`）；配置项 `block / block_mode / block_param` 存入 `save/ad.config.php`，前台 `v.php` 与 `xyplay` 内核的解析 iframe 均生效 |
 | v.0.0.29 | 2026-10-22 00:10 (202610220010) | **新增 5 条沫兮解析线路**（沫兮主线 / 备1 / 备2 / 备3 / 备4，位于线路列表头部）+ **解析线路接口检测**（后台「系统设置 → 解析设置」内新增「接口检测」区域，可自定义测试视频地址，一键批量检测全部线路，逐条返回可用状态 / HTTP 状态码 / 响应耗时）+ **后台新增「广告设置」菜单**（侧边栏位于「防火墙设置」下方）：可开启/关闭、设置展示时长与是否允许跳过，并分别填写电脑端 / 移动端广告代码；前台调用解析接口前自动识别设备并展示对应广告（`v.php` 与 `xyplay` 内核双端生效），配置存于 `save/ad.config.php` |
 | v.0.0.28 | 2026-10-15 14:39 (202610151439) | 算法1（mx1）数据库连接支持独立端口：后台新增 `db_port` 输入框，`mx1/mysql.php` 读取该配置，同时兼容 `host:port` 老格式 |
 | v.0.0.17 | 2026-10-15 12:45 (202610151245) | **算法2 (mx2) 新增独立资源站管理后台** `mx2/admin.php?tab=sites`（参考 MXGJ admin.php 风格，默认登录密码 `moxi123`，存于 `mx2/config/settings.json` 的 `admin_password` 字段，登录后可改）。独立 session 登录态 + 三个 tab：`sites`（资源站列表表格，每行字段=站点名/搜索模板/跟随播放代理/HTTP方法+解析模式+自定义Header+POST体/角色主用平替/特殊站开关/启用开关，支持➕添加/删除/即时开关/保存自动清缓存）、`mapping`（剧名/cid 映射表增删）、`settings`（全局开关/超时/缓存/管理密码）；字段名和 MXGJ 原版一致（`template / parse / headers / post / proxy / role / is_special / enabled`），与 `mx2/lib/SiteSearcher.php` 里 `$h['parse']` 等读取天然兼容。`mx2/bootstrap.php` 新增 admin 辅助函数（`mx2_admin_is_ajax / mx2_admin_save_ok / mx2_admin_save_fail / mx2_purge_cache / mx2_admin_password`），首次访问自动补默认密码到 `settings.json`。MXXM 主 admin 的「算法2」设置页增加紫色引导条，一键新窗口打开资源站管理后台 |
