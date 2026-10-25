@@ -1,5 +1,8 @@
 <?php
-include dirname(__FILE__) . '/../../save/script.config.php';
+// 配置文件可能尚未生成（在线更新会跳过 save/ 目录），先判断再加载，避免 include 警告
+$scFile = dirname(__FILE__) . '/../../save/script.config.php';
+$SCRIPT_CONFIG = array();
+if (file_exists($scFile)) { include $scFile; }
 if (!isset($SCRIPT_CONFIG) || !is_array($SCRIPT_CONFIG)) { $SCRIPT_CONFIG = array(); }
 $SC = $SCRIPT_CONFIG + array(
     'off' => '1', 'name' => '', 'url' => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
