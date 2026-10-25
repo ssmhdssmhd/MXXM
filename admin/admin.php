@@ -1063,6 +1063,110 @@ switch ($type) {
         ), JSON_UNESCAPED_UNICODE);
         exit;
 
+    //脚本解析 实时拉取脚本并解析其中的解析线路
+    case 'script_update':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $url = trim((string)(isset($_POST['url']) ? $_POST['url'] : ''));
+        if ($url === '') { $url = $cfg['url']; }
+        if (!preg_match('~^https?://~i', $url)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本地址无效，请填写 http(s) 开头的地址！'), JSON_UNESCAPED_UNICODE));
+        }
+        $js = script_fetch($url, 20);
+        if ($js === '') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '拉取脚本失败，请检查脚本地址或服务器网络！'), JSON_UNESCAPED_UNICODE));
+        }
+        $lines = script_extract_lines($js);
+        if ($lines === false) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本中未找到解析线路（videoParseList），请确认脚本地址！'), JSON_UNESCAPED_UNICODE));
+        }
+        list($name, $ver) = script_meta($js);
+        $cfg['url'] = $url;
+        if ($name !== '') { $cfg['name'] = $name; }
+        if ($ver !== '') { $cfg['version'] = $ver; }
+        $cfg['lines'] = $lines;
+        $cfg['time'] = date('YmdHis');
+        if (!script_save($cfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        $syncMsg = '';
+        if ($cfg['auto_sync'] === '1') {
+            $added = script_sync_lines($cfg);
+            if ($added > 0) { $syncMsg = "，已同步 {$added} 条到解析线路"; }
+        }
+        exit(json_encode(array(
+            'success' => 1, 'icon' => 6,
+            'm' => '更新成功：解析出 ' . count($lines) . ' 条线路，脚本版本 ' . ($ver !== '' ? $ver : '—') . $syncMsg,
+        ), JSON_UNESCAPED_UNICODE));
+
+    //脚本解析 保存基本设置
+    case 'script_system':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $cfg['off'] = (string)(isset($_POST['sc_off']) ? $_POST['sc_off'] : '0') === '1' ? '1' : '0';
+        $cfg['name'] = trim((string)(isset($_POST['sc_name']) ? $_POST['sc_name'] : ''));
+        $url = trim((string)(isset($_POST['sc_url']) ? $_POST['sc_url'] : ''));
+        if ($url !== '' && !preg_match('~^https?://~i', $url)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本地址无效，请填写 http(s) 开头的地址！'), JSON_UNESCAPED_UNICODE));
+        }
+        if ($url !== '') { $cfg['url'] = $url; }
+        $cfg['repo'] = trim((string)(isset($_POST['sc_repo']) ? $_POST['sc_repo'] : ''));
+        $cfg['auto_sync'] = (string)(isset($_POST['sc_auto']) ? $_POST['sc_auto'] : '0') === '1' ? '1' : '0';
+        $directFields = array('site' => 'sc_site', 'api' => 'sc_api', 'player' => 'sc_player');
+        foreach ($directFields as $key => $field) {
+            $val = trim((string)(isset($_POST[$field]) ? $_POST[$field] : ''));
+            if ($val === '') { continue; }
+            if (!preg_match('~^https?://~i', $val)) {
+                exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '直连线路参数地址无效，请填写 http(s) 开头的地址！'), JSON_UNESCAPED_UNICODE));
+            }
+            $cfg['direct'][$key] = $val;
+        }
+        if (!script_save($cfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '脚本设置已保存'), JSON_UNESCAPED_UNICODE));
+
+    //脚本解析 保存解析线路
+    case 'script_lines':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $names  = isset($_POST['sc_name'])   ? (array)$_POST['sc_name']   : array();
+        $urls   = isset($_POST['sc_url'])    ? (array)$_POST['sc_url']    : array();
+        $types  = isset($_POST['sc_type'])   ? (array)$_POST['sc_type']   : array();
+        $dirs   = isset($_POST['sc_direct']) ? (array)$_POST['sc_direct'] : array();
+        $offs   = isset($_POST['sc_off'])    ? (array)$_POST['sc_off']    : array();
+        $lines  = array();
+        foreach ($names as $i => $n) {
+            $n = trim((string)$n);
+            if ($n === '') { continue; }
+            $lines[] = array(
+                'name'   => $n,
+                'url'    => isset($urls[$i]) ? trim((string)$urls[$i]) : '',
+                'type'   => isset($types[$i]) ? trim((string)$types[$i]) : '1',
+                'direct' => (isset($dirs[$i]) && (string)$dirs[$i] === '1') ? '1' : '0',
+                'off'    => (isset($offs[$i]) && (string)$offs[$i] === '1') ? '1' : '0',
+            );
+        }
+        $cfg['lines'] = $lines;
+        $cfg['time'] = date('YmdHis');
+        if (!script_save($cfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '解析线路已保存，共 ' . count($lines) . ' 条'), JSON_UNESCAPED_UNICODE));
+
+    //脚本解析 同步到前台解析线路
+    case 'script_sync':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $added = script_sync_lines($cfg);
+        if ($added === false) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '同步失败，请检查 save/config.php 写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        $msg = $added > 0
+            ? '已同步 ' . $added . ' 条线路到「解析设置 → 解析线路」'
+            : '没有需要同步的线路（已存在，或只有直连线路）';
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => $msg), JSON_UNESCAPED_UNICODE));
+
     //资源站设置 实时更新站点列表（数据源：blog.ksdiy.cn/dh，实时拉取 resources.json）
     case 'ziyuan_update':
         $cfg = zy_load();
@@ -1373,4 +1477,139 @@ function zy_parse_detail($html) {
         if (!empty($players)) { $out['player'] = $players[0]; }
     }
     return $out;
+}
+
+/* ==================== 脚本解析（读取用户脚本中的 videoParseList） ==================== */
+
+// 读取脚本解析配置
+function script_load() {
+    $file = dirname(__FILE__) . '/../save/script.config.php';
+    $cfg = array();
+    if (file_exists($file)) {
+        include $file;
+        if (isset($SCRIPT_CONFIG) && is_array($SCRIPT_CONFIG)) { $cfg = $SCRIPT_CONFIG; }
+    }
+    $direct = array(
+        'site'   => 'https://wsyzy.cc',
+        'api'    => 'https://api.wsyzy.net/api.php/provide/vod/',
+        'player' => 'https://wsyzy.vip/m3u8/?url=',
+    );
+    $cfg += array(
+        'off' => '1', 'name' => '', 'url' => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
+        'repo' => 'https://github.com/88lin/video_vip', 'auto_sync' => '0', 'version' => '', 'time' => '',
+        'direct' => $direct, 'lines' => array(),
+    );
+    if (!isset($cfg['direct']) || !is_array($cfg['direct'])) { $cfg['direct'] = $direct; }
+    $cfg['direct'] += $direct;
+    if (!isset($cfg['lines']) || !is_array($cfg['lines'])) { $cfg['lines'] = array(); }
+    return $cfg;
+}
+
+// 保存脚本解析配置
+function script_save($cfg) {
+    $file = dirname(__FILE__) . '/../save/script.config.php';
+    $content = "<?php\n/* 脚本解析配置（由后台「脚本解析」页面生成，请勿手动修改格式） */\n"
+        . '$SCRIPT_CONFIG = ' . var_export($cfg, true) . ";\n";
+    return @file_put_contents($file, $content);
+}
+
+// 带超时的脚本拉取
+function script_fetch($url, $timeout = 20) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_ENCODING, '');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    $data = curl_exec($ch);
+    curl_close($ch);
+    return is_string($data) ? $data : '';
+}
+
+// 从用户脚本头提取名称与版本
+function script_meta($js) {
+    $name = ''; $ver = '';
+    if (preg_match('/@name\s+([^\r\n]+)/', $js, $m)) { $name = trim($m[1]); }
+    if (preg_match('/@version\s+([^\s]+)/', $js, $m)) { $ver = trim($m[1]); }
+    return array($name, $ver);
+}
+
+// 提取脚本中的 videoParseList 并转为线路数组
+function script_extract_lines($js) {
+    $pos = strpos($js, 'videoParseList');
+    if ($pos === false) { return false; }
+    $open = strpos($js, '[', $pos);
+    if ($open === false) { return false; }
+
+    // 按括号配对截取数组字面量（忽略字符串内的括号）
+    $len = strlen($js); $depth = 0; $inStr = false; $quote = ''; $end = -1;
+    for ($i = $open; $i < $len; $i++) {
+        $ch = $js[$i];
+        if ($inStr) {
+            if ($ch === '\\') { $i++; continue; }
+            if ($ch === $quote) { $inStr = false; }
+            continue;
+        }
+        if ($ch === '"' || $ch === "'") { $inStr = true; $quote = $ch; continue; }
+        if ($ch === '[') { $depth++; }
+        elseif ($ch === ']') { $depth--; if ($depth === 0) { $end = $i; break; } }
+    }
+    if ($end < 0) { return false; }
+
+    $raw = substr($js, $open, $end - $open + 1);
+    $arr = json_decode($raw, true);
+    if (!is_array($arr)) {
+        // 兼容 key 未加引号 / 单引号写法
+        $json = preg_replace('/([\{,])\s*([A-Za-z_][A-Za-z0-9_]*)\s*:/', '$1"$2":', $raw);
+        $json = str_replace("'", '"', $json);
+        $arr = json_decode($json, true);
+    }
+    if (!is_array($arr)) { return false; }
+
+    $lines = array();
+    foreach ($arr as $it) {
+        if (!is_array($it)) { continue; }
+        $name = isset($it['name']) ? trim((string)$it['name']) : '';
+        if ($name === '') { continue; }
+        $lines[] = array(
+            'name'   => $name,
+            'url'    => isset($it['url']) ? trim((string)$it['url']) : '',
+            'type'   => isset($it['type']) ? trim((string)$it['type']) : '1',
+            'direct' => !empty($it['wsyzy']) ? '1' : '0',
+            'off'    => '1',
+        );
+    }
+    return empty($lines) ? false : $lines;
+}
+
+// 把脚本线路追加到前台解析线路（按接口地址去重，直连线路不参与）
+function script_sync_lines($cfg) {
+    global $CONFIG;
+    $file = dirname(__FILE__) . '/../save/config.php';
+    if (!isset($CONFIG['jx_url']) || !is_array($CONFIG['jx_url'])) { $CONFIG['jx_url'] = array(); }
+
+    $exist = array();
+    foreach ($CONFIG['jx_url'] as $line) {
+        $val = explode('=>', (string)$line, 2);
+        if (isset($val[1])) { $exist[trim($val[1])] = 1; }
+    }
+
+    $added = 0;
+    foreach ($cfg['lines'] as $it) {
+        if (!is_array($it)) { continue; }
+        $it += array('name' => '', 'url' => '', 'direct' => '0', 'off' => '0');
+        if ((string)$it['off'] !== '1' || (string)$it['direct'] === '1' || $it['url'] === '') { continue; }
+        if (isset($exist[$it['url']])) { continue; }
+        $CONFIG['jx_url'][] = $it['name'] . '=>' . $it['url'];
+        $exist[$it['url']] = 1;
+        $added++;
+    }
+
+    if ($added > 0 && !Main_db::save($file)) { return false; }
+    return $added;
 }

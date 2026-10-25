@@ -1,0 +1,227 @@
+<?php
+include dirname(__FILE__) . '/../../save/script.config.php';
+if (!isset($SCRIPT_CONFIG) || !is_array($SCRIPT_CONFIG)) { $SCRIPT_CONFIG = array(); }
+$SC = $SCRIPT_CONFIG + array(
+    'off' => '1', 'name' => '', 'url' => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
+    'repo' => 'https://github.com/88lin/video_vip', 'auto_sync' => '0', 'version' => '', 'time' => '',
+    'direct' => array(), 'lines' => array(),
+);
+$SC['direct'] = (isset($SC['direct']) && is_array($SC['direct'])) ? $SC['direct'] : array();
+$SC['direct'] += array('site' => 'https://wsyzy.cc', 'api' => 'https://api.wsyzy.net/api.php/provide/vod/', 'player' => 'https://wsyzy.vip/m3u8/?url=');
+if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
+?>
+<?php include "block_header.htm"; ?>
+
+<body>
+    <div class="x-nav">
+        <span class="layui-breadcrumb">
+            <a><cite>首页</cite></a>
+            <a><cite>脚本解析</cite></a>
+            <a><cite>脚本设置</cite></a>
+        </span>
+        <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+        <a class="layui-btn layui-btn-normal" target="_blank" style="line-height:1.6em;margin-top:3px;margin-right:5px;float:right" href="../plus/script/" title="打开播放入口">打开播放入口</a>
+    </div>
+    <div class="x-body">
+        <blockquote class="layui-elem-quote layui-quote-nm">
+            <h2>说明：</h2>
+            ① 脚本解析会读取用户脚本中的解析线路（<code>videoParseList</code>），保存后即可用于解析播放；<br>
+            ② 点击「更新脚本」会从脚本地址实时拉取并解析线路，脚本更新后点一下即可同步；<br>
+            ③ 播放入口：<code>域名/plus/script/?url=官方视频地址</code>；直连线路（无损云）会自动搜索资源站并播放 m3u8；<br>
+            ④ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用。
+        </blockquote>
+
+        <div class="layui-tab layui-tab-brief" lay-filter="scTab">
+            <ul class="layui-tab-title">
+                <li class="layui-this">脚本设置</li>
+                <li>解析线路</li>
+            </ul>
+            <div class="layui-tab-content">
+
+                <div class="layui-tab-item layui-show">
+                    <form class="layui-form layui-form-pane" action="">
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">启用状态</label>
+                            <div class="layui-input-inline">
+                                <input type="checkbox" name="sc_off" value="1" lay-skin="switch" lay-text="启用|关闭" <?php echo $SC['off'] === '1' ? 'checked' : ''; ?>>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">关闭后播放入口提示未启用</div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">脚本名称</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="sc_name" autocomplete="off" value="<?php echo htmlspecialchars($SC['name']); ?>" class="layui-input">
+                            </div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">脚本地址</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="sc_url" id="sc_url" autocomplete="off" value="<?php echo htmlspecialchars($SC['url']); ?>" class="layui-input" placeholder="https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js">
+                            </div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">源码仓库</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="sc_repo" autocomplete="off" value="<?php echo htmlspecialchars($SC['repo']); ?>" class="layui-input">
+                            </div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">自动同步</label>
+                            <div class="layui-input-inline">
+                                <input type="checkbox" name="sc_auto" value="1" lay-skin="switch" lay-text="开|关" <?php echo $SC['auto_sync'] === '1' ? 'checked' : ''; ?>>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">更新脚本后自动把线路追加到前台解析线路</div>
+                        </div>
+
+                        <fieldset class="layui-elem-field">
+                            <legend>直连线路参数（无损云）</legend>
+                            <div class="layui-field-box">
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">站点地址</label>
+                                    <div class="layui-input-block">
+                                        <input type="text" name="sc_site" autocomplete="off" value="<?php echo htmlspecialchars($SC['direct']['site']); ?>" class="layui-input">
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">资源接口</label>
+                                    <div class="layui-input-block">
+                                        <input type="text" name="sc_api" autocomplete="off" value="<?php echo htmlspecialchars($SC['direct']['api']); ?>" class="layui-input">
+                                    </div>
+                                </div>
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">官方播放器</label>
+                                    <div class="layui-input-block">
+                                        <input type="text" name="sc_player" autocomplete="off" value="<?php echo htmlspecialchars($SC['direct']['player']); ?>" class="layui-input">
+                                    </div>
+                                    <div class="layui-form-mid layui-word-aux">播放器地址后拼接 m3u8 地址，例如：https://wsyzy.vip/m3u8/?url=</div>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <div class="layui-form-item">
+                            <button class="layui-btn" lay-submit="" lay-filter="scBasic">保存设置</button>
+                            <button type="button" class="layui-btn layui-btn-normal" id="btn-sc-update">更新脚本</button>
+                            <button type="button" class="layui-btn layui-btn-warm" id="btn-sc-sync">同步到解析线路</button>
+                            <span id="sc-tip" style="margin-left:10px;font-size:12px;color:#999">
+                                当前版本：<?php echo htmlspecialchars($SC['version'] !== '' ? $SC['version'] : '—'); ?>
+                                ｜ 线路数：<?php echo count($SC['lines']); ?>
+                                ｜ 更新时间：<?php echo htmlspecialchars($SC['time'] !== '' ? $SC['time'] : '—'); ?>
+                            </span>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="layui-tab-item">
+                    <form class="layui-form layui-form-pane" id="sc-lines-form" action="">
+                        <table class="layui-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px">序号</th>
+                                    <th>线路名称</th>
+                                    <th>类型</th>
+                                    <th>解析地址</th>
+                                    <th style="width:110px">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($SC['lines'])): ?>
+                                <tr><td colspan="5" style="text-align:center;color:#999">暂无线路，请点击「更新脚本」解析</td></tr>
+                                <?php else: foreach ($SC['lines'] as $i => $it):
+                                    $it = is_array($it) ? $it : array();
+                                    $it += array('name' => '', 'url' => '', 'type' => '', 'direct' => '0', 'off' => '1');
+                                ?>
+                                <tr>
+                                    <td><?php echo $i + 1; ?></td>
+                                    <td>
+                                        <input type="text" name="sc_name[]" value="<?php echo htmlspecialchars($it['name']); ?>" class="layui-input">
+                                        <input type="hidden" name="sc_type[]" value="<?php echo htmlspecialchars($it['type']); ?>">
+                                        <input type="hidden" name="sc_direct[]" value="<?php echo $it['direct'] === '1' ? '1' : '0'; ?>">
+                                    </td>
+                                    <td>
+                                        <?php if ($it['direct'] === '1'): ?>
+                                            <span class="layui-badge layui-bg-orange">直连</span>
+                                        <?php else: ?>
+                                            <span class="layui-badge layui-bg-blue"><?php echo htmlspecialchars($it['type'] !== '' ? $it['type'] : '1'); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="sc_url[]" value="<?php echo htmlspecialchars($it['url']); ?>" class="layui-input" <?php echo $it['direct'] === '1' ? 'readonly placeholder="直连线路由脚本自动搜索资源，无需接口地址"' : ''; ?>>
+                                    </td>
+                                    <td>
+                                        <select name="sc_off[]">
+                                            <option value="1" <?php echo $it['off'] === '1' ? 'selected' : ''; ?>>启用</option>
+                                            <option value="0" <?php echo $it['off'] !== '1' ? 'selected' : ''; ?>>停用</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <?php endforeach; endif; ?>
+                            </tbody>
+                        </table>
+                        <div class="layui-form-item">
+                            <button class="layui-btn" lay-submit="" lay-filter="scLines">保存线路</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        layui.use(['form', 'layer', 'element'], function () {
+            var $ = layui.jquery, form = layui.form, layer = layui.layer, element = layui.element;
+
+            function tip(ok, msg) {
+                $('#sc-tip').css('color', ok ? '#5fb878' : '#ff5722').text(msg);
+            }
+
+            //保存基本设置
+            form.on('submit(scBasic)', function (data) {
+                $.post("admin.php", $.extend({ type: "script_system" }, data.field), function (d) {
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+                }, "json").fail(function () { tip(false, '请求失败'); });
+                return false;
+            });
+
+            //保存线路
+            form.on('submit(scLines)', function () {
+                var post = $('#sc-lines-form').serialize() + '&type=script_lines';
+                $.post("admin.php", post, function (d) {
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+                }, "json").fail(function () { tip(false, '请求失败'); });
+                return false;
+            });
+
+            //更新脚本：实时拉取并解析线路
+            $('#btn-sc-update').on('click', function () {
+                var btn = $(this).prop('disabled', true).text('拉取中…');
+                $.post("admin.php", { type: "script_update", url: $('#sc_url').val() }, function (d) {
+                    btn.prop('disabled', false).text('更新脚本');
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 900); }
+                }, "json").fail(function () {
+                    btn.prop('disabled', false).text('更新脚本');
+                    tip(false, '请求失败');
+                });
+            });
+
+            //同步到解析线路
+            $('#btn-sc-sync').on('click', function () {
+                layer.confirm('将把启用中、带接口地址的线路追加到前台解析线路（按地址去重），是否继续？', function (index) {
+                    layer.close(index);
+                    $.post("admin.php", { type: "script_sync" }, function (d) {
+                        tip(d.success == 1, d.m);
+                    }, "json").fail(function () { tip(false, '请求失败'); });
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
