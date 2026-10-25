@@ -341,8 +341,8 @@ function script_resp_collect($keys, $vals) {
 
 /* ==================== 资源站搜索与直连解析 ==================== */
 
-// 带超时的网页抓取
-function sp_http($url, $timeout = 12) {
+// 带超时的网页抓取（可指定 User-Agent）
+function sp_http($url, $timeout = 12, $ua = '') {
     if (!preg_match('~^https?://~i', $url)) { return ''; }
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
@@ -355,7 +355,8 @@ function sp_http($url, $timeout = 12) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_ENCODING, '');
     curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    if ($ua === '') { $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'; }
+    curl_setopt($ch, CURLOPT_USERAGENT, $ua);
     $data = curl_exec($ch);
     curl_close($ch);
     return is_string($data) ? $data : '';
@@ -411,12 +412,8 @@ function sp_tencent_title($url) {
     return sp_clean_title($t);
 }
 
-// 从官方页面提取片名（og:title / title）
-function sp_page_title($url) {
-    // 腾讯视频优先走接口（页面标题是站点名，无法识别片名）
-    $t = sp_tencent_title($url);
-    if ($t !== '') { return $t; }
-    $html = sp_http($url, 10);
+// 从页面 HTML 提取并清洗片名
+function sp_title_from_html($html) {
     if ($html === '') { return ''; }
     $t = sp_meta_content($html, 'og:title');
     if ($t === '') { $t = sp_meta_content($html, 'title'); }
@@ -424,6 +421,17 @@ function sp_page_title($url) {
         $t = html_entity_decode(strip_tags($m[1]), ENT_QUOTES, 'UTF-8');
     }
     return sp_clean_title($t);
+}
+
+// 从官方页面提取片名（og:title / title）
+function sp_page_title($url) {
+    // 腾讯视频优先走接口（页面标题是站点名，无法识别片名）
+    $t = sp_tencent_title($url);
+    if ($t !== '') { return $t; }
+    $t = sp_title_from_html(sp_http($url, 10));
+    if ($t !== '') { return $t; }
+    // 腾讯 / 爱奇艺等站点仅对搜索引擎返回带片名的 HTML，用爬虫 UA 重试
+    return sp_title_from_html(sp_http($url, 10, 'Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)'));
 }
 
 // 匹配度打分：精确 > 前缀 > 包含 > 反向包含
