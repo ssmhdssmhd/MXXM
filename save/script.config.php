@@ -83,6 +83,50 @@ $SCRIPT_CONFIG = array (
   ),
   'auto_update' => '1',
   'interval' => '6',
-  'last_check' => '',
+  'last_check' => '20261026033657',
   'lines_hash' => 'a5429a40f8f725cbd71587840c5895fa',
+  'resp' => 
+  array (
+    'success' => 
+    array (
+      0 => 
+      array (
+        'key' => 'code',
+        'value' => '200',
+      ),
+      1 => 
+      array (
+        'key' => 'msg',
+        'value' => 'success',
+      ),
+      2 => 
+      array (
+        'key' => 'url',
+        'value' => '{url}',
+      ),
+      3 => 
+      array (
+        'key' => 'title',
+        'value' => '{title}',
+      ),
+      4 => 
+      array (
+        'key' => 'ext',
+        'value' => '{ext}',
+      ),
+    ),
+    'error' => 
+    array (
+      0 => 
+      array (
+        'key' => 'code',
+        'value' => '{code}',
+      ),
+      1 => 
+      array (
+        'key' => 'msg',
+        'value' => '{msg}',
+      ),
+    ),
+  ),
 );

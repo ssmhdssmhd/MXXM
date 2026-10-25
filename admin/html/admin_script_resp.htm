@@ -1,0 +1,184 @@
+<?php
+require_once dirname(__FILE__) . '/../../include/class.script.php';
+$SC = script_load();
+$okFields  = isset($SC['resp']['success']) && is_array($SC['resp']['success']) ? $SC['resp']['success'] : array();
+$errFields = isset($SC['resp']['error']) && is_array($SC['resp']['error']) ? $SC['resp']['error'] : array();
+?>
+<?php include "block_header.htm"; ?>
+
+<body>
+    <div class="x-nav">
+        <span class="layui-breadcrumb">
+            <a><cite>首页</cite></a>
+            <a><cite>脚本解析</cite></a>
+            <a><cite>返回响应设置</cite></a>
+        </span>
+        <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+        <a class="layui-btn layui-btn-normal" target="_blank" style="line-height:1.6em;margin-top:3px;margin-right:5px;float:right" href="../plus/mxjx/?url=" title="测试 JSON 接口">测试 JSON 接口</a>
+    </div>
+    <div class="x-body">
+        <blockquote class="layui-elem-quote layui-quote-nm">
+            <h2>说明：</h2>
+            ① JSON 接口：<code>域名/plus/mxjx/?url=官方视频地址</code>，接口会自动搜索资源站，返回 JSON，其中 <code>url</code> 为可播放的 m3u8 地址；<br>
+            ② 支持参数：<code>url</code>（官方视频地址）、<code>wd</code>（片名，自动识别失败时使用）、<code>vid</code>（资源 ID）、<code>ep</code>（集数，从 0 开始）；<br>
+            ③ 未传入链接或资源 ID 时返回：<code>{"code":400,"msg":"缺少vid参数"}</code>；成功返回示例：<code>{"code":200,"msg":"success","url":"m3u8地址","title":"片名","ext":"m3u8"}</code>；<br>
+            ④ 下方可自定义成功与错误的返回字段和内容，字段名与值都可修改，值支持占位符。
+        </blockquote>
+
+        <div class="layui-elem-quote layui-quote-nm" style="background:#f6fbff">
+            <b>可用占位符：</b>
+            <code>{url}</code> 播放地址 ·
+            <code>{title}</code> 片名 ·
+            <code>{name}</code> 片名 ·
+            <code>{ep}</code> 集数名称 ·
+            <code>{vid}</code> 资源 ID ·
+            <code>{ext}</code> 格式 ·
+            <code>{code}</code> 状态码 ·
+            <code>{msg}</code> 提示信息
+            <br><span style="color:#999">提示：纯数字内容会输出为 JSON 数字（如 200），其余输出为字符串。</span>
+        </div>
+
+        <form class="layui-form layui-form-pane" id="sc-resp-form" action="">
+            <fieldset class="layui-elem-field">
+                <legend>成功返回字段</legend>
+                <div class="layui-field-box">
+                    <table class="layui-table">
+                        <thead>
+                            <tr>
+                                <th style="width:220px">字段名</th>
+                                <th>内容</th>
+                                <th style="width:80px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sc-ok-rows">
+                            <?php if (empty($okFields)): ?>
+                            <tr><td colspan="3" style="text-align:center;color:#999">暂无字段，请点击下方「添加字段」</td></tr>
+                            <?php else: foreach ($okFields as $f):
+                                $f = is_array($f) ? $f : array();
+                                $f += array('key' => '', 'value' => '');
+                            ?>
+                            <tr>
+                                <td><input type="text" name="sc_ok_key[]" value="<?php echo htmlspecialchars($f['key']); ?>" class="layui-input" placeholder="如 code"></td>
+                                <td><input type="text" name="sc_ok_val[]" value="<?php echo htmlspecialchars($f['value']); ?>" class="layui-input" placeholder="如 200 或 {url}"></td>
+                                <td><button type="button" class="layui-btn layui-btn-danger layui-btn-sm sc-del">删除</button></td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                    <button type="button" class="layui-btn layui-btn-primary layui-btn-sm" data-add="ok">＋ 添加字段</button>
+                </div>
+            </fieldset>
+
+            <fieldset class="layui-elem-field">
+                <legend>错误返回字段</legend>
+                <div class="layui-field-box">
+                    <table class="layui-table">
+                        <thead>
+                            <tr>
+                                <th style="width:220px">字段名</th>
+                                <th>内容</th>
+                                <th style="width:80px">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sc-err-rows">
+                            <?php if (empty($errFields)): ?>
+                            <tr><td colspan="3" style="text-align:center;color:#999">暂无字段，请点击下方「添加字段」</td></tr>
+                            <?php else: foreach ($errFields as $f):
+                                $f = is_array($f) ? $f : array();
+                                $f += array('key' => '', 'value' => '');
+                            ?>
+                            <tr>
+                                <td><input type="text" name="sc_err_key[]" value="<?php echo htmlspecialchars($f['key']); ?>" class="layui-input" placeholder="如 code"></td>
+                                <td><input type="text" name="sc_err_val[]" value="<?php echo htmlspecialchars($f['value']); ?>" class="layui-input" placeholder="如 {code}"></td>
+                                <td><button type="button" class="layui-btn layui-btn-danger layui-btn-sm sc-del">删除</button></td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                    <button type="button" class="layui-btn layui-btn-primary layui-btn-sm" data-add="err">＋ 添加字段</button>
+                </div>
+            </fieldset>
+
+            <div class="layui-form-item">
+                <button class="layui-btn" lay-submit="" lay-filter="scRespSave">保存设置</button>
+                <button type="button" class="layui-btn layui-btn-warm" id="btn-sc-resp-default">恢复默认</button>
+                <span id="sc-resp-tip" style="margin-left:10px;font-size:12px;color:#999"></span>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        layui.use(['form', 'layer'], function () {
+            var $ = layui.jquery, form = layui.form, layer = layui.layer;
+
+            function tip(ok, msg) {
+                $('#sc-resp-tip').css('color', ok ? '#5fb878' : '#ff5722').text(msg);
+            }
+
+            function rowHtml(type, key, val) {
+                var prefix = type === 'ok' ? 'sc_ok' : 'sc_err';
+                var phKey = type === 'ok' ? '如 code' : '如 code';
+                var phVal = type === 'ok' ? '如 200 或 {url}' : '如 {code}';
+                return '<tr>' +
+                    '<td><input type="text" name="' + prefix + '_key[]" value="' + (key || '') + '" class="layui-input" placeholder="' + phKey + '"></td>' +
+                    '<td><input type="text" name="' + prefix + '_val[]" value="' + (val || '') + '" class="layui-input" placeholder="' + phVal + '"></td>' +
+                    '<td><button type="button" class="layui-btn layui-btn-danger layui-btn-sm sc-del">删除</button></td>' +
+                    '</tr>';
+            }
+
+            function emptyHtml() {
+                return '<tr><td colspan="3" style="text-align:center;color:#999">暂无字段，请点击下方「添加字段」</td></tr>';
+            }
+
+            function appendRow(type, key, val) {
+                var tbody = type === 'ok' ? $('#sc-ok-rows') : $('#sc-err-rows');
+                if (tbody.find('input').length === 0) { tbody.empty(); }
+                tbody.append(rowHtml(type, key, val));
+            }
+
+            $('[data-add]').on('click', function () {
+                appendRow($(this).data('add'), '', '');
+            });
+
+            $(document).on('click', '.sc-del', function () {
+                var tr = $(this).closest('tr');
+                var tbody = tr.closest('tbody');
+                tr.remove();
+                if (tbody.find('input').length === 0) { tbody.html(emptyHtml()); }
+            });
+
+            form.on('submit(scRespSave)', function () {
+                var post = $('#sc-resp-form').serialize() + '&type=script_resp';
+                $.post("admin.php", post, function (d) {
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+                }, "json").fail(function () { tip(false, '请求失败'); });
+                return false;
+            });
+
+            $('#btn-sc-resp-default').on('click', function () {
+                layer.confirm('确定恢复默认的成功/错误返回字段吗？', function (index) {
+                    layer.close(index);
+                    var okDefaults = [
+                        { key: 'code', value: '200' },
+                        { key: 'msg', value: 'success' },
+                        { key: 'url', value: '{url}' },
+                        { key: 'title', value: '{title}' },
+                        { key: 'ext', value: '{ext}' }
+                    ];
+                    var errDefaults = [
+                        { key: 'code', value: '{code}' },
+                        { key: 'msg', value: '{msg}' }
+                    ];
+                    $('#sc-ok-rows').empty();
+                    $('#sc-err-rows').empty();
+                    $.each(okDefaults, function (i, it) { appendRow('ok', it.key, it.value); });
+                    $.each(errDefaults, function (i, it) { appendRow('err', it.key, it.value); });
+                    tip(true, '已恢复默认，请点击「保存设置」生效');
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

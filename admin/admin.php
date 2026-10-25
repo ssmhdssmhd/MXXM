@@ -1142,6 +1142,30 @@ switch ($type) {
         }
         exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '脚本设置已保存'), JSON_UNESCAPED_UNICODE));
 
+    //脚本解析 保存 JSON 返回字段
+    case 'script_resp':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $okFields = script_resp_collect(
+            isset($_POST['sc_ok_key']) ? $_POST['sc_ok_key'] : array(),
+            isset($_POST['sc_ok_val']) ? $_POST['sc_ok_val'] : array()
+        );
+        $errFields = script_resp_collect(
+            isset($_POST['sc_err_key']) ? $_POST['sc_err_key'] : array(),
+            isset($_POST['sc_err_val']) ? $_POST['sc_err_val'] : array()
+        );
+        if (empty($okFields)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请至少保留一个成功返回字段！'), JSON_UNESCAPED_UNICODE));
+        }
+        if (empty($errFields)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请至少保留一个错误返回字段！'), JSON_UNESCAPED_UNICODE));
+        }
+        $cfg['resp'] = array('success' => $okFields, 'error' => $errFields);
+        if (!script_save($cfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '返回响应设置已保存'), JSON_UNESCAPED_UNICODE));
+
     //脚本解析 保存解析线路
     case 'script_lines':
         header('Content-Type: application/json; charset=utf-8');

@@ -25,6 +25,7 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
         </span>
         <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
         <a class="layui-btn layui-btn-normal" target="_blank" style="line-height:1.6em;margin-top:3px;margin-right:5px;float:right" href="../plus/script/" title="打开播放入口">打开播放入口</a>
+        <a class="layui-btn layui-btn-warm" target="_blank" style="line-height:1.6em;margin-top:3px;margin-right:5px;float:right" href="load.php?url=admin_script_resp.htm" title="返回响应设置">返回响应设置</a>
     </div>
     <div class="x-body">
         <blockquote class="layui-elem-quote layui-quote-nm">
@@ -32,7 +33,8 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
             ① 脚本解析会读取用户脚本中的解析线路（<code>videoParseList</code>），保存后即可用于解析播放；<br>
             ② 点击「更新脚本」会从脚本地址实时拉取并解析线路，脚本更新后点一下即可同步；<br>
             ③ 播放入口：<code>域名/plus/script/?url=官方视频地址</code>；直连线路（无损云）会自动搜索资源站并播放 m3u8；<br>
-            ④ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用。
+            ④ JSON 调用接口：<code>域名/plus/mxjx/?url=官方视频地址</code>；自动搜索资源站并返回 JSON，<code>url</code> 为 m3u8 地址，返回字段可在「返回响应设置」中自定义；<br>
+            ⑤ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用。
         </blockquote>
 
         <div class="layui-tab layui-tab-brief" lay-filter="scTab">
