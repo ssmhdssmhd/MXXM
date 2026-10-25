@@ -6,7 +6,7 @@ if (file_exists($scFile)) { include $scFile; }
 if (!isset($SCRIPT_CONFIG) || !is_array($SCRIPT_CONFIG)) { $SCRIPT_CONFIG = array(); }
 $SC = $SCRIPT_CONFIG + array(
     'off' => '1', 'name' => '', 'url' => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
-    'repo' => 'https://github.com/88lin/video_vip', 'auto_sync' => '0', 'auto_update' => '1',
+    'repo' => 'https://github.com/88lin/video_vip', 'auto_sync' => '1', 'auto_update' => '1',
     'interval' => '6', 'last_check' => '', 'lines_hash' => '', 'version' => '', 'time' => '',
     'direct' => array(), 'lines' => array(),
 );
@@ -197,8 +197,11 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
 
             //页面加载时静默检测上游仓库更新（受「检查间隔」限制，未到期不会发起请求）
             $.post("admin.php", { type: "script_auto" }, function (d) {
-                if (d && d.changed == 1) {
+                if (!d) { return; }
+                if (d.changed == 1) {
                     setTimeout(function () { location.reload(); }, 600);
+                } else if (d.success == 0) {
+                    tip(false, d.m);
                 }
             }, "json");
 

@@ -5,7 +5,7 @@ $SCRIPT_CONFIG = array (
   'name' => '全网VIP视频免费解析去广告【最新3.2】',
   'url' => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
   'repo' => 'https://github.com/88lin/video_vip',
-  'auto_sync' => '0',
+  'auto_sync' => '1',
   'version' => '3.2.11',
   'time' => '20261026024828',
   'direct' => 
@@ -83,6 +83,6 @@ $SCRIPT_CONFIG = array (
   ),
   'auto_update' => '1',
   'interval' => '6',
-  'last_check' => '20261026024828',
+  'last_check' => '',
   'lines_hash' => 'a5429a40f8f725cbd71587840c5895fa',
 );

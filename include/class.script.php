@@ -21,9 +21,13 @@ function script_direct_defaults() {
 function script_load() {
     $file = dirname(__FILE__) . '/../save/script.config.php';
     $cfg = array();
+    $hasAutoKey = false;
     if (file_exists($file)) {
         include $file;
-        if (isset($SCRIPT_CONFIG) && is_array($SCRIPT_CONFIG)) { $cfg = $SCRIPT_CONFIG; }
+        if (isset($SCRIPT_CONFIG) && is_array($SCRIPT_CONFIG)) {
+            $hasAutoKey = array_key_exists('auto_update', $SCRIPT_CONFIG);
+            $cfg = $SCRIPT_CONFIG;
+        }
     }
     $direct = script_direct_defaults();
     $cfg += array(
@@ -31,7 +35,7 @@ function script_load() {
         'name'        => '',
         'url'         => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
         'repo'        => 'https://github.com/88lin/video_vip',
-        'auto_sync'   => '0',
+        'auto_sync'   => '1',
         'auto_update' => '1',
         'interval'    => '6',
         'last_check'  => '',
@@ -44,6 +48,8 @@ function script_load() {
     if (!isset($cfg['direct']) || !is_array($cfg['direct'])) { $cfg['direct'] = $direct; }
     $cfg['direct'] += $direct;
     if (!isset($cfg['lines']) || !is_array($cfg['lines'])) { $cfg['lines'] = array(); }
+    // 旧版配置（无 auto_update 字段）默认开启自动同步，升级后线路可自动添加
+    if (!$hasAutoKey && (string)$cfg['auto_sync'] === '0') { $cfg['auto_sync'] = '1'; }
     return $cfg;
 }
 
@@ -138,12 +144,12 @@ function script_now() {
     return $d->format('YmdHis');
 }
 
-// YmdHis -> 时间戳
+// YmdHis（北京时间）-> 时间戳
 function script_time_ts($s) {
     $s = preg_replace('/\D/', '', (string)$s);
     if (strlen($s) < 14) { return 0; }
-    return mktime((int)substr($s, 8, 2), (int)substr($s, 10, 2), (int)substr($s, 12, 2),
-        (int)substr($s, 4, 2), (int)substr($s, 6, 2), (int)substr($s, 0, 4));
+    $d = DateTime::createFromFormat('YmdHis', $s, new DateTimeZone('Asia/Shanghai'));
+    return $d ? $d->getTimestamp() : 0;
 }
 
 /**
@@ -162,8 +168,15 @@ function script_auto_update($cfg = null, $force = false) {
         }
         $interval = max(1, (int)$cfg['interval']) * 3600;
         $last = script_time_ts($cfg['last_check']);
-        if ($last > 0 && time() - $last < $interval) {
-            return array('ok' => true, 'changed' => false, 'msg' => '未到检查间隔');
+        // 已有线路时才按间隔跳过；线路为空则立即检测一次
+        if (!empty($cfg['lines']) && $last > 0 && time() - $last < $interval) {
+            $syncMsg = '';
+            // 即使未到检测间隔，也确保线路已追加到解析线路
+            if ((string)$cfg['auto_sync'] === '1') {
+                $added = script_sync_lines($cfg);
+                if ($added > 0) { $syncMsg = "，已同步 {$added} 条到解析线路"; }
+            }
+            return array('ok' => true, 'changed' => false, 'msg' => '未到检查间隔' . $syncMsg);
         }
     }
 
@@ -206,7 +219,7 @@ function script_auto_update($cfg = null, $force = false) {
     }
 
     $syncMsg = '';
-    if ($changed && (string)$cfg['auto_sync'] === '1') {
+    if ((string)$cfg['auto_sync'] === '1' && !empty($cfg['lines'])) {
         $added = script_sync_lines($cfg);
         if ($added > 0) { $syncMsg = "，已同步 {$added} 条到解析线路"; }
     }
@@ -214,9 +227,9 @@ function script_auto_update($cfg = null, $force = false) {
     return array(
         'ok'      => true,
         'changed' => $changed,
-        'msg'     => $changed
-            ? '检测到上游更新：' . count($lines) . ' 条线路，版本 ' . ($cfg['version'] !== '' ? $cfg['version'] : '—') . $syncMsg
-            : '已是最新，无需更新',
+        'msg'     => ($changed
+            ? '检测到上游更新：' . count($lines) . ' 条线路，版本 ' . ($cfg['version'] !== '' ? $cfg['version'] : '—')
+            : '已是最新') . $syncMsg,
     );
 }
 
