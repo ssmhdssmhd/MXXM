@@ -378,14 +378,48 @@ function sp_clean_title($t) {
     return $t;
 }
 
+// 提取指定 meta 标签的 content（属性顺序无关）
+function sp_meta_content($html, $key) {
+    if (!preg_match_all('~<meta\s+[^>]*>~i', $html, $tags)) { return ''; }
+    $key = preg_quote($key, '~');
+    foreach ($tags[0] as $tag) {
+        if (!preg_match('~(?:property|name|itemprop)\s*=\s*["\']' . $key . '["\']~i', $tag)) { continue; }
+        if (preg_match('~content\s*=\s*["\']([^"\']*)~i', $tag, $m)) {
+            return html_entity_decode($m[1], ENT_QUOTES, 'UTF-8');
+        }
+    }
+    return '';
+}
+
+// 腾讯视频页面为 JS 渲染、无 og:title，改用 getinfo 接口按视频 ID 取标题
+function sp_tencent_title($url) {
+    if (!preg_match('~^https?://(?:[a-z0-9-]+\.)*v\.qq\.com/~i', $url)) { return ''; }
+    if (!preg_match('~/([A-Za-z0-9]{8,})\.html~', $url, $m)) { return ''; }
+    $api = 'https://vv.video.qq.com/getinfo?' . http_build_query(array(
+        'vids'     => $m[1],
+        'platform' => '101001',
+        'charge'   => '0',
+        'otype'    => 'json',
+    ));
+    $json = trim(sp_http($api, 10));
+    $json = preg_replace('~^QZOutputJson=~', '', $json);
+    $json = rtrim($json, "; \r\n");
+    if ($json === '') { return ''; }
+    $j = json_decode($json, true);
+    $t = (is_array($j) && isset($j['vl']['vi'][0]['ti'])) ? (string)$j['vl']['vi'][0]['ti'] : '';
+    if ($t === '' && preg_match('/"ti"\s*:\s*"([^"]+)"/u', $json, $mm)) { $t = $mm[1]; }
+    return sp_clean_title($t);
+}
+
 // 从官方页面提取片名（og:title / title）
 function sp_page_title($url) {
+    // 腾讯视频优先走接口（页面标题是站点名，无法识别片名）
+    $t = sp_tencent_title($url);
+    if ($t !== '') { return $t; }
     $html = sp_http($url, 10);
     if ($html === '') { return ''; }
-    $t = '';
-    if (preg_match('~<meta[^>]+(?:property|name)\s*=\s*["\']og:title["\'][^>]*content\s*=\s*["\']([^"\']*)~i', $html, $m)) {
-        $t = html_entity_decode($m[1], ENT_QUOTES, 'UTF-8');
-    }
+    $t = sp_meta_content($html, 'og:title');
+    if ($t === '') { $t = sp_meta_content($html, 'title'); }
     if ($t === '' && preg_match('~<title[^>]*>(.*?)</title>~is', $html, $m)) {
         $t = html_entity_decode(strip_tags($m[1]), ENT_QUOTES, 'UTF-8');
     }
