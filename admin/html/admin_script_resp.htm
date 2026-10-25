@@ -14,13 +14,13 @@ $errFields = isset($SC['resp']['error']) && is_array($SC['resp']['error']) ? $SC
             <a><cite>返回响应设置</cite></a>
         </span>
         <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
-        <a class="layui-btn layui-btn-normal" target="_blank" style="line-height:1.6em;margin-top:3px;margin-right:5px;float:right" href="../plus/mxjx/?url=" title="测试 JSON 接口">测试 JSON 接口</a>
+        <button type="button" class="layui-btn layui-btn-normal" id="btn-sc-test-json" style="line-height:1.6em;margin-top:3px;margin-right:5px;float:right" title="测试 JSON 接口">测试 JSON 接口</button>
     </div>
     <div class="x-body">
         <blockquote class="layui-elem-quote layui-quote-nm">
             <h2>说明：</h2>
             ① JSON 接口：<code>域名/plus/mxjx/?url=官方视频地址</code>，接口会自动搜索资源站，返回 JSON，其中 <code>url</code> 为可播放的 m3u8 地址；<br>
-            ② 支持参数：<code>url</code>（官方视频地址）、<code>wd</code>（片名，自动识别失败时使用）、<code>vid</code>（资源 ID）、<code>ep</code>（集数，从 0 开始）；<br>
+            ② 支持参数：<code>url</code>（官方视频地址）、<code>wd</code>（片名，自动识别失败时使用）、<code>vid</code>（资源 ID）、<code>ep</code>（集数，从 0 开始）；链接带 <code>&</code> 等符号时请先 URL 编码（右上角「测试 JSON 接口」会自动编码）；<br>
             ③ 未传入链接或资源 ID 时返回：<code>{"code":400,"msg":"缺少vid参数"}</code>；成功返回示例：<code>{"code":200,"msg":"success","url":"m3u8地址","title":"片名","ext":"m3u8"}</code>；<br>
             ④ 下方可自定义成功与错误的返回字段和内容，字段名与值都可修改，值支持占位符。
         </blockquote>
@@ -154,6 +154,19 @@ $errFields = isset($SC['resp']['error']) && is_array($SC['resp']['error']) ? $SC
                     if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
                 }, "json").fail(function () { tip(false, '请求失败'); });
                 return false;
+            });
+
+            $('#btn-sc-test-json').on('click', function () {
+                layer.prompt({
+                    title: '请输入官方视频地址',
+                    formType: 2,
+                    value: 'https://v.qq.com/x/cover/mzc002000s9f77y/k4102b5k1da.html'
+                }, function (val, index) {
+                    layer.close(index);
+                    val = $.trim(val);
+                    if (!val) { layer.msg('请输入官方视频地址'); return; }
+                    window.open('../plus/mxjx/?url=' + encodeURIComponent(val), '_blank');
+                });
             });
 
             $('#btn-sc-resp-default').on('click', function () {
