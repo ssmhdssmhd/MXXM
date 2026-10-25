@@ -6,7 +6,8 @@ if (file_exists($scFile)) { include $scFile; }
 if (!isset($SCRIPT_CONFIG) || !is_array($SCRIPT_CONFIG)) { $SCRIPT_CONFIG = array(); }
 $SC = $SCRIPT_CONFIG + array(
     'off' => '1', 'name' => '', 'url' => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
-    'repo' => 'https://github.com/88lin/video_vip', 'auto_sync' => '0', 'version' => '', 'time' => '',
+    'repo' => 'https://github.com/88lin/video_vip', 'auto_sync' => '0', 'auto_update' => '1',
+    'interval' => '6', 'last_check' => '', 'lines_hash' => '', 'version' => '', 'time' => '',
     'direct' => array(), 'lines' => array(),
 );
 $SC['direct'] = (isset($SC['direct']) && is_array($SC['direct'])) ? $SC['direct'] : array();
@@ -80,6 +81,17 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
                             <div class="layui-form-mid layui-word-aux">更新脚本后自动把线路追加到前台解析线路</div>
                         </div>
 
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">自动更新</label>
+                            <div class="layui-input-inline">
+                                <input type="checkbox" name="sc_auto_update" value="1" lay-skin="switch" lay-text="开|关" <?php echo $SC['auto_update'] === '1' ? 'checked' : ''; ?>>
+                            </div>
+                            <div class="layui-input-inline" style="width:120px">
+                                <input type="number" name="sc_interval" min="1" step="1" value="<?php echo (int)$SC['interval']; ?>" class="layui-input" placeholder="间隔小时">
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">每隔 N 小时自动检测上游仓库（<a href="<?php echo htmlspecialchars($SC['repo']); ?>" target="_blank">88lin/video_vip</a>）是否有更新并同步线路</div>
+                        </div>
+
                         <fieldset class="layui-elem-field">
                             <legend>直连线路参数（无损云）</legend>
                             <div class="layui-field-box">
@@ -113,6 +125,7 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
                                 当前版本：<?php echo htmlspecialchars($SC['version'] !== '' ? $SC['version'] : '—'); ?>
                                 ｜ 线路数：<?php echo count($SC['lines']); ?>
                                 ｜ 更新时间：<?php echo htmlspecialchars($SC['time'] !== '' ? $SC['time'] : '—'); ?>
+                                ｜ 最近检查：<?php echo htmlspecialchars($SC['last_check'] !== '' ? $SC['last_check'] : '—'); ?>
                             </span>
                         </div>
                     </form>
@@ -181,6 +194,13 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
             function tip(ok, msg) {
                 $('#sc-tip').css('color', ok ? '#5fb878' : '#ff5722').text(msg);
             }
+
+            //页面加载时静默检测上游仓库更新（受「检查间隔」限制，未到期不会发起请求）
+            $.post("admin.php", { type: "script_auto" }, function (d) {
+                if (d && d.changed == 1) {
+                    setTimeout(function () { location.reload(); }, 600);
+                }
+            }, "json");
 
             //保存基本设置
             form.on('submit(scBasic)', function (data) {

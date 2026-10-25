@@ -8,28 +8,10 @@
 @set_time_limit(30);
 error_reporting(0);
 
+require_once dirname(__FILE__) . '/../../include/class.script.php';
+
 function sp_h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function sp_get($k) { return isset($_GET[$k]) ? trim((string)$_GET[$k]) : ''; }
-
-// 读取脚本解析配置
-function sp_config() {
-    $file = dirname(__FILE__) . '/../../save/script.config.php';
-    $cfg = array();
-    if (file_exists($file)) {
-        include $file;
-        if (isset($SCRIPT_CONFIG) && is_array($SCRIPT_CONFIG)) { $cfg = $SCRIPT_CONFIG; }
-    }
-    $direct = array(
-        'site'   => 'https://wsyzy.cc',
-        'api'    => 'https://api.wsyzy.net/api.php/provide/vod/',
-        'player' => 'https://wsyzy.vip/m3u8/?url=',
-    );
-    $cfg += array('off' => '1', 'name' => '脚本解析', 'version' => '', 'time' => '', 'lines' => array(), 'direct' => $direct);
-    if (!isset($cfg['direct']) || !is_array($cfg['direct'])) { $cfg['direct'] = $direct; }
-    $cfg['direct'] += $direct;
-    if (!isset($cfg['lines']) || !is_array($cfg['lines'])) { $cfg['lines'] = array(); }
-    return $cfg;
-}
 
 // 带超时的网页抓取
 function sp_http($url, $timeout = 12) {
@@ -133,7 +115,17 @@ function sp_episodes($api, $vid) {
     return $eps;
 }
 
-$cfg   = sp_config();
+// 站点配置（自动同步解析线路时会用到全局 $CONFIG）
+if (file_exists(dirname(__FILE__) . '/../../save/config.php')) {
+    include dirname(__FILE__) . '/../../save/config.php';
+}
+
+// 自动检测上游仓库更新（受后台「检查间隔」限制，未到期不发起请求）
+$cfg = script_load();
+if ((string)$cfg['off'] === '1') {
+    script_auto_update($cfg);
+    $cfg = script_load();
+}
 $lines = $cfg['lines'];
 $url   = sp_get('url');
 $wd    = sp_get('wd');
@@ -192,10 +184,7 @@ if ($line !== null) {
 }
 
 $siteName = 'MXXM';
-if (file_exists(dirname(__FILE__) . '/../../save/config.php')) {
-    include dirname(__FILE__) . '/../../save/config.php';
-    if (isset($CONFIG['TITLE']) && trim((string)$CONFIG['TITLE']) !== '') { $siteName = trim((string)$CONFIG['TITLE']); }
-}
+if (isset($CONFIG['TITLE']) && trim((string)$CONFIG['TITLE']) !== '') { $siteName = trim((string)$CONFIG['TITLE']); }
 
 // 生成链接（自动过滤空参数）
 function sp_link($params) {
