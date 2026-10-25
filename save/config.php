@@ -365,6 +365,8 @@ $CONFIG=array (
     6 => '备用线路1=>https://jx.aidouer.net/?url=',
     7 => '备用线路2=>https://api.jiexi.la/?url=',
     8 => '备用线路3=>https://jx.ap2p.cn/?url=',
+    9 => '臻享解析=>https://aibox.eu.org/?url=',
+    10 => '麒麟解析=>https://free.maccms.xyz/?url=',
   ),
   'jx_link' => 
   array (
