@@ -17,6 +17,37 @@ function script_direct_defaults() {
     );
 }
 
+// 规范化直连线路列表（支持多条，兼容旧版单条 direct 配置）
+function script_direct_list($cfg) {
+    $def = script_direct_defaults();
+    $out = array();
+    if (isset($cfg['direct_list']) && is_array($cfg['direct_list'])) {
+        foreach ($cfg['direct_list'] as $it) {
+            if (!is_array($it)) { continue; }
+            $row = array();
+            $empty = true;
+            foreach (array('site', 'api', 'player') as $k) {
+                $v = isset($it[$k]) ? trim((string)$it[$k]) : '';
+                if ($v !== '') { $empty = false; }
+                $row[$k] = $v !== '' ? $v : $def[$k];
+            }
+            if ($empty) { continue; }
+            $out[] = $row;
+        }
+    }
+    if (empty($out)) {
+        // 旧版配置只有一条 direct
+        $it = (isset($cfg['direct']) && is_array($cfg['direct'])) ? $cfg['direct'] : array();
+        $row = array();
+        foreach (array('site', 'api', 'player') as $k) {
+            $v = isset($it[$k]) ? trim((string)$it[$k]) : '';
+            $row[$k] = $v !== '' ? $v : $def[$k];
+        }
+        $out[] = $row;
+    }
+    return $out;
+}
+
 // 读取脚本解析配置
 function script_load() {
     $file = dirname(__FILE__) . '/../save/script.config.php';
@@ -48,6 +79,9 @@ function script_load() {
     );
     if (!isset($cfg['direct']) || !is_array($cfg['direct'])) { $cfg['direct'] = $direct; }
     $cfg['direct'] += $direct;
+    // 直连线路列表：direct_list 为准，缺失时由旧版 direct 自动转换
+    $cfg['direct_list'] = script_direct_list($cfg);
+    $cfg['direct'] = $cfg['direct_list'][0];
     if (!isset($cfg['lines']) || !is_array($cfg['lines'])) { $cfg['lines'] = array(); }
     // JSON 接口返回字段：缺失或为空时使用默认值
     $defResp = script_resp_defaults();
@@ -487,60 +521,91 @@ function sp_episodes($api, $vid, &$vodName = null) {
 /**
  * 直连解析：官方地址 / 片名 / 资源ID -> m3u8
  *
- * @return array ok/code/msg/url/title/name/ep/vid/ext
+ * @param array $directs 直连线路（单条或列表，按顺序尝试）
+ * @return array ok/code/msg/url/play/title/name/ep/vid/ext/eps/cur
  */
-function sp_resolve_direct($direct, $url, $wd, $vid, $ep) {
+function sp_resolve_direct($directs, $url, $wd, $vid, $ep) {
     $out = array(
         'ok' => false, 'code' => 400, 'msg' => '缺少vid参数',
-        'url' => '', 'title' => '', 'name' => '', 'ep' => '', 'vid' => '', 'ext' => 'm3u8',
+        'url' => '', 'play' => '', 'title' => '', 'name' => '', 'ep' => '', 'vid' => '', 'ext' => 'm3u8',
+        'eps' => array(), 'cur' => 0,
     );
-    if (!is_array($direct)) { $direct = script_direct_defaults(); }
-    $direct += script_direct_defaults();
+    $def = script_direct_defaults();
+    $list = array();
+    if (is_array($directs)) {
+        if (isset($directs['site']) || isset($directs['api']) || isset($directs['player'])) {
+            $list[] = $directs;
+        } else {
+            foreach ($directs as $it) {
+                if (is_array($it)) { $list[] = $it; }
+            }
+        }
+    }
+    if (empty($list)) { $list[] = $def; }
 
     $title = sp_clean_title($wd);
     if ($title === '' && $url !== '') { $title = sp_page_title($url); }
-
-    if ($vid === '') {
-        if ($title === '') {
-            $out['code'] = 400;
-            $out['msg'] = '未能识别片名，请传入 wd 参数';
-            return $out;
-        }
-        $cands = sp_search($direct['site'], $title);
-        if (empty($cands)) {
-            $out['code'] = 404;
-            $out['msg'] = '资源站未搜索到影片';
-            return $out;
-        }
-        $vid = (string)$cands[0]['id'];
-        $title = $cands[0]['name'];
-    }
-
-    $vodName = '';
-    $eps = sp_episodes($direct['api'], $vid, $vodName);
-    if (empty($eps)) {
-        $out['code'] = 404;
-        $out['msg'] = '资源详情获取失败';
+    if ($title === '' && $vid === '') {
+        $out['code'] = 400;
+        $out['msg'] = '未能识别片名，请传入 wd 参数';
         return $out;
     }
-    if ($title === '' && $vodName !== '') { $title = $vodName; }
 
-    $cur = min(max(0, (int)$ep), count($eps) - 1);
-    $src = $eps[$cur]['url'];
-    $ext = 'm3u8';
-    if (preg_match('/\.([a-z0-9]{2,5})(?:\?|$)/i', $src, $m)) {
-        $candidate = strtolower($m[1]);
-        if (in_array($candidate, array('mp4', 'flv', 'mkv', 'ts', 'm3u8'), true)) { $ext = $candidate; }
+    $lastCode = 404;
+    $lastMsg = '资源站未搜索到影片';
+    foreach ($list as $direct) {
+        if (!is_array($direct)) { continue; }
+        $direct += $def;
+        foreach (array('site', 'api', 'player') as $k) {
+            if (!isset($direct[$k]) || trim((string)$direct[$k]) === '') { $direct[$k] = $def[$k]; }
+        }
+
+        $tryVid = $vid;
+        $tryTitle = $title;
+        if ($tryVid === '') {
+            $cands = sp_search($direct['site'], $tryTitle);
+            if (empty($cands)) {
+                $lastCode = 404;
+                $lastMsg = '资源站未搜索到影片';
+                continue;
+            }
+            $tryVid = (string)$cands[0]['id'];
+            $tryTitle = $cands[0]['name'];
+        }
+
+        $vodName = '';
+        $eps = sp_episodes($direct['api'], $tryVid, $vodName);
+        if (empty($eps)) {
+            $lastCode = 404;
+            $lastMsg = '资源详情获取失败';
+            continue;
+        }
+        if ($tryTitle === '' && $vodName !== '') { $tryTitle = $vodName; }
+
+        $cur = min(max(0, (int)$ep), count($eps) - 1);
+        $src = $eps[$cur]['url'];
+        $ext = 'm3u8';
+        if (preg_match('/\.([a-z0-9]{2,5})(?:\?|$)/i', $src, $m)) {
+            $candidate = strtolower($m[1]);
+            if (in_array($candidate, array('mp4', 'flv', 'mkv', 'ts', 'm3u8'), true)) { $ext = $candidate; }
+        }
+
+        $out['ok'] = true;
+        $out['code'] = 200;
+        $out['msg'] = 'success';
+        $out['url'] = $src;
+        $out['play'] = $direct['player'] . rawurlencode($src);
+        $out['name'] = $tryTitle;
+        $out['title'] = $tryTitle;
+        $out['ep'] = $eps[$cur]['name'];
+        $out['vid'] = (string)$tryVid;
+        $out['ext'] = $ext;
+        $out['eps'] = $eps;
+        $out['cur'] = $cur;
+        return $out;
     }
 
-    $out['ok'] = true;
-    $out['code'] = 200;
-    $out['msg'] = 'success';
-    $out['url'] = $src;
-    $out['name'] = $title;
-    $out['title'] = $title;
-    $out['ep'] = $eps[$cur]['name'];
-    $out['vid'] = (string)$vid;
-    $out['ext'] = $ext;
+    $out['code'] = $lastCode;
+    $out['msg'] = $lastMsg;
     return $out;
 }

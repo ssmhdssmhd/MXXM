@@ -1,18 +1,8 @@
 <?php
-// 配置文件可能尚未生成（在线更新会跳过 save/ 目录），先判断再加载，避免 include 警告
-$scFile = dirname(__FILE__) . '/../../save/script.config.php';
-$SCRIPT_CONFIG = array();
-if (file_exists($scFile)) { include $scFile; }
-if (!isset($SCRIPT_CONFIG) || !is_array($SCRIPT_CONFIG)) { $SCRIPT_CONFIG = array(); }
-$SC = $SCRIPT_CONFIG + array(
-    'off' => '1', 'name' => '', 'url' => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
-    'repo' => 'https://github.com/88lin/video_vip', 'auto_sync' => '1', 'auto_update' => '1',
-    'interval' => '6', 'last_check' => '', 'lines_hash' => '', 'version' => '', 'time' => '',
-    'direct' => array(), 'lines' => array(),
-);
-$SC['direct'] = (isset($SC['direct']) && is_array($SC['direct'])) ? $SC['direct'] : array();
-$SC['direct'] += array('site' => 'https://wsyzy.cc', 'api' => 'https://api.wsyzy.net/api.php/provide/vod/', 'player' => 'https://wsyzy.vip/m3u8/?url=');
-if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
+require_once dirname(__FILE__) . '/../../include/class.script.php';
+// 配置文件可能尚未生成（在线更新会跳过 save/ 目录），script_load 内部已做判断与默认值合并
+$SC = script_load();
+$directList = script_direct_list($SC);
 ?>
 <?php include "block_header.htm"; ?>
 
@@ -32,7 +22,7 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
             <h2>说明：</h2>
             ① 脚本解析会读取用户脚本中的解析线路（<code>videoParseList</code>），保存后即可用于解析播放；<br>
             ② 点击「更新脚本」会从脚本地址实时拉取并解析线路，脚本更新后点一下即可同步；<br>
-            ③ 播放入口：<code>域名/plus/script/?url=官方视频地址</code>；直连线路（无损云）会自动搜索资源站并播放 m3u8；<br>
+            ③ 播放入口：<code>域名/plus/script/?url=官方视频地址</code>；直连线路（无损云）会自动搜索资源站并播放 m3u8；<b>直连线路参数必须提供 m3u8 播放源</b>（资源接口返回的播放地址需为 m3u8）；<br>
             ④ JSON 调用接口：<code>域名/plus/mxjx/?url=官方视频地址</code>；自动搜索资源站并返回 JSON，<code>url</code> 为 m3u8 地址，返回字段可在「返回响应设置」中自定义；<br>
             ⑤ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用。
         </blockquote>
@@ -45,7 +35,7 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
             <div class="layui-tab-content">
 
                 <div class="layui-tab-item layui-show">
-                    <form class="layui-form layui-form-pane" action="">
+                    <form class="layui-form layui-form-pane" id="sc-basic-form" action="">
                         <div class="layui-form-item">
                             <label class="layui-form-label">启用状态</label>
                             <div class="layui-input-inline">
@@ -95,27 +85,36 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
                         </div>
 
                         <fieldset class="layui-elem-field">
-                            <legend>直连线路参数（无损云）</legend>
+                            <legend>直连线路参数（无损云 · 必须提供 m3u8 播放源）</legend>
                             <div class="layui-field-box">
-                                <div class="layui-form-item">
-                                    <label class="layui-form-label">站点地址</label>
-                                    <div class="layui-input-block">
-                                        <input type="text" name="sc_site" autocomplete="off" value="<?php echo htmlspecialchars($SC['direct']['site']); ?>" class="layui-input">
-                                    </div>
+                                <div class="layui-form-mid layui-word-aux" style="margin-bottom:8px">
+                                    每条直连线路由「站点地址 + 资源接口 + m3u8 播放器地址」组成，资源接口返回的播放地址必须是 m3u8；可添加多条，解析时按顺序尝试，前一条失败自动换下一条。
                                 </div>
-                                <div class="layui-form-item">
-                                    <label class="layui-form-label">资源接口</label>
-                                    <div class="layui-input-block">
-                                        <input type="text" name="sc_api" autocomplete="off" value="<?php echo htmlspecialchars($SC['direct']['api']); ?>" class="layui-input">
-                                    </div>
-                                </div>
-                                <div class="layui-form-item">
-                                    <label class="layui-form-label">官方播放器</label>
-                                    <div class="layui-input-block">
-                                        <input type="text" name="sc_player" autocomplete="off" value="<?php echo htmlspecialchars($SC['direct']['player']); ?>" class="layui-input">
-                                    </div>
-                                    <div class="layui-form-mid layui-word-aux">播放器地址后拼接 m3u8 地址，例如：https://wsyzy.vip/m3u8/?url=</div>
-                                </div>
+                                <table class="layui-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:50px">序号</th>
+                                            <th>站点地址（资源站）</th>
+                                            <th>资源接口（详情）</th>
+                                            <th>m3u8 播放器地址</th>
+                                            <th style="width:70px">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sc-direct-body">
+                                        <?php if (empty($directList)): ?>
+                                        <tr class="sc-direct-empty"><td colspan="5" style="text-align:center;color:#999">暂无直连线路，请点击下方「添加直连线路」</td></tr>
+                                        <?php else: foreach ($directList as $d): ?>
+                                        <tr class="sc-direct-row">
+                                            <td class="sc-direct-no" style="text-align:center"></td>
+                                            <td><input type="text" name="sc_dsite[]" autocomplete="off" value="<?php echo htmlspecialchars($d['site']); ?>" class="layui-input" placeholder="https://wsyzy.cc"></td>
+                                            <td><input type="text" name="sc_dapi[]" autocomplete="off" value="<?php echo htmlspecialchars($d['api']); ?>" class="layui-input" placeholder="https://api.wsyzy.net/api.php/provide/vod/"></td>
+                                            <td><input type="text" name="sc_dplayer[]" autocomplete="off" value="<?php echo htmlspecialchars($d['player']); ?>" class="layui-input" placeholder="播放器地址后拼接 m3u8，如 https://wsyzy.vip/m3u8/?url="></td>
+                                            <td><button type="button" class="layui-btn layui-btn-xs layui-btn-danger sc-direct-del">删除</button></td>
+                                        </tr>
+                                        <?php endforeach; endif; ?>
+                                    </tbody>
+                                </table>
+                                <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" id="sc-direct-add">＋ 添加直连线路</button>
                             </div>
                         </fieldset>
 
@@ -207,9 +206,39 @@ if (!is_array($SC['lines'])) { $SC['lines'] = array(); }
                 }
             }, "json");
 
+            //直连线路：序号重排 + 添加/删除
+            function scDirectRenumber() {
+                var rows = $('#sc-direct-body .sc-direct-row');
+                rows.each(function (i) { $(this).find('.sc-direct-no').text(i + 1); });
+                if (rows.length === 0) {
+                    $('#sc-direct-body').html('<tr class="sc-direct-empty"><td colspan="5" style="text-align:center;color:#999">暂无直连线路，请点击下方「添加直连线路」</td></tr>');
+                }
+            }
+            scDirectRenumber();
+
+            var scDirectTpl = '<tr class="sc-direct-row">'
+                + '<td class="sc-direct-no" style="text-align:center"></td>'
+                + '<td><input type="text" name="sc_dsite[]" autocomplete="off" class="layui-input" placeholder="https://wsyzy.cc"></td>'
+                + '<td><input type="text" name="sc_dapi[]" autocomplete="off" class="layui-input" placeholder="https://api.wsyzy.net/api.php/provide/vod/"></td>'
+                + '<td><input type="text" name="sc_dplayer[]" autocomplete="off" class="layui-input" placeholder="播放器地址后拼接 m3u8，如 https://wsyzy.vip/m3u8/?url="></td>'
+                + '<td><button type="button" class="layui-btn layui-btn-xs layui-btn-danger sc-direct-del">删除</button></td>'
+                + '</tr>';
+
+            $('#sc-direct-add').on('click', function () {
+                $('#sc-direct-body .sc-direct-empty').remove();
+                $('#sc-direct-body').append(scDirectTpl);
+                scDirectRenumber();
+            });
+
+            $(document).on('click', '.sc-direct-del', function () {
+                $(this).closest('tr').remove();
+                scDirectRenumber();
+            });
+
             //保存基本设置
-            form.on('submit(scBasic)', function (data) {
-                $.post("admin.php", $.extend({ type: "script_system" }, data.field), function (d) {
+            form.on('submit(scBasic)', function () {
+                var post = $('#sc-basic-form').serialize() + '&type=script_system';
+                $.post("admin.php", post, function (d) {
                     tip(d.success == 1, d.m);
                     if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
                 }, "json").fail(function () { tip(false, '请求失败'); });

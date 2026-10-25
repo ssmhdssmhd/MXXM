@@ -61,7 +61,7 @@ if ($url === '' && $vid === '') {
     mxjx_output($cfg, 'error', mxjx_vars(array('code' => 400, 'msg' => '缺少vid参数')));
 }
 
-// 直连解析：搜索资源站并取 m3u8
-$res = sp_resolve_direct($cfg['direct'], $url, $wd, $vid, $ep);
+// 直连解析：按配置顺序尝试多条直连线路，搜索资源站并取 m3u8
+$res = sp_resolve_direct(script_direct_list($cfg), $url, $wd, $vid, $ep);
 
 mxjx_output($cfg, $res['ok'] ? 'success' : 'error', mxjx_vars($res));

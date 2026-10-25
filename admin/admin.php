@@ -1128,15 +1128,32 @@ switch ($type) {
         $cfg['auto_update'] = (string)(isset($_POST['sc_auto_update']) ? $_POST['sc_auto_update'] : '0') === '1' ? '1' : '0';
         $interval = (int)(isset($_POST['sc_interval']) ? $_POST['sc_interval'] : 6);
         $cfg['interval'] = (string)($interval > 0 ? $interval : 6);
-        $directFields = array('site' => 'sc_site', 'api' => 'sc_api', 'player' => 'sc_player');
-        foreach ($directFields as $key => $field) {
-            $val = trim((string)(isset($_POST[$field]) ? $_POST[$field] : ''));
-            if ($val === '') { continue; }
-            if (!preg_match('~^https?://~i', $val)) {
-                exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '直连线路参数地址无效，请填写 http(s) 开头的地址！'), JSON_UNESCAPED_UNICODE));
+        // 直连线路参数（支持多条，可添加/删除）
+        $siteArr   = (isset($_POST['sc_dsite']) && is_array($_POST['sc_dsite'])) ? $_POST['sc_dsite'] : array();
+        $apiArr    = (isset($_POST['sc_dapi']) && is_array($_POST['sc_dapi'])) ? $_POST['sc_dapi'] : array();
+        $playerArr = (isset($_POST['sc_dplayer']) && is_array($_POST['sc_dplayer'])) ? $_POST['sc_dplayer'] : array();
+        $directList = array();
+        $directMax = max(count($siteArr), count($apiArr), count($playerArr));
+        for ($i = 0; $i < $directMax; $i++) {
+            $site   = isset($siteArr[$i]) ? trim((string)$siteArr[$i]) : '';
+            $api    = isset($apiArr[$i]) ? trim((string)$apiArr[$i]) : '';
+            $player = isset($playerArr[$i]) ? trim((string)$playerArr[$i]) : '';
+            if ($site === '' && $api === '' && $player === '') { continue; }
+            if ($site === '' || $api === '' || $player === '') {
+                exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '直连线路的站点地址、资源接口、m3u8 播放器地址都必须填写！'), JSON_UNESCAPED_UNICODE));
             }
-            $cfg['direct'][$key] = $val;
+            foreach (array($site, $api, $player) as $val) {
+                if (!preg_match('~^https?://~i', $val)) {
+                    exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '直连线路参数地址无效，请填写 http(s) 开头的地址！'), JSON_UNESCAPED_UNICODE));
+                }
+            }
+            $directList[] = array('site' => $site, 'api' => $api, 'player' => $player);
         }
+        if (empty($directList)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请至少保留一条直连线路参数！'), JSON_UNESCAPED_UNICODE));
+        }
+        $cfg['direct_list'] = $directList;
+        $cfg['direct'] = $directList[0];
         if (!script_save($cfg)) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
         }

@@ -49,31 +49,18 @@ $src = ''; $error = ''; $epList = array(); $curEp = 0; $resolvedName = '';
 
 if ($line !== null) {
     if ((string)$line['direct'] === '1') {
-        // 直连线路：片名 -> 搜索候选 -> 详情 m3u8 -> 官方播放器
-        $title = sp_clean_title($wd);
-        if ($title === '' && $url !== '') { $title = sp_page_title($url); }
-        if ($title === '') {
+        // 直连线路：按配置顺序尝试多条直连线路，取第一条成功
+        $res = sp_resolve_direct(script_direct_list($cfg), $url, $wd, $vid, $ep);
+        if ($res['ok']) {
+            $src = $res['play'] !== '' ? $res['play'] : $res['url'];
+            $epList = $res['eps'];
+            $curEp = (int)$res['cur'];
+            $resolvedName = $res['name'];
+            $vid = $res['vid'];
+        } elseif ((int)$res['code'] === 400) {
             $error = '未能自动识别片名，请在下方「片名」输入框补充剧名后重试。';
         } else {
-            $resolvedName = $title;
-            if ($vid === '') {
-                $cands = sp_search($cfg['direct']['site'], $title);
-                if (empty($cands)) {
-                    $error = '资源站未搜索到「' . $title . '」，请尝试其他线路。';
-                } else {
-                    $vid = (string)$cands[0]['id'];
-                    $resolvedName = $cands[0]['name'];
-                }
-            }
-            if ($error === '' && $vid !== '') {
-                $epList = sp_episodes($cfg['direct']['api'], $vid);
-                if (empty($epList)) {
-                    $error = '资源详情获取失败，请更换线路或稍后重试。';
-                } else {
-                    $curEp = min($ep, count($epList) - 1);
-                    $src = $cfg['direct']['player'] . rawurlencode($epList[$curEp]['url']);
-                }
-            }
+            $error = $res['msg'] . '，请尝试其他线路。';
         }
     } elseif ($url !== '') {
         // 解析接口线路：接口地址 + 官方视频地址
