@@ -25,6 +25,12 @@
      //缓存设置
      $CONFIG["chche_config"]=array ( 'type' =>filter_input(INPUT_POST, "chche_type"),'prot' =>filter_input(INPUT_POST, "chche_prot"), 'time' =>filter_input(INPUT_POST, "chche_time"),); 
      
+     //默认线路模式：auto=自动（默认，依次尝试全部接口，失败自动切换）/ manual=跟随线路设置
+     if(filter_has_var(INPUT_POST, "play_line_all_mode")){
+         $linemode=filter_input(INPUT_POST, "play_line_all_mode");
+         $CONFIG["play"]['line']['all']['mode']=($linemode==='manual')?'manual':'auto';
+     }
+     
      //公告设置 
      $CONFIG["BOOK_INFO"]=array('off'=>filter_input(INPUT_POST, "BOOK_INFO_OFF"), 'info'=> filter_input(INPUT_POST, "BOOK_INFO_INFO") );
    
@@ -97,6 +103,15 @@ if(filter_has_var(INPUT_POST, "jx_url")){
     $input=trim(filter_input(INPUT_POST, "jx_url"));
     if($input===""){$CONFIG["jx_url"]=array();}else{$CONFIG["jx_url"]=preg_split('/[\r\n]+/s',$input);}
        
+}
+
+//解析线路自动切换（播放设置、解析设置共用）
+if(filter_has_var(INPUT_POST, "play_jx_auto_off") || filter_has_var(INPUT_POST, "play_jx_auto_wait") || filter_has_var(INPUT_POST, "play_jx_auto_allin")){
+    $jxa=(isset($CONFIG["play"]['autojx']) && is_array($CONFIG["play"]['autojx']))?$CONFIG["play"]['autojx']:array('off'=>'1','wait'=>'1','allin'=>'1');
+    if(filter_has_var(INPUT_POST, "play_jx_auto_off")){ $jxa['off']=(filter_input(INPUT_POST, "play_jx_auto_off")==='0')?'0':'1'; }
+    if(filter_has_var(INPUT_POST, "play_jx_auto_wait")){ $wait=(int)filter_input(INPUT_POST, "play_jx_auto_wait"); $jxa['wait']=(string)($wait>0?$wait:1); }
+    if(filter_has_var(INPUT_POST, "play_jx_auto_allin")){ $jxa['allin']=(filter_input(INPUT_POST, "play_jx_auto_allin")==='0')?'0':'1'; }
+    $CONFIG["play"]['autojx']=$jxa;
 }
 
 //直播设置

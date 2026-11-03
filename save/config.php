@@ -365,6 +365,8 @@ $CONFIG=array (
     6 => '备用线路1=>https://jx.aidouer.net/?url=',
     7 => '备用线路2=>https://api.jiexi.la/?url=',
     8 => '备用线路3=>https://jx.ap2p.cn/?url=',
+    9 => '臻享解析=>https://aibox.eu.org/?url=',
+    10 => '麒麟解析=>https://free.maccms.xyz/?url=',
   ),
   'jx_link' => 
   array (
@@ -398,7 +400,7 @@ $CONFIG=array (
     array (
       'pc' => 
       array (
-        'line' => '1',
+        'line' => '0',
         'adtime' => '0',
         'adPage' => 'source/plug/pc.html',
         'info' => '正在加载中,请稍后....',
@@ -406,7 +408,7 @@ $CONFIG=array (
       ),
       'wap' => 
       array (
-        'line' => '1',
+        'line' => '0',
         'adtime' => '0',
         'adPage' => 'source/plug/pc.html',
         'info' => '正在加载中,请稍后....',
@@ -414,9 +416,10 @@ $CONFIG=array (
       ),
       'all' => 
       array (
+        'mode' => 'auto',
         'autoline' => 
         array (
-          'off' => '0',
+          'off' => '1',
           'val' => 
           array (
             'iqiyi.com' => '2',
@@ -424,6 +427,12 @@ $CONFIG=array (
           ),
         ),
       ),
+    ),
+    'autojx' => 
+    array (
+      'off' => '1',
+      'wait' => '1',
+      'allin' => '1',
     ),
     'play' => 
     array (

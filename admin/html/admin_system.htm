@@ -1,5 +1,14 @@
 
-<?php include "block_header.htm"; ?>
+<?php include "block_header.htm";
+require_once dirname(__FILE__) . '/../../include/class.script.php';
+$JX_SCRIPT = function_exists('script_load') ? script_load() : array();
+$JX_ALL = function_exists('script_jx_merge') ? script_jx_merge($JX_SCRIPT, $CONFIG["jx_url"]) : $CONFIG["jx_url"];
+$SYS_LINE_MODE = (isset($CONFIG["play"]['line']['all']['mode'])) ? $CONFIG["play"]['line']['all']['mode'] : 'auto';
+$SYS_AUTOJX = array('off' => '1', 'wait' => '1', 'allin' => '1');
+if (isset($CONFIG["play"]['autojx']) && is_array($CONFIG["play"]['autojx'])) {
+    $SYS_AUTOJX = array_merge($SYS_AUTOJX, $CONFIG["play"]['autojx']);
+}
+?>
 
 <body>
     <div class="x-nav">
@@ -105,6 +114,28 @@
                             </div>
 
                         </div>
+                        <fieldset class="layui-elem-field">
+
+                            <legend>默认线路设置</legend>
+                            <div class="layui-field-box">
+                                <table class="layui-table">
+                                    <tbody>
+                                        <tr>
+                                            <th style="width:220px;">默认线路模式</th>
+                                            <td style="width:260px;">
+                                                <select name="play_line_all_mode">
+                                                    <option value="auto" <?php echo ($SYS_LINE_MODE === 'auto') ? 'selected' : ''; ?>>自动（默认，从第一条尝试到最后一条）</option>
+                                                    <option value="manual" <?php echo ($SYS_LINE_MODE !== 'auto') ? 'selected' : ''; ?>>跟随线路设置（播放设置→线路设置）</option>
+                                                </select>
+                                            </td>
+                                            <td>默认为自动：播放时从第一个解析接口开始，失败或超时自动切换下一条，直到最后一个</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                        </fieldset>
+
                         <fieldset class="layui-elem-field">
 
                             <legend>缓存设置</legend>
@@ -598,6 +629,44 @@
 
 
                     <form class="layui-form layui-form-pane" action="">
+                    <fieldset class="layui-elem-field" style="margin-bottom:15px">
+                        <legend>解析线路自动切换（失败 1 秒自动切换）</legend>
+                        <div class="layui-field-box">
+                            <table class="layui-table">
+                                <tbody>
+                                    <tr>
+                                        <th style="width:220px;">失败自动切换</th>
+                                        <td style="width:260px;">
+                                            <select name="play_jx_auto_off">
+                                                <option value="1" <?php echo ($SYS_AUTOJX['off'] === '1') ? 'selected' : ''; ?>>开启（默认）</option>
+                                                <option value="0" <?php echo ($SYS_AUTOJX['off'] !== '1') ? 'selected' : ''; ?>>关闭</option>
+                                            </select>
+                                        </td>
+                                        <td>解析线路加载失败或超时后自动切换到下一条</td>
+                                    </tr>
+                                    <tr>
+                                        <th>单线路失败等待</th>
+                                        <td><input type="number" min="1" name="play_jx_auto_wait" value="<?php echo (int)$SYS_AUTOJX['wait']; ?>" class="layui-input"></td>
+                                        <td>秒（默认 1 秒），从第一个到最后一个依次切换</td>
+                                    </tr>
+                                    <tr>
+                                        <th>全部接口参与</th>
+                                        <td>
+                                            <select name="play_jx_auto_allin">
+                                                <option value="1" <?php echo ($SYS_AUTOJX['allin'] === '1') ? 'selected' : ''; ?>>开启（默认）</option>
+                                                <option value="0" <?php echo ($SYS_AUTOJX['allin'] !== '1') ? 'selected' : ''; ?>>关闭（仅尝试当前线路）</option>
+                                            </select>
+                                        </td>
+                                        <td>开启后按列表顺序从第一个接口尝试到最后一个接口</td>
+                                    </tr>
+                                    <tr>
+                                        <th>当前接口数量</th>
+                                        <td colspan="2">共 <?php echo count($JX_ALL); ?> 条（已自动合并脚本中启用的全部接口）</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </fieldset>
 
                         <div class="layui-form-item layui-form-text">
                             <label class="layui-form-label">
@@ -605,7 +674,7 @@
                             </label>
                             <div class="layui-input-block">
                                 <textarea name="jx_url" style="height:500px" class="layui-textarea"><?php $word2 = '';
-                                                                                                    foreach ($CONFIG["jx_url"] as $key) {
+                                                                                                    foreach ($JX_ALL as $key) {
                                                                                                         $word2 .= trim($key) . "\r\n";
                                                                                                     }
                                                                                                     echo $word2; ?></textarea>

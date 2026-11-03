@@ -81,7 +81,31 @@ switch ($tp) {
         $info['type'] = 'getparm';
         $info['app'] = server::lsUserAgen($CONFIG["play"]['all']['AppName']);
         $CONFIG["play"]['define']['jx_link'] = $CONFIG["jx_link"];
-        $CONFIG["play"]['define']['jx_url'] = $CONFIG["jx_url"];
+        //线路默认模式：auto=自动（第一条到最后一条，失败自动切换）/ manual=跟随线路设置
+        if (!isset($CONFIG["play"]['line']['all']['mode'])) { $CONFIG["play"]['line']['all']['mode'] = 'auto'; }
+        foreach (array('pc', 'wap') as $dev) {
+            if (!isset($CONFIG["play"]['line'][$dev]['line']) || $CONFIG["play"]['line'][$dev]['line'] === '') {
+                $CONFIG["play"]['line'][$dev]['line'] = '0';
+            }
+        }
+        //解析线路自动切换：默认开启、单线路等待 1 秒、全部接口参与
+        $AUTOJX = array('off' => '1', 'wait' => '1', 'allin' => '1');
+        if (isset($CONFIG["play"]['autojx']) && is_array($CONFIG["play"]['autojx'])) {
+            $AUTOJX = array_merge($AUTOJX, $CONFIG["play"]['autojx']);
+        }
+        $CONFIG["play"]['autojx'] = $AUTOJX;
+        //自动线路选择规则：缺失时补齐默认值，避免老配置报错
+        if (!isset($CONFIG["play"]['line']['all']['autoline']) || !is_array($CONFIG["play"]['line']['all']['autoline'])) {
+            $CONFIG["play"]['line']['all']['autoline'] = array('off' => '0', 'val' => array());
+        }
+        //合并全部接口：脚本解析中启用的接口自动并入解析线路，按地址去重
+        $JX_URL = $CONFIG["jx_url"];
+        if (file_exists(FCPATH . '/save/script.config.php')) {
+            require_once FCPATH . '/include/class.script.php';
+            $SCFG = script_load();
+            if ((string)$SCFG['auto_sync'] === '1') { $JX_URL = script_jx_merge($SCFG, $JX_URL); }
+        }
+        $CONFIG["play"]['define']['jx_url'] = $JX_URL;
         $CONFIG["play"]['define']['live_url'] = $CONFIG["live_url"];
         //前台解析广告配置（自动识别电脑端 / 移动端）
         $ADCONFIG = array('off' => '0', 'time' => '5', 'skip' => '1', 'pc_code' => '', 'wap_code' => '', 'block' => '0', 'block_mode' => 'strict', 'block_param' => '');

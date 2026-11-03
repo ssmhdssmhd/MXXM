@@ -276,6 +276,27 @@ function script_auto_update($cfg = null, $force = false) {
     );
 }
 
+// 合并全部接口：把脚本线路按接口地址去重后并入解析线路列表（不写盘）
+function script_jx_merge($cfg, $jx_url) {
+    if (!is_array($jx_url)) { $jx_url = array(); }
+    if (!isset($cfg['lines']) || !is_array($cfg['lines'])) { return $jx_url; }
+    $exist = array();
+    foreach ($jx_url as $line) {
+        $val = explode('=>', (string)$line, 2);
+        if (isset($val[1])) { $exist[trim($val[1])] = 1; }
+    }
+    foreach ($cfg['lines'] as $it) {
+        if (!is_array($it)) { continue; }
+        $it += array('name' => '', 'url' => '', 'direct' => '0', 'off' => '0');
+        if ((string)$it['off'] !== '1' || (string)$it['direct'] === '1' || trim((string)$it['url']) === '') { continue; }
+        $url = trim((string)$it['url']);
+        if (isset($exist[$url])) { continue; }
+        $jx_url[] = (($it['name'] !== '') ? $it['name'] : $url) . '=>' . $url;
+        $exist[$url] = 1;
+    }
+    return $jx_url;
+}
+
 // 把脚本线路追加到前台解析线路（按接口地址去重，直连线路不参与）
 function script_sync_lines($cfg) {
     global $CONFIG;

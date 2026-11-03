@@ -46,6 +46,27 @@ if(lsMobile()){
 	    $autoplay=$CONFIG["play"]['play']['pc']['autoplay'];	  
 	}
 $TITLE=$CONFIG["TITLE"];          
+//解析线路自动切换配置（默认开启：从第一条到最后一条，失败等待 1 秒切换）
+$JXAUTO = array('off' => '1', 'wait' => '1', 'allin' => '1');
+if (isset($CONFIG['play']['autojx']) && is_array($CONFIG['play']['autojx'])) {
+    $JXAUTO = array_merge($JXAUTO, $CONFIG['play']['autojx']);
+}
+$JX_SRC = $CONFIG["jx_url"];
+if (file_exists(FCPATH . 'save/script.config.php')) {
+    require_once FCPATH . '/include/class.script.php';
+    $SCFG = script_load();
+    if ((string)$SCFG['auto_sync'] === '1') { $JX_SRC = script_jx_merge($SCFG, $JX_SRC); }
+}
+$JX_LINES = array();
+foreach ((array)$JX_SRC as $line) {
+    $p = explode('=>', (string)$line, 2);
+    if (isset($p[1]) && trim($p[1]) !== '') { $JX_LINES[] = array('name' => $p[0], 'url' => trim($p[1])); }
+}
+$LINE_MODE = isset($CONFIG['play']['line']['all']['mode']) ? $CONFIG['play']['line']['all']['mode'] : 'auto';
+$DEV_LINE  = lsMobile() ? $CONFIG['play']['line']['wap']['line'] : $CONFIG['play']['line']['pc']['line'];
+$JX_START  = 0;
+if ($LINE_MODE !== 'auto' && (int)$DEV_LINE > 0) { $JX_START = (int)$DEV_LINE - 1; }
+if ($JX_START >= count($JX_LINES)) { $JX_START = 0; }
 ?>
 <!DOCTYPE html>
 <html>
@@ -87,9 +108,14 @@ object-fit:contain;
 <script type="text/javascript">    
 var url='<?php echo $url ?>'; var cip='null',api=""; 
 
-var jxapi=is_mobile()? "<?php echo $CONFIG["jx_url"][$CONFIG["play"]["line"]["wap"]["line"]-1] ?>":"<?php echo $CONFIG["jx_url"][$CONFIG["play"]["line"]["pc"]["line"]-1] ?>" ;
+var jxlines = <?php echo json_encode($JX_LINES, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var JXAUTO_ON = <?php echo ((string)$JXAUTO['off'] === '1') ? 'true' : 'false'; ?>;
+var JXAUTO_WAIT = <?php echo max(1, (int)$JXAUTO['wait']); ?>;
+var JXAUTO_ALLIN = <?php echo ((string)$JXAUTO['allin'] === '0') ? 'false' : 'true'; ?>;
+var JX_START = <?php echo (int)$JX_START; ?>;
+var jxapi = (jxlines.length > 0 && JX_START < jxlines.length) ? jxlines[JX_START].url : "";
 
-if(jxapi!=""){api=jxapi.split("=>")[1]};
+if(jxapi!=""){api=jxapi};
 
 var autoplay="<?php echo $autoplay ?>";
 
@@ -134,7 +160,7 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
 
 				//$("#loading").hide();$("#error").show();$("#error").html("解析失败,已上报至服务器" + word);
                                   //setTimeout(function(){urlplay(api+url);}, 3000);
- 				parseplay(api+url);				
+ 				parseauto();				
          }  
    }else{
 
@@ -142,7 +168,7 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
       //$("#loading").hide();$("#error").show();$("#error").html("解析失败,已上报至服务器" + word);
    	  //setTimeout(function(){urlplay(api+url);}, 2000);
           
-      parseplay(api+url);    
+      parseauto();    
    }  
 
  }
@@ -186,17 +212,17 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
   }
 
    //解析接口调用前展示广告
-   function parseplay(url){
+   function parseplay(url, autostart){
       url = adparam(url);
-      if(!AD_ON){ playframe(url); return; }
+      if(!AD_ON){ if(autostart){ jxnext(); } else { playframe(url); } return; }
       var mobile = is_mobile();
       var code = mobile ? AD_WAP : AD_PC;
       if(!code || $.trim(code)===""){ code = mobile ? AD_PC : AD_WAP; }
-      if(!code || $.trim(code)===""){ playframe(url); return; }
+      if(!code || $.trim(code)===""){ if(autostart){ jxnext(); } else { playframe(url); } return; }
 
       $("#loading").hide();$("#a1").hide();
       //先加载解析页面（隐藏），广告结束后再显示，避免广告时间浪费在等待解析上
-      playframe(url, false);
+      if(!autostart){ playframe(url, false); }
       var ad = $("#parsead");
       var skip = '<div class="xyad-skip" style="position:absolute;right:12px;top:12px;z-index:99;padding:5px 12px;background:rgba(0,0,0,.65);color:#fff;border-radius:20px;font-size:12px;'+(AD_SKIP?'cursor:pointer':'')+'">'+(AD_SKIP?'跳过广告 ':'广告 ')+AD_TIME+'s</div>';
       ad.html('<div style="position:relative;width:100%;height:100%;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center">'+
@@ -207,7 +233,7 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
           if(done){ return; }
           done = true;
           ad.hide().empty();
-          $("#a1").show();
+          if(autostart){ jxnext(); } else { $("#a1").show(); }
       }
       function tick(){
           if(left<=0){ finish(); return; }
@@ -218,13 +244,57 @@ function player(){ $.ajax({ url: 'api.php?cip='+cip+'&url=' + url,dataType: 'jso
       if(AD_SKIP){ ad.find('.xyad-skip').on('click', finish); }
       if(left<=0){ finish(); } else { tick(); }
   }
+
+  //解析线路自动切换：从第一条到最后一条，失败等待 N 秒自动切换下一条
+  var jxIndex = JX_START, jxTried = 0, jxToken = 0;
+  function parseauto(){
+      if(!JXAUTO_ON || jxlines.length < 1){ parseplay(api+url); return; }
+      jxIndex = (JX_START>=0 && JX_START<jxlines.length) ? JX_START : 0;
+      jxTried = 0;
+      //广告只展示一次，广告结束后进入线路自动切换
+      parseplay(jxlines[jxIndex].url+url, true);
+  }
+  function jxnext(){
+      if(jxTried >= (JXAUTO_ALLIN ? jxlines.length : 1)){
+          $("#loading").hide(); $("#a1").hide();
+          $("#error").show().html("全部解析线路均不可用，请稍后重试！");
+          return;
+      }
+      var line = jxlines[jxIndex];
+      jxTried++;
+      var myToken = ++jxToken;
+      var u = adparam(line.url+url);
+      $("#loading").hide(); $("#error").hide();
+      $("#a1").html('<iframe id="jxframe" width="100%" height="100%" src="' + u + '" frameborder="0" border="0" marginwidth="0" marginheight="0" scrolling="no" allow="autoplay; fullscreen; encrypted-media" allowfullscreen="true"' + adframeattr() + '></iframe>').show();
+      var frame = document.getElementById("jxframe");
+      var done = false;
+      function nextLine(reason){
+          if(done){ return; }
+          done = true;
+          clearTimeout(timer);
+          if(myToken !== jxToken){ return; }
+          jxIndex = (jxIndex + 1) % jxlines.length;
+          $("#error").show().html("线路 " + jxTried + " " + reason + "，正在自动切换...");
+          jxnext();
+      }
+      var timer = setTimeout(function(){ nextLine("加载超时"); }, JXAUTO_WAIT * 1000);
+      frame.onload = function(){
+          if(done){ return; }
+          done = true;
+          clearTimeout(timer);
+          if(myToken !== jxToken){ return; }
+          $("#error").hide();
+          $("#a1").show();
+      };
+      frame.onerror = function(){ nextLine("加载失败"); };
+  }
    
  function  video_next(){	  
  }
  
  function  video_line(){
 	 
- parseplay(api+url);
+ parseauto();
  }
  
  function getcip(){$.get("https://data.video.iqiyi.com/v.f4v",function(cdnip){sip=cdnip.match(/\d+\.\d+\.\d+\.\d+/);cip=sip[0];player();});}
