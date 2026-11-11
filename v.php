@@ -26,6 +26,14 @@ $AD_BLOCK_PARAM = trim((string)$AD['block_param']);
 
 $url=filter_input(INPUT_GET, "url") ? filter_input(INPUT_GET, "url") :filter_input(INPUT_GET, "v");
 
+//官方链接未编码时，其 &vid=xxx 会被拆成独立参数（资源站 ID 为纯数字）
+$vidParam = filter_input(INPUT_GET, "vid");
+if ($vidParam !== null && $vidParam !== '' && !ctype_digit((string)$vidParam)) {
+    if ($url !== '' && stripos((string)$url, 'vid=') === false) {
+        $url .= (strpos((string)$url, '?') === false ? '?' : '&') . 'vid=' . rawurlencode((string)$vidParam);
+    }
+}
+
 if (empty($url))
 {
     exit('<style type="text/css">

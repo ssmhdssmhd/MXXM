@@ -270,6 +270,12 @@ class YUN
      //$title_replace,$title_match,$name_match,$url_match;
       $title='';$name='';$num=1;
    
+  //腾讯移动端播放页转为PC地址时保留 vid（规则库对结尾 vid 匹配不到，会丢失集数）
+     if (preg_match('~^https?://m\.v\.qq\.com/[^?]*\?.*?\bcid=([A-Za-z0-9]+)~i', $url, $mm)
+         && preg_match('~[?&]vid=([A-Za-z0-9]{8,})~i', $url, $mv)) {
+         $url='https://v.qq.com/x/cover/'.$mm[1].'/'.$mv[1].'.html';
+     }
+
   //视频地址替换,用于移动转换为pc版本
      foreach ($YUN_MATCH["url_match"] as $val => $value) 
     {     	 	 
@@ -284,6 +290,27 @@ class YUN
 		}
      }
 	
+  //腾讯视频页面为JS渲染且易触发风控，优先用 getinfo 接口按 vid 取标题（移动端/PC 均可）
+  $title='';
+  if (preg_match('~^https?://(?:[a-z0-9-]+\.)*v\.qq\.com/~i', $url)) {
+      $vid='';
+      if (preg_match('~[?&]vid=([A-Za-z0-9]{8,})~i', $url, $mm)) { $vid=$mm[1]; }
+      elseif (preg_match('~/([A-Za-z0-9]{8,})\.html~', $url, $mm)) { $vid=$mm[1]; }
+      if ($vid!=='') {
+          $json=self::curl('https://vv.video.qq.com/getinfo?vids='.$vid.'&platform=101001&charge=0&otype=json');
+          $json=rtrim(preg_replace('~^QZOutputJson=~','',trim($json)),"; \r\n");
+          if ($json!=='') {
+              $jd=json_decode($json,true);
+              if (isset($jd['vl']['vi'][0]['ti'])) { $title=trim((string)$jd['vl']['vi'][0]['ti']); }
+          }
+          //"完美世界_01" => "完美世界第1集"，便于后续提取片名与集数
+          if ($title!=='' && preg_match('~^(.*?)[_\- ]+0*(\d+)$~u', $title, $mm)) {
+              $title=trim($mm[1]).'第'.(int)$mm[2].'集';
+          }
+      }
+  }
+
+  if ($title==='') {
      $data=self::curl($url);
 	 
 	 
@@ -311,6 +338,7 @@ class YUN
   }
 //过滤换行符
    $title=trim(str_replace(array("\r\n","\n","\r"),"",$title));
+  }
  
 
  //调用配置预设正则，获取视频名称和集数。

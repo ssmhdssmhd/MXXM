@@ -31,6 +31,13 @@ $cb = isset($cb) && $cb ? $cb : '';
 $tp = isset($tp) && $tp ? $tp : '';
 $url = isset($url) && $url ? $url : '';
 $wd = isset($wd) && $wd ? $wd : '';
+//官方链接未编码时，其 &vid=xxx 会被拆成独立参数（资源站 ID 为纯数字）
+if (isset($vid) && $vid !== '' && !ctype_digit((string)$vid)) {
+    if ($url !== '' && stripos($url, 'vid=') === false) {
+        $url .= (strpos($url, '?') === false ? '?' : '&') . 'vid=' . rawurlencode((string)$vid);
+    }
+    $vid = '';
+}
 $line = isset($line) && $line ? $line : '0';
 $id = isset($id) ? $id : '';
 $flag = isset($flag) ? $flag : '';
