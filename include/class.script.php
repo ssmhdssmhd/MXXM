@@ -75,6 +75,8 @@ function script_load() {
         'time'        => '',
         'direct'      => $direct,
         'lines'       => array(),
+        'scripts'     => array(),
+        'manual_lines' => array(),
         'resp'        => script_resp_defaults(),
     );
     if (!isset($cfg['direct']) || !is_array($cfg['direct'])) { $cfg['direct'] = $direct; }
@@ -83,6 +85,12 @@ function script_load() {
     $cfg['direct_list'] = script_direct_list($cfg);
     $cfg['direct'] = $cfg['direct_list'][0];
     if (!isset($cfg['lines']) || !is_array($cfg['lines'])) { $cfg['lines'] = array(); }
+    if (!isset($cfg['scripts']) || !is_array($cfg['scripts'])) { $cfg['scripts'] = array(); }
+    if (!isset($cfg['manual_lines']) || !is_array($cfg['manual_lines'])) { $cfg['manual_lines'] = array(); }
+    // 旧版单脚本配置自动迁移为「多脚本」结构
+    $cfg = script_migrate_single($cfg);
+    // 合并全部脚本线路与手动线路，作为前台实际使用的线路列表
+    script_rebuild_lines($cfg);
     // JSON 接口返回字段：缺失或为空时使用默认值
     $defResp = script_resp_defaults();
     if (!isset($cfg['resp']) || !is_array($cfg['resp'])) { $cfg['resp'] = $defResp; }
@@ -102,6 +110,124 @@ function script_save($cfg) {
     $content = "<?php\n/* 脚本解析配置（由后台「脚本解析」页面生成，请勿手动修改格式） */\n"
         . '$SCRIPT_CONFIG = ' . var_export($cfg, true) . ";\n";
     return @file_put_contents($file, $content);
+}
+
+/* ==================== 多脚本管理 ==================== */
+
+// 规范化单条线路（补齐字段）
+function script_line_norm($it) {
+    $it = is_array($it) ? $it : array();
+    $it += array('name' => '', 'url' => '', 'type' => '1', 'direct' => '0', 'off' => '1', 'popup' => '0', 'clean' => '0');
+    $it['name'] = trim((string)$it['name']);
+    $it['url'] = trim((string)$it['url']);
+    $it['type'] = trim((string)$it['type']);
+    $it['direct'] = (string)$it['direct'] === '1' ? '1' : '0';
+    $it['off'] = (string)$it['off'] === '1' ? '1' : '0';
+    $it['popup'] = (string)$it['popup'] === '1' ? '1' : '0';
+    $it['clean'] = (string)$it['clean'] === '1' ? '1' : '0';
+    return $it;
+}
+
+// 线路去重键：直连线路按名称，接口线路按地址
+function script_line_key($it) {
+    if ((string)$it['direct'] === '1' || $it['url'] === '') { return 'direct:' . $it['name']; }
+    return 'url:' . $it['url'];
+}
+
+// 旧版单脚本配置迁移（无 scripts 字段时，把原脚本与其线路作为第一个脚本）
+function script_migrate_single($cfg) {
+    if (!empty($cfg['scripts'])) { return $cfg; }
+    $lines = array();
+    foreach ((array)$cfg['lines'] as $it) {
+        if (!is_array($it)) { continue; }
+        $it = script_line_norm($it);
+        if ($it['name'] === '') { continue; }
+        $lines[] = $it;
+    }
+    $url = trim((string)$cfg['url']);
+    if ($url === '' && empty($lines)) { return $cfg; }
+    $cfg['scripts'][] = array(
+        'id'         => md5($url !== '' ? $url : (string)$cfg['name']),
+        'name'       => (string)$cfg['name'],
+        'url'        => $url,
+        'repo'       => (string)$cfg['repo'],
+        'version'    => (string)$cfg['version'],
+        'time'       => (string)$cfg['time'],
+        'last_check' => (string)$cfg['last_check'],
+        'lines'      => $lines,
+        'lines_hash' => md5(json_encode($lines)),
+        'off'        => '1',
+    );
+    $cfg['manual_lines'] = array();
+    return $cfg;
+}
+
+// 合并全部启用脚本的线路 + 手动线路（按线路地址去重）
+function script_rebuild_lines(&$cfg) {
+    $out = array();
+    $seen = array();
+    $push = function ($it) use (&$out, &$seen) {
+        $it = script_line_norm($it);
+        if ($it['name'] === '') { return; }
+        $k = script_line_key($it);
+        if (isset($seen[$k])) {
+            // 同一接口重复出现时，只要有一条标记为弹窗专用，合并结果就按弹窗处理
+            if ($it['popup'] === '1') { $out[$seen[$k]]['popup'] = '1'; }
+            return;
+        }
+        $seen[$k] = count($out);
+        $out[] = $it;
+    };
+    foreach ((array)$cfg['scripts'] as $sc) {
+        if (!is_array($sc)) { continue; }
+        $sc += array('off' => '1', 'lines' => array());
+        if ((string)$sc['off'] !== '1') { continue; }
+        foreach ((array)$sc['lines'] as $it) { $push($it); }
+    }
+    foreach ((array)$cfg['manual_lines'] as $it) { $push($it); }
+    $cfg['lines'] = $out;
+    return $out;
+}
+
+// 按 id 或地址查找脚本下标
+function script_find_index($cfg, $sid = '', $url = '') {
+    foreach ((array)$cfg['scripts'] as $i => $sc) {
+        if (!is_array($sc)) { continue; }
+        if ($sid !== '' && isset($sc['id']) && (string)$sc['id'] === (string)$sid) { return $i; }
+        if ($url !== '' && isset($sc['url']) && trim((string)$sc['url']) === $url) { return $i; }
+    }
+    return -1;
+}
+
+// 保存线路表：脚本线路回写到对应脚本，其余作为手动线路
+function script_apply_lines(&$cfg, $lines) {
+    $map = array();
+    foreach ((array)$cfg['scripts'] as $si => $sc) {
+        if (!is_array($sc) || !isset($sc['lines']) || !is_array($sc['lines'])) { continue; }
+        foreach ($sc['lines'] as $li => $ln) {
+            $ln = script_line_norm($ln);
+            $map[script_line_key($ln)][] = array($si, $li);
+        }
+    }
+    $manual = array();
+    foreach ((array)$lines as $it) {
+        $it = script_line_norm($it);
+        if ($it['name'] === '') { continue; }
+        $k = script_line_key($it);
+        if (isset($map[$k])) {
+            // 同一接口可能同时存在于多个脚本，需全部同步，合并后才会生效
+            foreach ($map[$k] as $pos) {
+                list($si, $li) = $pos;
+                $cfg['scripts'][$si]['lines'][$li]['name'] = $it['name'];
+                $cfg['scripts'][$si]['lines'][$li]['url'] = $it['url'];
+                $cfg['scripts'][$si]['lines'][$li]['off'] = $it['off'];
+            }
+            unset($map[$k]);
+        } else {
+            $manual[] = $it;
+        }
+    }
+    $cfg['manual_lines'] = $manual;
 }
 
 // 带超时的脚本拉取
@@ -131,9 +257,14 @@ function script_meta($js) {
     return array($name, $ver);
 }
 
-// 提取脚本中的 videoParseList 并转为线路数组
-function script_extract_lines($js) {
-    $pos = strpos($js, 'videoParseList');
+// 去掉 JS 整行注释（只处理行首 //，避免破坏地址中的 ://）
+function script_strip_comments($js) {
+    return preg_replace('/^[ \t]*\/\/[^\r\n]*/m', '', $js);
+}
+
+// 从脚本中提取一种线路数组（videoParseList / parseApis）并转为线路数组
+function script_parse_lines($js, $key) {
+    $pos = strpos($js, $key);
     if ($pos === false) { return false; }
     $open = strpos($js, '[', $pos);
     if ($open === false) { return false; }
@@ -170,15 +301,31 @@ function script_extract_lines($js) {
         if (!is_array($it)) { continue; }
         $name = isset($it['name']) ? trim((string)$it['name']) : '';
         if ($name === '') { continue; }
+        $type = isset($it['type']) ? trim((string)$it['type']) : '1';
+        // type 含 1 表示支持内嵌播放；否则只能在新窗口打开（弹窗线路）
+        $types = preg_split('/[,\s]+/', $type, -1, PREG_SPLIT_NO_EMPTY);
+        $embeddable = in_array('1', $types, true);
         $lines[] = array(
             'name'   => $name,
             'url'    => isset($it['url']) ? trim((string)$it['url']) : '',
-            'type'   => isset($it['type']) ? trim((string)$it['type']) : '1',
-            'direct' => !empty($it['wsyzy']) ? '1' : '0',
+            'type'   => $type !== '' ? $type : '1',
+            'direct' => (!empty($it['wsyzy']) || (isset($it['direct']) && (string)$it['direct'] === '1')) ? '1' : '0',
             'off'    => '1',
+            'popup'  => (!empty($it['windowOpen']) || !$embeddable) ? '1' : '0',
+            'clean'  => !empty($it['clean']) ? '1' : '0',
         );
     }
     return empty($lines) ? false : $lines;
+}
+
+// 提取脚本中的解析线路（兼容 videoParseList 与 parseApis 两种格式）
+function script_extract_lines($js) {
+    $js = script_strip_comments($js);
+    foreach (array('videoParseList', 'parseApis') as $key) {
+        $lines = script_parse_lines($js, $key);
+        if ($lines !== false) { return $lines; }
+    }
+    return false;
 }
 
 // 当前时间（统一使用北京时间 YmdHis）
@@ -205,58 +352,58 @@ function script_time_ts($s) {
 function script_auto_update($cfg = null, $force = false) {
     if ($cfg === null) { $cfg = script_load(); }
 
-    if (!$force) {
-        if ((string)$cfg['auto_update'] !== '1') {
-            return array('ok' => true, 'changed' => false, 'msg' => '自动更新已关闭');
-        }
-        $interval = max(1, (int)$cfg['interval']) * 3600;
-        $last = script_time_ts($cfg['last_check']);
-        // 已有线路时才按间隔跳过；线路为空则立即检测一次
-        if (!empty($cfg['lines']) && $last > 0 && time() - $last < $interval) {
-            $syncMsg = '';
-            // 即使未到检测间隔，也确保线路已追加到解析线路
-            if ((string)$cfg['auto_sync'] === '1') {
-                $added = script_sync_lines($cfg);
-                if ($added > 0) { $syncMsg = "，已同步 {$added} 条到解析线路"; }
-            }
-            return array('ok' => true, 'changed' => false, 'msg' => '未到检查间隔' . $syncMsg);
-        }
+    if (!$force && (string)$cfg['auto_update'] !== '1') {
+        return array('ok' => true, 'changed' => false, 'msg' => '自动更新已关闭');
     }
 
-    // 检查时附加时间参数，尽量绕过 CDN 缓存
-    $url = (string)$cfg['url'];
-    $fetchUrl = $url . (strpos($url, '?') === false ? '?' : '&') . '_t=' . time();
-    $js = script_fetch($fetchUrl, 8);
-    if ($js === '') { $js = script_fetch($url, 6); }
-
-    if ($js === '') {
-        $cfg['last_check'] = script_now();
-        script_save($cfg);
-        return array('ok' => false, 'changed' => false, 'msg' => '拉取脚本失败，请检查服务器网络');
-    }
-
-    $lines = script_extract_lines($js);
-    if ($lines === false) {
-        $cfg['last_check'] = script_now();
-        script_save($cfg);
-        return array('ok' => false, 'changed' => false, 'msg' => '脚本中未找到解析线路');
-    }
-
-    list($name, $ver) = script_meta($js);
-    $hash = md5(json_encode($lines));
+    $interval = max(1, (int)$cfg['interval']) * 3600;
     $changed = false;
+    $checked = 0;
+    $failed = 0;
 
-    if ($hash !== (string)$cfg['lines_hash'] || $cfg['lines'] !== $lines) {
-        $cfg['lines'] = $lines;
-        $cfg['lines_hash'] = $hash;
-        $changed = true;
+    foreach ($cfg['scripts'] as $i => $sc) {
+        if (!is_array($sc)) { continue; }
+        $sc += array('url' => '', 'lines' => array(), 'last_check' => '', 'lines_hash' => '');
+        $url = trim((string)$sc['url']);
+        if ($url === '') { continue; }
+        $last = script_time_ts($sc['last_check']);
+        // 已有线路时才按间隔跳过；线路为空则立即检测一次
+        if (!$force && !empty($sc['lines']) && $last > 0 && time() - $last < $interval) { continue; }
+        $checked++;
+
+        // 检查时附加时间参数，尽量绕过 CDN 缓存
+        $fetchUrl = $url . (strpos($url, '?') === false ? '?' : '&') . '_t=' . time();
+        $js = script_fetch($fetchUrl, 8);
+        if ($js === '') { $js = script_fetch($url, 6); }
+        if ($js === '') {
+            $cfg['scripts'][$i]['last_check'] = script_now();
+            $failed++;
+            continue;
+        }
+
+        $lines = script_extract_lines($js);
+        if ($lines === false) {
+            $cfg['scripts'][$i]['last_check'] = script_now();
+            $failed++;
+            continue;
+        }
+
+        list($name, $ver) = script_meta($js);
+        $hash = md5(json_encode($lines));
+        if ($hash !== (string)$sc['lines_hash'] || $sc['lines'] !== $lines) {
+            $cfg['scripts'][$i]['lines'] = $lines;
+            $cfg['scripts'][$i]['lines_hash'] = $hash;
+            $changed = true;
+        }
+        if ($name !== '') { $cfg['scripts'][$i]['name'] = $name; }
+        if ($ver !== '') { $cfg['scripts'][$i]['version'] = $ver; }
+        $cfg['scripts'][$i]['last_check'] = script_now();
+        $cfg['scripts'][$i]['time'] = $cfg['scripts'][$i]['last_check'];
     }
-    if ($name !== '' && $name !== $cfg['name']) { $cfg['name'] = $name; }
-    if ($ver !== '' && $ver !== $cfg['version']) { $cfg['version'] = $ver; }
 
+    script_rebuild_lines($cfg);
     $cfg['last_check'] = script_now();
-    if ($changed) { $cfg['time'] = $cfg['last_check']; }
-
+    $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
     if (!script_save($cfg)) {
         return array('ok' => false, 'changed' => false, 'msg' => '保存失败，请检查 save/ 目录写权限');
     }
@@ -267,12 +414,18 @@ function script_auto_update($cfg = null, $force = false) {
         if ($added > 0) { $syncMsg = "，已同步 {$added} 条到解析线路"; }
     }
 
+    if ($checked === 0) {
+        return array('ok' => true, 'changed' => false, 'msg' => '未到检查间隔' . $syncMsg);
+    }
+
+    $msg = $changed
+        ? '检测到上游更新：' . count($cfg['lines']) . ' 条线路'
+        : '已是最新';
+    if ($failed > 0) { $msg .= "，{$failed} 个脚本拉取失败"; }
     return array(
-        'ok'      => true,
+        'ok'      => $failed < $checked,
         'changed' => $changed,
-        'msg'     => ($changed
-            ? '检测到上游更新：' . count($lines) . ' 条线路，版本 ' . ($cfg['version'] !== '' ? $cfg['version'] : '—')
-            : '已是最新') . $syncMsg,
+        'msg'     => $msg . $syncMsg,
     );
 }
 
@@ -287,8 +440,9 @@ function script_jx_merge($cfg, $jx_url) {
     }
     foreach ($cfg['lines'] as $it) {
         if (!is_array($it)) { continue; }
-        $it += array('name' => '', 'url' => '', 'direct' => '0', 'off' => '0');
-        if ((string)$it['off'] !== '1' || (string)$it['direct'] === '1' || trim((string)$it['url']) === '') { continue; }
+        $it += array('name' => '', 'url' => '', 'direct' => '0', 'off' => '0', 'popup' => '0');
+        // 弹窗专用接口不支持 iframe 内嵌，不并入前台解析线路
+        if ((string)$it['off'] !== '1' || (string)$it['direct'] === '1' || (string)$it['popup'] === '1' || trim((string)$it['url']) === '') { continue; }
         $url = trim((string)$it['url']);
         if (isset($exist[$url])) { continue; }
         $jx_url[] = (($it['name'] !== '') ? $it['name'] : $url) . '=>' . $url;
@@ -325,8 +479,9 @@ function script_sync_lines($cfg) {
     $added = 0;
     foreach ($cfg['lines'] as $it) {
         if (!is_array($it)) { continue; }
-        $it += array('name' => '', 'url' => '', 'direct' => '0', 'off' => '0');
-        if ((string)$it['off'] !== '1' || (string)$it['direct'] === '1' || $it['url'] === '') { continue; }
+        $it += array('name' => '', 'url' => '', 'direct' => '0', 'off' => '0', 'popup' => '0');
+        // 弹窗专用接口不支持 iframe 内嵌，不并入前台解析线路
+        if ((string)$it['off'] !== '1' || (string)$it['direct'] === '1' || (string)$it['popup'] === '1' || $it['url'] === '') { continue; }
         if (isset($exist[$it['url']])) { continue; }
         $CONFIG['jx_url'][] = $it['name'] . '=>' . $it['url'];
         $exist[$it['url']] = 1;

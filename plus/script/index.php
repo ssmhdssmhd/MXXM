@@ -35,9 +35,19 @@ $lineK = sp_get('line');
 $enabled = array();
 foreach ($lines as $k => $it) {
     if (!is_array($it)) { continue; }
-    $it += array('name' => '', 'url' => '', 'type' => '', 'direct' => '0', 'off' => '0');
+    $it += array('name' => '', 'url' => '', 'type' => '', 'direct' => '0', 'off' => '0', 'popup' => '0', 'clean' => '0');
     if ((string)$it['off'] === '1' && $it['name'] !== '') { $enabled[$k] = $it; }
 }
+
+// 脚本名称汇总（多脚本）
+$scriptNames = array();
+foreach ((array)$cfg['scripts'] as $sc) {
+    if (!is_array($sc)) { continue; }
+    $sc += array('name' => '', 'version' => '', 'off' => '1');
+    if ((string)$sc['off'] !== '1' || $sc['name'] === '') { continue; }
+    $scriptNames[] = $sc['name'] . ($sc['version'] !== '' ? ' v' . $sc['version'] : '');
+}
+$scriptLabel = !empty($scriptNames) ? implode(' · ', $scriptNames) : $cfg['name'];
 
 // 当前线路：指定线路优先，否则用第一条启用的
 $curKey = null;
@@ -45,7 +55,7 @@ if ($lineK !== '' && isset($enabled[$lineK])) { $curKey = $lineK; }
 if ($curKey === null && !empty($enabled)) { $curKey = key($enabled); }
 $line = ($curKey !== null) ? $enabled[$curKey] : null;
 
-$src = ''; $error = ''; $epList = array(); $curEp = 0; $resolvedName = '';
+$src = ''; $error = ''; $epList = array(); $curEp = 0; $resolvedName = ''; $popupUrl = '';
 
 if ($line !== null) {
     if ((string)$line['direct'] === '1') {
@@ -61,6 +71,14 @@ if ($line !== null) {
             $error = '未能自动识别片名，请在下方「片名」输入框补充剧名后重试。';
         } else {
             $error = $res['msg'] . '，请尝试其他线路。';
+        }
+    } elseif ($url !== '' && (string)$line['popup'] === '1') {
+        // 弹窗专用线路：只能在新窗口打开（接口不支持 iframe 内嵌）
+        if ((string)$line['clean'] === '1') {
+            // 个别接口要求「去掉查询参数 + 不编码」
+            $popupUrl = $line['url'] . explode('?', $url)[0];
+        } else {
+            $popupUrl = $line['url'] . rawurlencode($url);
         }
     } elseif ($url !== '') {
         // 解析接口线路：接口地址 + 官方视频地址
@@ -107,6 +125,8 @@ a{color:#7dd3fc;text-decoration:none}
 .stage iframe{display:block;width:100%;height:min(72vh,560px);min-height:360px;border:0;background:#000}
 .msg{padding:40px 20px;text-align:center;color:#94a3b8}
 .msg b{color:#7dd3fc}
+.popup-btn{display:inline-block;margin-top:12px;padding:8px 22px;border-radius:8px;background:#0ea5e9;color:#fff;font-weight:700}
+.popup-btn:hover{background:#38bdf8;color:#fff}
 .eps{margin:14px 16px 0}
 .eps-h{font-size:12px;color:#94a3b8;margin-bottom:8px}
 .eps-list{display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow:auto}
@@ -122,7 +142,7 @@ a{color:#7dd3fc;text-decoration:none}
 <body>
 <header class="hd">
     <div class="hd-t">脚本解析</div>
-    <div class="hd-s"><?php echo sp_h($cfg['name']); ?><?php echo $cfg['version'] !== '' ? ' <em>v' . sp_h($cfg['version']) . '</em>' : ''; ?></div>
+    <div class="hd-s"><?php echo sp_h($scriptLabel); ?><?php echo count($scriptNames) > 1 ? ' <em>（共 ' . count($scriptNames) . ' 个脚本）</em>' : ''; ?></div>
 </header>
 
 <form class="q" method="get" action="">
@@ -140,7 +160,9 @@ a{color:#7dd3fc;text-decoration:none}
         'wd'   => $wd,
         'vid'  => ((string)$k === (string)$curKey) ? $vid : '',
         'ep'   => ((string)$k === (string)$curKey) ? $ep : '',
-    ))); ?>"><?php echo sp_h($it['name']); ?><?php echo (string)$it['direct'] === '1' ? '<i>直连</i>' : ''; ?></a>
+    ))); ?>"><?php echo sp_h($it['name']); ?><?php
+        echo (string)$it['direct'] === '1' ? '<i>直连</i>' : ((string)$it['popup'] === '1' ? '<i>弹窗</i>' : '');
+    ?></a>
     <?php endforeach; ?>
 </div>
 
@@ -151,6 +173,11 @@ a{color:#7dd3fc;text-decoration:none}
         <div class="msg">尚未解析出可用线路，请前往后台「脚本解析」点击<b>更新脚本</b>。</div>
     <?php elseif ($error !== ''): ?>
         <div class="msg"><?php echo sp_h($error); ?></div>
+    <?php elseif ($popupUrl !== ''): ?>
+        <div class="msg">
+            <?php echo sp_h($line['name']); ?> 仅支持新窗口打开解析。<br>
+            <a class="popup-btn" href="<?php echo sp_h($popupUrl); ?>" target="_blank" rel="noopener">新窗口打开解析</a>
+        </div>
     <?php elseif ($src !== ''): ?>
         <iframe src="<?php echo sp_h($src); ?>" scrolling="no" frameborder="0" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
     <?php elseif ($url === ''): ?>
@@ -177,6 +204,6 @@ a{color:#7dd3fc;text-decoration:none}
 </div>
 <?php endif; ?>
 
-<div class="ft">脚本：<a href="https://github.com/88lin/video_vip" target="_blank" rel="noopener">88lin/video_vip</a> · 仅供学习交流</div>
+<div class="ft">脚本：共 <?php echo count($scriptNames); ?> 个 · 线路 <?php echo count($enabled); ?> 条 · 仅供学习交流</div>
 </body>
 </html>

@@ -1075,12 +1075,15 @@ switch ($type) {
             'm'       => $r['msg'],
         ), JSON_UNESCAPED_UNICODE));
 
-    //脚本解析 实时拉取脚本并解析其中的解析线路
+    //脚本解析 实时拉取脚本并解析其中的解析线路（支持添加新脚本 / 更新指定脚本）
     case 'script_update':
         header('Content-Type: application/json; charset=utf-8');
         $cfg = script_load();
+        $sid = trim((string)(isset($_POST['sid']) ? $_POST['sid'] : ''));
         $url = trim((string)(isset($_POST['url']) ? $_POST['url'] : ''));
-        if ($url === '') { $url = $cfg['url']; }
+        $idx = ($sid !== '') ? script_find_index($cfg, $sid) : -1;
+        if ($url === '' && $idx >= 0) { $url = trim((string)$cfg['scripts'][$idx]['url']); }
+        if ($url === '' && $idx < 0) { $url = trim((string)$cfg['url']); }
         if (!preg_match('~^https?://~i', $url)) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本地址无效，请填写 http(s) 开头的地址！'), JSON_UNESCAPED_UNICODE));
         }
@@ -1090,15 +1093,31 @@ switch ($type) {
         }
         $lines = script_extract_lines($js);
         if ($lines === false) {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本中未找到解析线路（videoParseList），请确认脚本地址！'), JSON_UNESCAPED_UNICODE));
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本中未找到解析线路（videoParseList / parseApis），请确认脚本地址！'), JSON_UNESCAPED_UNICODE));
         }
         list($name, $ver) = script_meta($js);
-        $cfg['url'] = $url;
-        if ($name !== '') { $cfg['name'] = $name; }
-        if ($ver !== '') { $cfg['version'] = $ver; }
-        $cfg['lines'] = $lines;
-        $cfg['lines_hash'] = md5(json_encode($lines));
-        $cfg['time'] = script_now();
+        if ($idx < 0) { $idx = script_find_index($cfg, '', $url); }
+        $isNew = ($idx < 0);
+        if ($isNew) {
+            $idx = count($cfg['scripts']);
+            $cfg['scripts'][] = array('id' => md5($url), 'off' => '1');
+        }
+        $cfg['scripts'][$idx]['id'] = isset($cfg['scripts'][$idx]['id']) && $cfg['scripts'][$idx]['id'] !== '' ? $cfg['scripts'][$idx]['id'] : md5($url);
+        $cfg['scripts'][$idx]['url'] = $url;
+        if ($name !== '') { $cfg['scripts'][$idx]['name'] = $name; }
+        else { $cfg['scripts'][$idx]['name'] = isset($cfg['scripts'][$idx]['name']) ? $cfg['scripts'][$idx]['name'] : $url; }
+        if ($ver !== '') { $cfg['scripts'][$idx]['version'] = $ver; }
+        $cfg['scripts'][$idx]['lines'] = $lines;
+        $cfg['scripts'][$idx]['lines_hash'] = md5(json_encode($lines));
+        $cfg['scripts'][$idx]['time'] = script_now();
+        $cfg['scripts'][$idx]['last_check'] = $cfg['scripts'][$idx]['time'];
+        // 兼容旧字段（取第一个脚本）
+        $cfg['url'] = $cfg['scripts'][0]['url'];
+        $cfg['name'] = $cfg['scripts'][0]['name'];
+        $cfg['version'] = isset($cfg['scripts'][0]['version']) ? $cfg['scripts'][0]['version'] : '';
+        $cfg['time'] = $cfg['scripts'][$idx]['time'];
+        script_rebuild_lines($cfg);
+        $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
         if (!script_save($cfg)) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
         }
@@ -1109,21 +1128,84 @@ switch ($type) {
         }
         exit(json_encode(array(
             'success' => 1, 'icon' => 6,
-            'm' => '更新成功：解析出 ' . count($lines) . ' 条线路，脚本版本 ' . ($ver !== '' ? $ver : '—') . $syncMsg,
+            'm' => ($isNew ? '已添加脚本：' : '更新成功：') . '解析出 ' . count($lines) . ' 条线路，脚本版本 ' . ($ver !== '' ? $ver : '—') . $syncMsg,
         ), JSON_UNESCAPED_UNICODE));
+
+    //脚本解析 全部脚本一键更新
+    case 'script_update_all':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        if (empty($cfg['scripts'])) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '尚未添加任何脚本，请先添加脚本地址！'), JSON_UNESCAPED_UNICODE));
+        }
+        $ok = 0; $fail = 0;
+        foreach ($cfg['scripts'] as $i => $sc) {
+            $url = isset($sc['url']) ? trim((string)$sc['url']) : '';
+            if ($url === '') { $fail++; continue; }
+            $js = script_fetch($url . (strpos($url, '?') === false ? '?' : '&') . '_t=' . time(), 12);
+            if ($js === '') { $js = script_fetch($url, 10); }
+            $lines = ($js !== '') ? script_extract_lines($js) : false;
+            if ($lines === false) { $fail++; continue; }
+            list($name, $ver) = script_meta($js);
+            if ($name !== '') { $cfg['scripts'][$i]['name'] = $name; }
+            if ($ver !== '') { $cfg['scripts'][$i]['version'] = $ver; }
+            $cfg['scripts'][$i]['lines'] = $lines;
+            $cfg['scripts'][$i]['lines_hash'] = md5(json_encode($lines));
+            $cfg['scripts'][$i]['time'] = script_now();
+            $cfg['scripts'][$i]['last_check'] = $cfg['scripts'][$i]['time'];
+            $ok++;
+        }
+        script_rebuild_lines($cfg);
+        $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
+        if (!script_save($cfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        $syncMsg = '';
+        if ($cfg['auto_sync'] === '1') {
+            $added = script_sync_lines($cfg);
+            if ($added > 0) { $syncMsg = "，已同步 {$added} 条到解析线路"; }
+        }
+        exit(json_encode(array(
+            'success' => $ok > 0 ? 1 : 0,
+            'icon' => $ok > 0 ? 6 : 5,
+            'm' => "全部更新完成：成功 {$ok} 个，失败 {$fail} 个，当前共 " . count($cfg['lines']) . ' 条线路' . $syncMsg,
+        ), JSON_UNESCAPED_UNICODE));
+
+    //脚本解析 删除脚本
+    case 'script_delete':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $sid = trim((string)(isset($_POST['sid']) ? $_POST['sid'] : ''));
+        $idx = script_find_index($cfg, $sid);
+        if ($idx < 0) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本不存在或已被删除！'), JSON_UNESCAPED_UNICODE));
+        }
+        array_splice($cfg['scripts'], $idx, 1);
+        if (!empty($cfg['scripts'])) {
+            $cfg['url'] = $cfg['scripts'][0]['url'];
+            $cfg['name'] = $cfg['scripts'][0]['name'];
+            $cfg['version'] = isset($cfg['scripts'][0]['version']) ? $cfg['scripts'][0]['version'] : '';
+        }
+        script_rebuild_lines($cfg);
+        $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
+        if (!script_save($cfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '脚本已删除，当前共 ' . count($cfg['lines']) . ' 条线路'), JSON_UNESCAPED_UNICODE));
 
     //脚本解析 保存基本设置
     case 'script_system':
         header('Content-Type: application/json; charset=utf-8');
         $cfg = script_load();
         $cfg['off'] = (string)(isset($_POST['sc_off']) ? $_POST['sc_off'] : '0') === '1' ? '1' : '0';
-        $cfg['name'] = trim((string)(isset($_POST['sc_name']) ? $_POST['sc_name'] : ''));
-        $url = trim((string)(isset($_POST['sc_url']) ? $_POST['sc_url'] : ''));
-        if ($url !== '' && !preg_match('~^https?://~i', $url)) {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本地址无效，请填写 http(s) 开头的地址！'), JSON_UNESCAPED_UNICODE));
+        // 脚本启用状态（逐条保存）
+        $sids = (isset($_POST['sc_sid']) && is_array($_POST['sc_sid'])) ? $_POST['sc_sid'] : array();
+        $soffs = (isset($_POST['sc_soff']) && is_array($_POST['sc_soff'])) ? $_POST['sc_soff'] : array();
+        foreach ($sids as $i => $sid) {
+            $idx = script_find_index($cfg, trim((string)$sid));
+            if ($idx < 0) { continue; }
+            $cfg['scripts'][$idx]['off'] = (isset($soffs[$i]) && (string)$soffs[$i] === '1') ? '1' : '0';
         }
-        if ($url !== '') { $cfg['url'] = $url; }
-        $cfg['repo'] = trim((string)(isset($_POST['sc_repo']) ? $_POST['sc_repo'] : ''));
         $cfg['auto_sync'] = (string)(isset($_POST['sc_auto']) ? $_POST['sc_auto'] : '0') === '1' ? '1' : '0';
         $cfg['auto_update'] = (string)(isset($_POST['sc_auto_update']) ? $_POST['sc_auto_update'] : '0') === '1' ? '1' : '0';
         $interval = (int)(isset($_POST['sc_interval']) ? $_POST['sc_interval'] : 6);
@@ -1154,10 +1236,12 @@ switch ($type) {
         }
         $cfg['direct_list'] = $directList;
         $cfg['direct'] = $directList[0];
+        script_rebuild_lines($cfg);
+        $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
         if (!script_save($cfg)) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
         }
-        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '脚本设置已保存'), JSON_UNESCAPED_UNICODE));
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '脚本设置已保存，当前共 ' . count($cfg['lines']) . ' 条线路'), JSON_UNESCAPED_UNICODE));
 
     //脚本解析 保存 JSON 返回字段
     case 'script_resp':
@@ -1204,13 +1288,15 @@ switch ($type) {
                 'off'    => (isset($offs[$i]) && (string)$offs[$i] === '1') ? '1' : '0',
             );
         }
-        $cfg['lines'] = $lines;
-        $cfg['lines_hash'] = md5(json_encode($lines));
+        // 脚本线路回写到对应脚本，其余作为手动线路
+        script_apply_lines($cfg, $lines);
+        script_rebuild_lines($cfg);
+        $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
         $cfg['time'] = script_now();
         if (!script_save($cfg)) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
         }
-        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '解析线路已保存，共 ' . count($lines) . ' 条'), JSON_UNESCAPED_UNICODE));
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '解析线路已保存，共 ' . count($cfg['lines']) . ' 条'), JSON_UNESCAPED_UNICODE));
 
     //脚本解析 同步到前台解析线路
     case 'script_sync':

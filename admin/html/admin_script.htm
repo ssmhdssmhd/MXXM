@@ -20,8 +20,8 @@ $directList = script_direct_list($SC);
     <div class="x-body">
         <blockquote class="layui-elem-quote layui-quote-nm">
             <h2>说明：</h2>
-            ① 脚本解析会读取用户脚本中的解析线路（<code>videoParseList</code>），保存后即可用于解析播放；<br>
-            ② 点击「更新脚本」会从脚本地址实时拉取并解析线路，脚本更新后点一下即可同步；<br>
+            ① 支持添加多个用户脚本，自动读取其中的解析线路（<code>videoParseList</code> / <code>parseApis</code>），线路按接口地址去重后合并使用；<br>
+            ② 「添加脚本」/「更新」会从脚本地址实时拉取并解析线路，「全部更新」可一次刷新全部脚本；<br>
             ③ 播放入口：<code>域名/plus/script/?url=官方视频地址</code>；直连线路（无损云）会自动搜索资源站并播放 m3u8；<b>直连线路参数必须提供 m3u8 播放源</b>（资源接口返回的播放地址需为 m3u8）；<br>
             ④ JSON 调用接口：<code>域名/plus/mxjx/?url=官方视频地址</code>；自动搜索资源站并返回 JSON，<code>url</code> 为 m3u8 地址，返回字段可在「返回响应设置」中自定义；<br>
             ⑤ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用。
@@ -44,26 +44,60 @@ $directList = script_direct_list($SC);
                             <div class="layui-form-mid layui-word-aux">关闭后播放入口提示未启用</div>
                         </div>
 
-                        <div class="layui-form-item">
-                            <label class="layui-form-label">脚本名称</label>
-                            <div class="layui-input-block">
-                                <input type="text" name="sc_name" autocomplete="off" value="<?php echo htmlspecialchars($SC['name']); ?>" class="layui-input">
+                        <fieldset class="layui-elem-field">
+                            <legend>用户脚本列表（可添加多个，线路自动合并）</legend>
+                            <div class="layui-field-box">
+                                <div class="layui-form-mid layui-word-aux" style="margin-bottom:8px">
+                                    支持 <code>videoParseList</code> 与 <code>parseApis</code> 两种线路格式；同一接口地址自动去重，弹窗专用接口会标记「弹窗」并在播放入口跳转打开。
+                                </div>
+                                <table class="layui-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:50px">序号</th>
+                                            <th>脚本名称</th>
+                                            <th>脚本地址</th>
+                                            <th style="width:80px">版本</th>
+                                            <th style="width:70px">线路</th>
+                                            <th style="width:100px">状态</th>
+                                            <th style="width:130px">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sc-script-body">
+                                        <?php if (empty($SC['scripts'])): ?>
+                                        <tr class="sc-script-empty"><td colspan="7" style="text-align:center;color:#999">暂无脚本，请在下方填写脚本地址并点击「添加脚本」</td></tr>
+                                        <?php else: foreach ($SC['scripts'] as $si => $sc): $sc = is_array($sc) ? $sc : array(); $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'lines' => array(), 'off' => '1'); ?>
+                                        <tr class="sc-script-row">
+                                            <td style="text-align:center"><?php echo $si + 1; ?></td>
+                                            <td>
+                                                <?php echo htmlspecialchars($sc['name'] !== '' ? $sc['name'] : '（未命名脚本）'); ?>
+                                                <input type="hidden" name="sc_sid[]" value="<?php echo htmlspecialchars($sc['id']); ?>">
+                                            </td>
+                                            <td style="word-break:break-all;font-size:12px;color:#666"><?php echo htmlspecialchars($sc['url']); ?></td>
+                                            <td><?php echo htmlspecialchars($sc['version'] !== '' ? $sc['version'] : '—'); ?></td>
+                                            <td style="text-align:center"><?php echo count($sc['lines']); ?></td>
+                                            <td>
+                                                <select name="sc_soff[]">
+                                                    <option value="1" <?php echo (string)$sc['off'] === '1' ? 'selected' : ''; ?>>启用</option>
+                                                    <option value="0" <?php echo (string)$sc['off'] !== '1' ? 'selected' : ''; ?>>停用</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <button type="button" class="layui-btn layui-btn-xs sc-script-update" data-sid="<?php echo htmlspecialchars($sc['id']); ?>" data-url="<?php echo htmlspecialchars($sc['url']); ?>">更新</button>
+                                                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger sc-script-del" data-sid="<?php echo htmlspecialchars($sc['id']); ?>">删除</button>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; endif; ?>
+                                    </tbody>
+                                </table>
+                                <div class="layui-form-item" style="margin-bottom:0">
+                                    <div class="layui-input-inline" style="width:auto;min-width:320px">
+                                        <input type="text" id="sc-new-url" autocomplete="off" class="layui-input" placeholder="新脚本地址，如 https://cdn.jsdelivr.net/gh/whyyy-404/video_freevip@main/vip-video.user.js">
+                                    </div>
+                                    <button type="button" class="layui-btn layui-btn-normal" id="sc-new-add">＋ 添加脚本</button>
+                                    <button type="button" class="layui-btn layui-btn-warm" id="btn-sc-update-all">全部更新</button>
+                                </div>
                             </div>
-                        </div>
-
-                        <div class="layui-form-item">
-                            <label class="layui-form-label">脚本地址</label>
-                            <div class="layui-input-block">
-                                <input type="text" name="sc_url" id="sc_url" autocomplete="off" value="<?php echo htmlspecialchars($SC['url']); ?>" class="layui-input" placeholder="https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js">
-                            </div>
-                        </div>
-
-                        <div class="layui-form-item">
-                            <label class="layui-form-label">源码仓库</label>
-                            <div class="layui-input-block">
-                                <input type="text" name="sc_repo" autocomplete="off" value="<?php echo htmlspecialchars($SC['repo']); ?>" class="layui-input">
-                            </div>
-                        </div>
+                        </fieldset>
 
                         <div class="layui-form-item">
                             <label class="layui-form-label">自动同步</label>
@@ -81,7 +115,7 @@ $directList = script_direct_list($SC);
                             <div class="layui-input-inline" style="width:120px">
                                 <input type="number" name="sc_interval" min="1" step="1" value="<?php echo (int)$SC['interval']; ?>" class="layui-input" placeholder="间隔小时">
                             </div>
-                            <div class="layui-form-mid layui-word-aux">每隔 N 小时自动检测上游仓库（<a href="<?php echo htmlspecialchars($SC['repo']); ?>" target="_blank">88lin/video_vip</a>）是否有更新并同步线路</div>
+                            <div class="layui-form-mid layui-word-aux">每隔 N 小时自动检测全部脚本地址是否有更新并同步线路</div>
                         </div>
 
                         <fieldset class="layui-elem-field">
@@ -120,10 +154,10 @@ $directList = script_direct_list($SC);
 
                         <div class="layui-form-item">
                             <button class="layui-btn" lay-submit="" lay-filter="scBasic">保存设置</button>
-                            <button type="button" class="layui-btn layui-btn-normal" id="btn-sc-update">更新脚本</button>
+                            <button type="button" class="layui-btn layui-btn-normal" id="btn-sc-update-all-2">全部更新</button>
                             <button type="button" class="layui-btn layui-btn-warm" id="btn-sc-sync">同步到解析线路</button>
                             <span id="sc-tip" style="margin-left:10px;font-size:12px;color:#999">
-                                当前版本：<?php echo htmlspecialchars($SC['version'] !== '' ? $SC['version'] : '—'); ?>
+                                脚本数：<?php echo count($SC['scripts']); ?>
                                 ｜ 线路数：<?php echo count($SC['lines']); ?>
                                 ｜ 更新时间：<?php echo htmlspecialchars($SC['time'] !== '' ? $SC['time'] : '—'); ?>
                                 ｜ 最近检查：<?php echo htmlspecialchars($SC['last_check'] !== '' ? $SC['last_check'] : '—'); ?>
@@ -146,7 +180,7 @@ $directList = script_direct_list($SC);
                             </thead>
                             <tbody>
                                 <?php if (empty($SC['lines'])): ?>
-                                <tr><td colspan="5" style="text-align:center;color:#999">暂无线路，请点击「更新脚本」解析</td></tr>
+                                <tr><td colspan="5" style="text-align:center;color:#999">暂无线路，请先添加脚本并点击「更新」解析</td></tr>
                                 <?php else: foreach ($SC['lines'] as $i => $it):
                                     $it = is_array($it) ? $it : array();
                                     $it += array('name' => '', 'url' => '', 'type' => '', 'direct' => '0', 'off' => '1');
@@ -163,6 +197,9 @@ $directList = script_direct_list($SC);
                                             <span class="layui-badge layui-bg-orange">直连</span>
                                         <?php else: ?>
                                             <span class="layui-badge layui-bg-blue"><?php echo htmlspecialchars($it['type'] !== '' ? $it['type'] : '1'); ?></span>
+                                            <?php if (isset($it['popup']) && (string)$it['popup'] === '1'): ?>
+                                            <span class="layui-badge" style="background:#ffb800">弹窗</span>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -255,18 +292,60 @@ $directList = script_direct_list($SC);
                 return false;
             });
 
-            //更新脚本：实时拉取并解析线路
-            $('#btn-sc-update').on('click', function () {
-                var btn = $(this).prop('disabled', true).text('拉取中…');
-                $.post("admin.php", { type: "script_update", url: $('#sc_url').val() }, function (d) {
-                    btn.prop('disabled', false).text('更新脚本');
+            //添加脚本：拉取脚本地址并解析线路
+            $('#sc-new-add').on('click', function () {
+                var url = $.trim($('#sc-new-url').val());
+                if (!/^https?:\/\//i.test(url)) { tip(false, '请填写 http(s) 开头的脚本地址'); return; }
+                var btn = $(this).prop('disabled', true).text('添加中…');
+                $.post("admin.php", { type: "script_update", url: url }, function (d) {
+                    btn.prop('disabled', false).text('＋ 添加脚本');
                     tip(d.success == 1, d.m);
                     if (d.success == 1) { setTimeout(function () { location.reload(); }, 900); }
                 }, "json").fail(function () {
-                    btn.prop('disabled', false).text('更新脚本');
+                    btn.prop('disabled', false).text('＋ 添加脚本');
                     tip(false, '请求失败');
                 });
             });
+
+            //更新单个脚本
+            $(document).on('click', '.sc-script-update', function () {
+                var btn = $(this).prop('disabled', true).text('更新中…');
+                $.post("admin.php", { type: "script_update", sid: btn.data('sid'), url: btn.data('url') }, function (d) {
+                    btn.prop('disabled', false).text('更新');
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 900); }
+                }, "json").fail(function () {
+                    btn.prop('disabled', false).text('更新');
+                    tip(false, '请求失败');
+                });
+            });
+
+            //删除脚本
+            $(document).on('click', '.sc-script-del', function () {
+                var sid = $(this).data('sid');
+                layer.confirm('删除后该脚本的线路将同时移除，是否继续？', function (index) {
+                    layer.close(index);
+                    $.post("admin.php", { type: "script_delete", sid: sid }, function (d) {
+                        tip(d.success == 1, d.m);
+                        if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+                    }, "json").fail(function () { tip(false, '请求失败'); });
+                });
+            });
+
+            //全部更新
+            function scUpdateAll(btn) {
+                var old = btn.text();
+                btn.prop('disabled', true).text('更新中…');
+                $.post("admin.php", { type: "script_update_all" }, function (d) {
+                    btn.prop('disabled', false).text(old);
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 1200); }
+                }, "json").fail(function () {
+                    btn.prop('disabled', false).text(old);
+                    tip(false, '请求失败');
+                });
+            }
+            $('#btn-sc-update-all, #btn-sc-update-all-2').on('click', function () { scUpdateAll($(this)); });
 
             //同步到解析线路
             $('#btn-sc-sync').on('click', function () {

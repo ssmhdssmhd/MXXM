@@ -367,6 +367,18 @@ $CONFIG=array (
     8 => '备用线路3=>https://jx.ap2p.cn/?url=',
     9 => '臻享解析=>https://aibox.eu.org/?url=',
     10 => '麒麟解析=>https://free.maccms.xyz/?url=',
+    11 => '酥皮=>https://art.txnp.cn/?url=',
+    12 => 'TXNQ2=>https://bfq.txnp.cn/excessive?url=',
+    13 => '云解析=>https://yparse.ik9.cc/index.php?url=',
+    14 => '无名小站=>https://jx.pianku.online/?url=',
+    15 => '邦宁=>https://video.isyour.love/player/getplayer?url=',
+    16 => 'M1907=>https://im1907.top/?jx=',
+    17 => '盘古=>https://www.pangujiexi.com/jiexi/?url=',
+    18 => 'PM=>https://www.playm3u8.cn/jiexi.php?url=',
+    19 => 'm3u8tv=>https://jx.m3u8.tv/jiexi/?url=',
+    20 => '加速7=>https://v.jiasu7.top/jx.php?url=',
+    21 => '45网=>http://45.207.198.92:8899/?url=',
+    22 => '154网=>http://154.13.4.144:8001/excessive?url=',
   ),
   'jx_link' => 
   array (
