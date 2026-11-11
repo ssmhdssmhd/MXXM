@@ -24,7 +24,6 @@ if ((string)$cfg['off'] === '1') {
     script_auto_update($cfg);
     $cfg = script_load();
 }
-$lines = $cfg['lines'];
 $url   = sp_get('url');
 $wd    = sp_get('wd');
 $ep    = max(0, (int)sp_get('ep'));
@@ -32,12 +31,7 @@ $vid   = sp_get('vid');
 $lineK = sp_get('line');
 
 // 启用中的线路
-$enabled = array();
-foreach ($lines as $k => $it) {
-    if (!is_array($it)) { continue; }
-    $it += array('name' => '', 'url' => '', 'type' => '', 'direct' => '0', 'off' => '0', 'popup' => '0', 'clean' => '0');
-    if ((string)$it['off'] === '1' && $it['name'] !== '') { $enabled[$k] = $it; }
-}
+$enabled = script_enabled_lines($cfg);
 
 // 脚本名称汇总（多脚本）
 $scriptNames = array();
@@ -58,31 +52,23 @@ $line = ($curKey !== null) ? $enabled[$curKey] : null;
 $src = ''; $error = ''; $epList = array(); $curEp = 0; $resolvedName = ''; $popupUrl = '';
 
 if ($line !== null) {
-    if ((string)$line['direct'] === '1') {
-        // 直连线路：按配置顺序尝试多条直连线路，取第一条成功
-        $res = sp_resolve_direct(script_direct_list($cfg), $url, $wd, $vid, $ep);
-        if ($res['ok']) {
-            $src = $res['play'] !== '' ? $res['play'] : $res['url'];
+    $res = script_resolve_line($cfg, $line, $url, $wd, $vid, $ep);
+    if ($res['ok']) {
+        if ($res['type'] === 'direct') {
+            $src = $res['url'];
             $epList = $res['eps'];
             $curEp = (int)$res['cur'];
             $resolvedName = $res['name'];
             $vid = $res['vid'];
-        } elseif ((int)$res['code'] === 400) {
-            $error = '未能自动识别片名，请在下方「片名」输入框补充剧名后重试。';
+        } elseif ($res['type'] === 'popup') {
+            $popupUrl = $res['url'];
         } else {
-            $error = $res['msg'] . '，请尝试其他线路。';
+            $src = $res['url'];
         }
-    } elseif ($url !== '' && (string)$line['popup'] === '1') {
-        // 弹窗专用线路：只能在新窗口打开（接口不支持 iframe 内嵌）
-        if ((string)$line['clean'] === '1') {
-            // 个别接口要求「去掉查询参数 + 不编码」
-            $popupUrl = $line['url'] . explode('?', $url)[0];
-        } else {
-            $popupUrl = $line['url'] . rawurlencode($url);
-        }
-    } elseif ($url !== '') {
-        // 解析接口线路：接口地址 + 官方视频地址
-        $src = $line['url'] . $url;
+    } elseif ($res['type'] === 'direct') {
+        $error = ((int)$res['code'] === 400)
+            ? '未能自动识别片名，请在下方「片名」输入框补充剧名后重试。'
+            : $res['msg'] . '，请尝试其他线路。';
     }
 }
 

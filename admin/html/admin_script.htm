@@ -24,7 +24,8 @@ $directList = script_direct_list($SC);
             ② 「添加脚本」/「更新」会从脚本地址实时拉取并解析线路，「全部更新」可一次刷新全部脚本；<br>
             ③ 播放入口：<code>域名/plus/script/?url=官方视频地址</code>；直连线路（无损云）会自动搜索资源站并播放 m3u8；<b>直连线路参数必须提供 m3u8 播放源</b>（资源接口返回的播放地址需为 m3u8）；<br>
             ④ JSON 调用接口：<code>域名/plus/mxjx/?url=官方视频地址</code>；自动搜索资源站并返回 JSON，<code>url</code> 为 m3u8 地址，返回字段可在「返回响应设置」中自定义；<br>
-            ⑤ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用。
+            ⑤ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用；<br>
+            ⑥ 对外接口（支持跨域，可独立接入）：<code>域名/plus/script/api.php?list=1</code> 获取线路列表，<code>域名/plus/script/api.php?url=官方视频地址[&amp;line=线路序号]</code> 返回 JSON，<code>type</code> 为 <code>direct</code>（m3u8）/ <code>iframe</code>（内嵌地址）/ <code>popup</code>（新窗口打开）。
         </blockquote>
 
         <div class="layui-tab layui-tab-brief" lay-filter="scTab">

@@ -230,6 +230,64 @@ function script_apply_lines(&$cfg, $lines) {
     $cfg['manual_lines'] = $manual;
 }
 
+// 启用中的线路（下标 => 线路）
+function script_enabled_lines($cfg) {
+    $enabled = array();
+    foreach ((array)$cfg['lines'] as $k => $it) {
+        if (!is_array($it)) { continue; }
+        $it = script_line_norm($it);
+        if ($it['off'] === '1' && $it['name'] !== '') { $enabled[$k] = $it; }
+    }
+    return $enabled;
+}
+
+// 计算某条线路的播放目标（直连 / iframe / 弹窗）
+// 返回：ok、type（direct/iframe/popup）、url、name、code、msg、eps、cur、vid
+function script_resolve_line($cfg, $line, $url, $wd = '', $vid = '', $ep = 0) {
+    $line = script_line_norm($line);
+    $out = array(
+        'ok' => false, 'type' => '', 'url' => '', 'name' => $line['name'],
+        'code' => 400, 'msg' => '', 'eps' => array(), 'cur' => 0, 'vid' => $vid,
+    );
+    if ($line['direct'] === '1') {
+        $out['type'] = 'direct';
+        $res = sp_resolve_direct(script_direct_list($cfg), $url, $wd, $vid, (int)$ep);
+        if (!$res['ok']) {
+            $out['code'] = (int)$res['code'];
+            $out['msg'] = ($out['code'] === 400) ? '未能自动识别片名，请补充片名后重试' : $res['msg'];
+            return $out;
+        }
+        $out['ok'] = true;
+        $out['code'] = 200;
+        $out['url'] = $res['play'] !== '' ? $res['play'] : $res['url'];
+        $out['name'] = $res['name'];
+        $out['eps'] = $res['eps'];
+        $out['cur'] = (int)$res['cur'];
+        $out['vid'] = $res['vid'];
+        return $out;
+    }
+    if ($url === '') {
+        $out['code'] = 400;
+        $out['msg'] = '缺少官方视频地址 url 参数';
+        return $out;
+    }
+    if ($line['popup'] === '1') {
+        // 弹窗专用线路：clean 接口要求「去掉查询参数 + 不编码」
+        $out['ok'] = true;
+        $out['code'] = 200;
+        $out['type'] = 'popup';
+        $out['url'] = ($line['clean'] === '1')
+            ? $line['url'] . explode('?', $url)[0]
+            : $line['url'] . rawurlencode($url);
+        return $out;
+    }
+    $out['ok'] = true;
+    $out['code'] = 200;
+    $out['type'] = 'iframe';
+    $out['url'] = $line['url'] . $url;
+    return $out;
+}
+
 // 带超时的脚本拉取
 function script_fetch($url, $timeout = 20) {
     if (!preg_match('~^https?://~i', $url)) { return ''; }
