@@ -55,6 +55,8 @@ $url = mxjx_get('url');
 $vid = mxjx_get('vid');
 $wd  = mxjx_get('wd');
 $ep  = (int)mxjx_get('ep');
+// 官方链接未编码时，其 &vid=xxx 会被拆成独立参数，这里补回 url
+list($url, $vid) = script_repair_media_url($url, $vid);
 
 // 没有输入链接（也没有资源 ID）时报错
 if ($url === '' && $vid === '') {

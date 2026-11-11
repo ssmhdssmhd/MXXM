@@ -73,6 +73,8 @@ $wd  = scapi_get('wd');
 $vid = scapi_get('vid');
 $ep  = max(0, (int)scapi_get('ep'));
 $key = scapi_get('line');
+// 官方链接未编码时，其 &vid=xxx 会被拆成独立参数，这里补回 url
+list($url, $vid) = script_repair_media_url($url, $vid);
 
 // 选择线路：序号优先，其次按名称精确匹配，默认第一条启用线路
 $curKey = null;

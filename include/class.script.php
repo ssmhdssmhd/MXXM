@@ -245,6 +245,7 @@ function script_enabled_lines($cfg) {
 // 返回：ok、type（direct/iframe/popup）、url、name、code、msg、eps、cur、vid
 function script_resolve_line($cfg, $line, $url, $wd = '', $vid = '', $ep = 0) {
     $line = script_line_norm($line);
+    list($url, $vid) = script_repair_media_url($url, $vid);
     $out = array(
         'ok' => false, 'type' => '', 'url' => '', 'name' => $line['name'],
         'code' => 400, 'msg' => '', 'eps' => array(), 'cur' => 0, 'vid' => $vid,
@@ -660,12 +661,33 @@ function sp_meta_content($html, $key) {
     return '';
 }
 
+// 修复未编码的官方链接：把被 PHP 拆成 vid 参数的视频 ID 补回链接
+// （如 ?url=https://m.v.qq.com/...&vid=r0047gdjpw6，vid 非纯数字即不是资源站 ID）
+function script_repair_media_url($url, $vid) {
+    $url = trim((string)$url);
+    $vid = trim((string)$vid);
+    if ($vid !== '' && !ctype_digit($vid)) {
+        if ($url !== '' && stripos($url, 'vid=') === false) {
+            $url .= (strpos($url, '?') === false ? '?' : '&') . 'vid=' . rawurlencode($vid);
+        }
+        $vid = '';
+    }
+    return array($url, $vid);
+}
+
 // 腾讯视频页面为 JS 渲染、无 og:title，改用 getinfo 接口按视频 ID 取标题
 function sp_tencent_title($url) {
     if (!preg_match('~^https?://(?:[a-z0-9-]+\.)*v\.qq\.com/~i', $url)) { return ''; }
-    if (!preg_match('~/([A-Za-z0-9]{8,})\.html~', $url, $m)) { return ''; }
+    $vid = '';
+    if (preg_match('~[?&]vid=([A-Za-z0-9]{8,})~i', $url, $m)) {
+        // 移动端播放页：/x/m/play?cid=xxx&vid=xxxx
+        $vid = $m[1];
+    } elseif (preg_match('~/([A-Za-z0-9]{8,})\.html~', $url, $m)) {
+        $vid = $m[1];
+    }
+    if ($vid === '') { return ''; }
     $api = 'https://vv.video.qq.com/getinfo?' . http_build_query(array(
-        'vids'     => $m[1],
+        'vids'     => $vid,
         'platform' => '101001',
         'charge'   => '0',
         'otype'    => 'json',
@@ -777,6 +799,7 @@ function sp_resolve_direct($directs, $url, $wd, $vid, $ep) {
     }
     if (empty($list)) { $list[] = $def; }
 
+    list($url, $vid) = script_repair_media_url($url, $vid);
     $title = sp_clean_title($wd);
     if ($title === '' && $url !== '') { $title = sp_page_title($url); }
     if ($title === '' && $vid === '') {
