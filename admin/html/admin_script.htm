@@ -27,10 +27,13 @@ $directList = script_direct_list($SC);
 .sc-card-btns{display:flex;gap:6px;flex:0 0 auto}
 .sc-card-btns .layui-btn{margin:0}
 .sc-empty{padding:34px 16px;text-align:center;color:#98a3b3;border:1px dashed #dfe4ec;border-radius:8px;background:#fbfcfe;margin-bottom:12px}
-.sc-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
-.sc-tools .sc-url{flex:1 1 320px;min-width:240px}
+.sc-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;clear:both}
+.sc-tools .sc-url{flex:1 1 300px;min-width:0;max-width:100%}
 .sc-tools .layui-btn{margin:0}
-.sc-log-wrap{display:none;margin:6px 0 16px;border:1px solid #1e293b;border-radius:8px;overflow:hidden;background:#0f172a}
+.sc-hint{color:#8a94a6;font-size:12px;line-height:1.7;margin:0 0 10px;clear:both}
+.sc-grid{clear:both}
+.sc-log-wrap{display:none;margin:6px 0 16px;border:1px solid #1e293b;border-radius:8px;overflow:hidden;background:#0f172a;clear:both}
+.sc-empty{clear:both}
 .sc-log-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;background:#131f36;color:#cbd5e1;font-size:12px}
 .sc-log-hd em{font-style:normal;margin-left:6px;color:#94a3b8}
 .sc-log-hd .layui-btn{margin:0}
@@ -85,7 +88,7 @@ $directList = script_direct_list($SC);
                         <fieldset class="layui-elem-field">
                             <legend>用户脚本列表（可添加多个，线路自动合并）</legend>
                             <div class="layui-field-box">
-                                <div class="layui-form-mid layui-word-aux" style="margin-bottom:10px">
+                                <div class="sc-hint">
                                     支持 <code>videoParseList</code> 与 <code>parseApis</code> 两种线路格式；同一接口地址自动去重，弹窗专用接口会标记「弹窗」并在播放入口跳转打开。
                                 </div>
 
@@ -141,7 +144,7 @@ $directList = script_direct_list($SC);
                                 </div>
                                 <?php endif; ?>
 
-                                <div class="layui-form-mid layui-word-aux" style="margin-bottom:0">
+                                <div class="sc-hint" style="margin-bottom:0">
                                     导入 / 导出目录：源码根目录 <code>/MXJB/</code>（不存在时自动创建），导出内容包含各脚本源码与 <code>scripts.json</code> 清单。
                                 </div>
 
@@ -177,9 +180,10 @@ $directList = script_direct_list($SC);
                         <fieldset class="layui-elem-field">
                             <legend>直连线路参数（无损云 · 必须提供 m3u8 播放源）</legend>
                             <div class="layui-field-box">
-                                <div class="layui-form-mid layui-word-aux" style="margin-bottom:8px">
+                                <div class="sc-hint">
                                     每条直连线路由「站点地址 + 资源接口 + m3u8 播放器地址」组成，资源接口返回的播放地址必须是 m3u8；可添加多条，解析时按顺序尝试，前一条失败自动换下一条。
                                 </div>
+                                <div style="overflow-x:auto">
                                 <table class="layui-table">
                                     <thead>
                                         <tr>
@@ -204,6 +208,7 @@ $directList = script_direct_list($SC);
                                         <?php endforeach; endif; ?>
                                     </tbody>
                                 </table>
+                                </div>
                                 <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" id="sc-direct-add">＋ 添加直连线路</button>
                             </div>
                         </fieldset>
