@@ -1163,3 +1163,172 @@ function sp_resolve_direct($directs, $url, $wd, $vid, $ep) {
     $out['msg'] = $lastMsg;
     return $out;
 }
+
+// ===== 独立 PHP 接口（域名/1.php?url=）=====
+// 配置保存在 save/kanju.config.php（含可选 Token，不入库）
+function script_endpoint_defaults() {
+    return array(
+        'off'      => '1',
+        'firewall' => '1',
+        'repo'     => 'ssmhdssmhd/kanju-api',
+        'branch'   => 'main',
+        'file'     => '1.php',
+        'token'    => '',
+        'synced'   => '',
+        'sync_msg' => '',
+    );
+}
+
+function script_endpoint_config_path() {
+    return dirname(__FILE__) . '/../save/kanju.config.php';
+}
+
+function script_endpoint_load() {
+    $cfg = script_endpoint_defaults();
+    $file = script_endpoint_config_path();
+    if (is_file($file)) {
+        $saved = include $file;
+        if (is_array($saved)) { $cfg = array_merge($cfg, $saved); }
+    }
+    return $cfg;
+}
+
+function script_endpoint_save($cfg) {
+    $path = script_endpoint_config_path();
+    $dir  = dirname($path);
+    if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+    $out = "<?php\n// 独立接口配置（含可选 GitHub Token，请勿提交到公开仓库）\nreturn " . var_export($cfg, true) . ";\n";
+    if (@file_put_contents($path, $out) === false) { return false; }
+    @chmod($path, 0600);
+    return true;
+}
+
+function script_endpoint_remote_path() {
+    return dirname(__FILE__) . '/../kanju/remote.php';
+}
+
+function script_endpoint_status() {
+    $file = script_endpoint_remote_path();
+    if (!is_file($file)) {
+        return array('exists' => false, 'size' => 0, 'time' => '');
+    }
+    return array(
+        'exists' => true,
+        'size'   => filesize($file),
+        'time'   => date('Y-m-d H:i:s', filemtime($file)),
+    );
+}
+
+// 远程代码缺失时的兜底：直接返回未同步提示（账号密码不写入公开仓库）
+function script_endpoint_fallback() {
+    return "<?php\n"
+        . "header('Content-Type: application/json; charset=utf-8');\n"
+        . "echo json_encode(array('code' => 503, 'msg' => '接口代码未同步，请到后台脚本设置同步 kanju-api 代码'), JSON_UNESCAPED_UNICODE);\n";
+}
+
+function script_endpoint_write_remote($code) {
+    $file = script_endpoint_remote_path();
+    $dir  = dirname($file);
+    if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+    if (!is_dir($dir)) { return false; }
+    if (@file_put_contents($file, $code) === false) { return false; }
+    @chmod($file, 0600);
+    return true;
+}
+
+// 带 Token 的请求（私有仓库通过 GitHub API 拉取）
+function script_fetch_token($url, $token, $timeout = 20) {
+    if (!preg_match('~^https?://~i', $url)) { return ''; }
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_ENCODING, '');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'MXXM-Kanju-Sync');
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Authorization: Bearer ' . $token,
+        'Accept: application/vnd.github.raw',
+        'X-GitHub-Api-Version: 2022-11-28',
+    ));
+    $data = curl_exec($ch);
+    curl_close($ch);
+    return is_string($data) ? $data : '';
+}
+
+// 从 GitHub 仓库拉取代码并保存到 kanju/remote.php
+function script_endpoint_sync(&$cfg, &$logs) {
+    $repo   = trim((string)$cfg['repo']);
+    $branch = trim((string)$cfg['branch']);
+    $file   = trim((string)$cfg['file']);
+    $token  = trim((string)$cfg['token']);
+    if (!preg_match('~^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$~', $repo)) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '仓库格式无效，应为 owner/repo');
+        return false;
+    }
+    if ($branch === '') { $branch = 'main'; }
+    $file = ltrim(str_replace('\\', '/', preg_replace('~[^A-Za-z0-9_./-]~', '', $file)), '/');
+    if ($file === '' || strpos($file, '..') !== false) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '脚本文件路径无效');
+        return false;
+    }
+    $path = implode('/', array_map('rawurlencode', explode('/', $file)));
+    $code = '';
+
+    if ($token !== '') {
+        $api = 'https://api.github.com/repos/' . $repo . '/contents/' . $path . '?ref=' . rawurlencode($branch);
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '使用 GitHub Token 拉取私有仓库代码…');
+        $body = script_fetch_token($api, $token, 20);
+        if ($body !== '' && stripos($body, '<?php') !== false) {
+            $code = $body;
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '拉取成功，大小 ' . strlen($body) . ' 字节');
+        } else {
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => 'Token 拉取失败，尝试公开地址');
+        }
+    }
+
+    if ($code === '') {
+        $urls = array(
+            'https://raw.githubusercontent.com/' . $repo . '/' . rawurlencode($branch) . '/' . $path,
+            'https://cdn.jsdelivr.net/gh/' . $repo . '@' . rawurlencode($branch) . '/' . $path,
+        );
+        foreach ($urls as $u) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '拉取代码：' . $u);
+            $body = script_fetch($u, 15);
+            if ($body !== '' && stripos($body, '<?php') !== false) {
+                $code = $body;
+                $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '拉取成功，大小 ' . strlen($body) . ' 字节');
+                break;
+            }
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '该地址拉取失败，尝试下一个');
+        }
+    }
+
+    $ok = false;
+    if ($code !== '') {
+        if (script_endpoint_write_remote($code)) {
+            $cfg['synced']   = script_now();
+            $cfg['sync_msg'] = '已从 ' . $repo . ' 同步';
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '代码已保存：kanju/remote.php');
+            $ok = true;
+        } else {
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '代码保存失败，请检查 kanju/ 目录写权限');
+        }
+    } else {
+        if (is_file(script_endpoint_remote_path())) {
+            $cfg['sync_msg'] = '拉取失败，继续使用本地代码';
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '拉取失败，继续使用已有本地代码');
+        } elseif (script_endpoint_write_remote(script_endpoint_fallback())) {
+            $cfg['sync_msg'] = '拉取失败，已写入未同步提示模板';
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '拉取失败，已写入未同步提示模板');
+        } else {
+            $cfg['sync_msg'] = '拉取失败且无法写入本地模板';
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '拉取失败且无法写入本地模板，请检查 kanju/ 目录写权限');
+        }
+    }
+    return $ok;
+}

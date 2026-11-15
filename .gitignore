@@ -48,3 +48,7 @@ mx2/config/.env.ini
 
 # ===== 用户脚本导入导出目录（运行时自动创建，避免污染仓库）=====
 /MXJB/
+
+# ===== 独立接口配置（含账号密码，禁止入库）=====
+/save/kanju.config.php
+/kanju/remote.php

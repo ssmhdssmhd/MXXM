@@ -3,6 +3,8 @@ require_once dirname(__FILE__) . '/../../include/class.script.php';
 // 配置文件可能尚未生成（在线更新会跳过 save/ 目录），script_load 内部已做判断与默认值合并
 $SC = script_load();
 $directList = script_direct_list($SC);
+$EP = script_endpoint_load();
+$EP_STATUS = script_endpoint_status();
 ?>
 <?php include "block_header.htm"; ?>
 
@@ -65,7 +67,8 @@ $directList = script_direct_list($SC);
             ④ JSON 调用接口：<code>域名/plus/mxjx/?url=官方视频地址</code>；自动搜索资源站并返回 JSON，<code>url</code> 为 m3u8 地址，返回字段可在「返回响应设置」中自定义；<br>
             ⑤ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用；<br>
             ⑥ 对外接口（支持跨域，可独立接入）：<code>域名/plus/script/api.php?list=1</code> 获取线路列表，<code>域名/plus/script/api.php?url=官方视频地址[&amp;line=线路序号]</code> 返回 JSON，<code>type</code> 为 <code>direct</code>（m3u8）/ <code>iframe</code>（内嵌地址）/ <code>popup</code>（新窗口打开）；<br>
-            ⑦ 「导出」把每个脚本源码（<code>.user.js</code>）与清单 <code>scripts.json</code> 写入源码根目录 <code>/MXJB/</code>；「导入」读取该目录恢复脚本（目录不存在时自动创建），更新失败时会自动改用本地源码副本。
+            ⑦ 「导出」把每个脚本源码（<code>.user.js</code>）与清单 <code>scripts.json</code> 写入源码根目录 <code>/MXJB/</code>；「导入」读取该目录恢复脚本（目录不存在时自动创建），更新失败时会自动改用本地源码副本；<br>
+            ⑧ 独立接口 <code>域名/1.php?url=官方视频地址</code>：必须先通过系统防火墙校验，业务代码从 <code>kanju-api</code> 仓库同步到本地，可在本页下方「独立 PHP 接口」中管理。
         </blockquote>
 
         <div class="layui-tab layui-tab-brief" lay-filter="scTab">
@@ -224,6 +227,72 @@ $directList = script_direct_list($SC);
                                 ｜ 最近检查：<?php echo htmlspecialchars($SC['last_check'] !== '' ? $SC['last_check'] : '—'); ?>
                             </span>
                         </div>
+                    </form>
+
+                    <form class="layui-form layui-form-pane" id="sc-endpoint-form" action="">
+                        <fieldset class="layui-elem-field">
+                            <legend>独立 PHP 接口（域名/1.php?url=）</legend>
+                            <div class="layui-field-box">
+                                <div class="sc-hint">
+                                    调用前必须通过「系统防火墙」校验；业务代码从 GitHub 仓库同步到 <code>kanju/remote.php</code>（内含登录账号密码，不入库），拉取失败时保留本地代码，缺失时写入未同步提示。
+                                </div>
+
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">接口开关</label>
+                                    <div class="layui-input-inline" style="width:110px">
+                                        <input type="checkbox" name="ep_off" value="1" lay-skin="switch" lay-text="启用|关闭" <?php echo (string)$EP['off'] === '1' ? 'checked' : ''; ?>>
+                                    </div>
+                                    <label class="layui-form-label" style="width:auto;padding-left:20px">防火墙校验</label>
+                                    <div class="layui-input-inline" style="width:110px">
+                                        <input type="checkbox" name="ep_firewall" value="1" lay-skin="switch" lay-text="开启|关闭" <?php echo (string)$EP['firewall'] === '1' ? 'checked' : ''; ?>>
+                                    </div>
+                                    <div class="layui-form-mid layui-word-aux">关闭后接口不再做防火墙校验，不建议关闭</div>
+                                </div>
+
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">GitHub Token</label>
+                                    <div class="layui-input-block">
+                                        <input type="password" name="ep_token" autocomplete="new-password" value="<?php echo htmlspecialchars($EP['token']); ?>" class="layui-input" placeholder="私有仓库同步需要；留空则保留已保存的 Token">
+                                    </div>
+                                    <div class="sc-hint" style="margin:6px 0 0">
+                                        Token 仅保存在 <code>save/kanju.config.php</code>（不入库）；公开仓库可留空。同步下来的代码含登录账号密码，保存在 <code>kanju/remote.php</code>，同样不会提交到仓库。
+                                    </div>
+                                </div>
+
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">代码仓库</label>
+                                    <div class="layui-input-inline" style="width:260px">
+                                        <input type="text" name="ep_repo" autocomplete="off" value="<?php echo htmlspecialchars($EP['repo']); ?>" class="layui-input" placeholder="ssmhdssmhd/kanju-api">
+                                    </div>
+                                    <div class="layui-input-inline" style="width:110px">
+                                        <input type="text" name="ep_branch" autocomplete="off" value="<?php echo htmlspecialchars($EP['branch']); ?>" class="layui-input" placeholder="main">
+                                    </div>
+                                    <div class="layui-input-inline" style="width:110px">
+                                        <input type="text" name="ep_file" autocomplete="off" value="<?php echo htmlspecialchars($EP['file']); ?>" class="layui-input" placeholder="1.php">
+                                    </div>
+                                    <div class="layui-form-mid layui-word-aux">仓库 / 分支 / 文件</div>
+                                </div>
+
+                                <div class="layui-form-item">
+                                    <button class="layui-btn" lay-submit="" lay-filter="scEndpointSave">保存接口配置</button>
+                                    <button type="button" class="layui-btn layui-btn-warm" id="btn-ep-sync">同步代码</button>
+                                    <span class="sc-hint" style="display:inline-block;margin:0 0 0 10px">
+                                        本地代码：
+                                        <?php if ($EP_STATUS['exists']): ?>
+                                        已保存 <b><?php echo (int)$EP_STATUS['size']; ?></b> 字节 · <?php echo htmlspecialchars($EP_STATUS['time']); ?>
+                                        <?php else: ?>
+                                        未下载
+                                        <?php endif; ?>
+                                        ｜ 最近同步：<?php echo htmlspecialchars($EP['synced'] !== '' ? $EP['synced'] : '—'); ?>
+                                        <?php if ($EP['sync_msg'] !== ''): ?>｜ <?php echo htmlspecialchars($EP['sync_msg']); ?><?php endif; ?>
+                                    </span>
+                                </div>
+
+                                <div class="sc-hint" style="margin-bottom:0">
+                                    调用示例：<code>https://你的域名/1.php?url=官方视频地址</code>，可用 <code>&amp;ep=12</code> 指定集数、<code>&amp;line=线路名</code> 指定线路。
+                                </div>
+                            </div>
+                        </fieldset>
                     </form>
                 </div>
 
@@ -542,6 +611,34 @@ $directList = script_direct_list($SC);
                     $.post("admin.php", { type: "script_sync" }, function (d) {
                         tip(d.success == 1, d.m);
                     }, "json").fail(function () { tip(false, '请求失败'); });
+                });
+            });
+
+            //独立接口：保存配置
+            form.on('submit(scEndpointSave)', function () {
+                var post = $('#sc-endpoint-form').serialize() + '&type=endpoint_save';
+                $.post("admin.php", post, function (d) {
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+                }, "json").fail(function () { tip(false, '请求失败'); });
+                return false;
+            });
+
+            //独立接口：从 kanju-api 同步代码
+            $('#btn-ep-sync').on('click', function () {
+                var btn = $(this).prop('disabled', true).text('同步中…');
+                scLogStart('开始同步 kanju-api 代码…');
+                var post = $('#sc-endpoint-form').serialize() + '&type=endpoint_sync';
+                $.post("admin.php", post, function (d) {
+                    btn.prop('disabled', false).text('同步代码');
+                    scLogRender(d.logs, d.m);
+                    scLogFinish(d.success == 1, d.m);
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { scReloadSoon(); }
+                }, "json").fail(function () {
+                    btn.prop('disabled', false).text('同步代码');
+                    scLogFinish(false, '请求失败，请检查网络或后台登录状态');
+                    tip(false, '请求失败');
                 });
             });
         });

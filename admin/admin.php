@@ -21,6 +21,27 @@ $info = array('success' => 0, 'icon' => 6);
 //本接口统一返回 JSON，显式声明响应类型，避免被中间层（代理/网关）注入非 JSON 内容
 header('Content-Type: application/json; charset=utf-8');
 
+//独立接口（/1.php）表单收集与校验
+function script_endpoint_from_post() {
+    $cfg = script_endpoint_defaults();
+    $cfg['off']      = (isset($_POST['ep_off']) && (string)$_POST['ep_off'] === '1') ? '1' : '0';
+    $cfg['firewall'] = (isset($_POST['ep_firewall']) && (string)$_POST['ep_firewall'] === '1') ? '1' : '0';
+    $cfg['token']    = trim((string)(isset($_POST['ep_token']) ? $_POST['ep_token'] : ''));
+    $cfg['repo']     = trim((string)(isset($_POST['ep_repo']) ? $_POST['ep_repo'] : ''));
+    $cfg['branch']   = trim((string)(isset($_POST['ep_branch']) ? $_POST['ep_branch'] : 'main'));
+    $cfg['file']     = trim((string)(isset($_POST['ep_file']) ? $_POST['ep_file'] : '1.php'));
+
+    if (!preg_match('~^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$~', $cfg['repo'])) {
+        return array($cfg, '仓库格式无效，应为 owner/repo，例如 ssmhdssmhd/kanju-api');
+    }
+    if ($cfg['branch'] === '') { $cfg['branch'] = 'main'; }
+    $cfg['file'] = ltrim(str_replace('\\', '/', preg_replace('~[^A-Za-z0-9_./-]~', '', $cfg['file'])), '/');
+    if ($cfg['file'] === '' || strpos($cfg['file'], '..') !== false) {
+        return array($cfg, '脚本文件路径无效');
+    }
+    return array($cfg, '');
+}
+
 switch ($type) {
 
     //防火墙规则 关闭	
@@ -1283,6 +1304,47 @@ switch ($type) {
         exit(json_encode(array(
             'success' => 1, 'icon' => 6,
             'm'       => '导入完成：处理 ' . $n . ' 个脚本，当前共 ' . count($cfg['scripts']) . ' 个脚本、' . count($cfg['lines']) . ' 条线路' . $syncMsg,
+            'logs'    => $logs,
+        ), JSON_UNESCAPED_UNICODE));
+
+    //独立接口 保存配置
+    case 'endpoint_save':
+        header('Content-Type: application/json; charset=utf-8');
+        list($ecfg, $err) = script_endpoint_from_post();
+        if ($err !== '') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => $err), JSON_UNESCAPED_UNICODE));
+        }
+        $old = script_endpoint_load();
+        if ($ecfg['token'] === '' && isset($old['token'])) { $ecfg['token'] = $old['token']; }
+        $ecfg['synced']   = isset($old['synced']) ? $old['synced'] : '';
+        $ecfg['sync_msg'] = isset($old['sync_msg']) ? $old['sync_msg'] : '';
+        if (!script_endpoint_save($ecfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '配置保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '独立接口配置已保存'), JSON_UNESCAPED_UNICODE));
+
+    //独立接口 从 GitHub 同步代码到本地 kanju/remote.php
+    case 'endpoint_sync':
+        header('Content-Type: application/json; charset=utf-8');
+        list($ecfg, $err) = script_endpoint_from_post();
+        if ($err !== '') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => $err, 'logs' => array(array('t' => script_log_time(), 'ok' => 0, 'msg' => $err))), JSON_UNESCAPED_UNICODE));
+        }
+        $logs = array();
+        $old = script_endpoint_load();
+        if ($ecfg['token'] === '' && isset($old['token'])) { $ecfg['token'] = $old['token']; }
+        $ecfg['synced']   = isset($old['synced']) ? $old['synced'] : '';
+        $ecfg['sync_msg'] = isset($old['sync_msg']) ? $old['sync_msg'] : '';
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '开始同步：' . $ecfg['repo'] . ' / ' . $ecfg['branch'] . ' / ' . $ecfg['file']);
+        $ok = script_endpoint_sync($ecfg, $logs);
+        if (!script_endpoint_save($ecfg)) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '配置保存失败，请检查 save/ 目录写权限');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '代码已处理，但配置保存失败！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array(
+            'success' => $ok ? 1 : 0,
+            'icon'    => $ok ? 6 : 5,
+            'm'       => $ok ? '同步完成：代码已保存到 kanju/remote.php' : $ecfg['sync_msg'],
             'logs'    => $logs,
         ), JSON_UNESCAPED_UNICODE));
 
