@@ -1348,6 +1348,24 @@ switch ($type) {
             'logs'    => $logs,
         ), JSON_UNESCAPED_UNICODE));
 
+    //独立接口 手动安装粘贴的代码
+    case 'endpoint_install':
+        header('Content-Type: application/json; charset=utf-8');
+        $logs = array();
+        $ecfg = script_endpoint_load();
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '开始保存粘贴的代码…');
+        $ok = script_endpoint_install(isset($_POST['ep_code']) ? $_POST['ep_code'] : '', $ecfg, $logs);
+        if (!script_endpoint_save($ecfg)) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '配置保存失败，请检查 save/ 目录写权限');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '代码已处理，但配置保存失败！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array(
+            'success' => $ok ? 1 : 0,
+            'icon'    => $ok ? 6 : 5,
+            'm'       => $ok ? '代码已保存到 kanju/remote.php' : '代码保存失败，请查看日志',
+            'logs'    => $logs,
+        ), JSON_UNESCAPED_UNICODE));
+
     //脚本解析 删除脚本
     case 'script_delete':
         header('Content-Type: application/json; charset=utf-8');

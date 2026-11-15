@@ -1287,8 +1287,10 @@ function script_endpoint_sync(&$cfg, &$logs) {
             $code = $body;
             $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '拉取成功，大小 ' . strlen($body) . ' 字节');
         } else {
-            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => 'Token 拉取失败，尝试公开地址');
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => 'Token 拉取失败（Token 可能失效或无该仓库权限），尝试公开地址');
         }
+    } else {
+        $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '未填写 GitHub Token：私有仓库无法拉取，将尝试公开地址');
     }
 
     if ($code === '') {
@@ -1322,13 +1324,36 @@ function script_endpoint_sync(&$cfg, &$logs) {
         if (is_file(script_endpoint_remote_path())) {
             $cfg['sync_msg'] = '拉取失败，继续使用本地代码';
             $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '拉取失败，继续使用已有本地代码');
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '提示：仓库为私有，请在「GitHub Token」填写 Token（填一次保存即可）；也可用下方「粘贴代码安装」');
         } elseif (script_endpoint_write_remote(script_endpoint_fallback())) {
             $cfg['sync_msg'] = '拉取失败，已写入未同步提示模板';
             $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '拉取失败，已写入未同步提示模板');
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '提示：私有仓库需填写 GitHub Token；服务器无法访问 GitHub 时可用「粘贴代码安装」');
         } else {
             $cfg['sync_msg'] = '拉取失败且无法写入本地模板';
             $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '拉取失败且无法写入本地模板，请检查 kanju/ 目录写权限');
         }
     }
     return $ok;
+}
+
+// 手动安装：直接保存粘贴的代码到 kanju/remote.php
+function script_endpoint_install($code, &$cfg, &$logs) {
+    $code = trim((string)$code);
+    if ($code === '' || stripos($code, '<?php') !== 0) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '代码无效：内容必须以 <?php 开头');
+        return false;
+    }
+    if (strlen($code) < 500) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '代码过短（' . strlen($code) . ' 字节），请粘贴完整的 1.php 代码');
+        return false;
+    }
+    if (!script_endpoint_write_remote($code)) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '代码保存失败，请检查 kanju/ 目录写权限');
+        return false;
+    }
+    $cfg['synced']   = script_now();
+    $cfg['sync_msg'] = '已手动安装代码';
+    $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '代码已保存：kanju/remote.php（' . strlen($code) . ' 字节）');
+    return true;
 }

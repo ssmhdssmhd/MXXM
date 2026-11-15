@@ -45,6 +45,9 @@ $EP_STATUS = script_endpoint_status();
 .sc-log-ok{color:#4ade80}
 .sc-log-err{color:#f87171}
 .sc-log-warn{color:#fbbf24}
+.sc-paste{margin-top:12px;border:1px solid #e6e9ef;border-radius:8px;padding:10px 12px;background:#fbfcfe}
+.sc-paste summary{cursor:pointer;font-size:13px;color:#1e9fff;font-weight:600;outline:none}
+.sc-paste textarea{margin-top:8px;height:140px;font:12px/1.6 Consolas,Monaco,"Courier New",monospace}
 </style>
 
 <body>
@@ -252,9 +255,10 @@ $EP_STATUS = script_endpoint_status();
                                 <div class="layui-form-item">
                                     <label class="layui-form-label">GitHub Token</label>
                                     <div class="layui-input-block">
-                                        <input type="password" name="ep_token" autocomplete="new-password" value="<?php echo htmlspecialchars($EP['token']); ?>" class="layui-input" placeholder="私有仓库同步需要；留空则保留已保存的 Token">
+                                        <input type="password" name="ep_token" id="ep-token" autocomplete="new-password" value="<?php echo htmlspecialchars($EP['token']); ?>" class="layui-input" placeholder="私有仓库同步需要；留空则保留已保存的 Token">
                                     </div>
                                     <div class="sc-hint" style="margin:6px 0 0">
+                                        <span class="sc-tag <?php echo $EP['token'] !== '' ? 'on' : 'off'; ?>" id="ep-token-status"><?php echo $EP['token'] !== '' ? 'Token 已配置' : 'Token 未配置'; ?></span>
                                         Token 仅保存在 <code>save/kanju.config.php</code>（不入库）；公开仓库可留空。同步下来的代码含登录账号密码，保存在 <code>kanju/remote.php</code>，同样不会提交到仓库。
                                     </div>
                                 </div>
@@ -294,6 +298,13 @@ $EP_STATUS = script_endpoint_status();
                             </div>
                         </fieldset>
                     </form>
+
+                    <details class="sc-paste" style="margin-top:12px">
+                        <summary>GitHub 拉取失败？粘贴 kanju-api 的 <code>1.php</code> 代码手动安装</summary>
+                        <textarea id="ep-code" class="layui-textarea" spellcheck="false" placeholder="在此粘贴完整的 1.php 代码（必须以 &lt;?php 开头，至少 500 字节）"></textarea>
+                        <button type="button" class="layui-btn layui-btn-sm" id="btn-ep-install" style="margin-top:8px">保存粘贴的代码</button>
+                        <div class="sc-hint" style="margin:8px 0 0">代码只写入服务器 <code>kanju/remote.php</code>，不会提交到仓库；适用于私有仓库无法拉取或服务器访问 GitHub 受限的情况。</div>
+                    </details>
                 </div>
 
                 <div class="layui-tab-item">
@@ -439,6 +450,38 @@ $EP_STATUS = script_endpoint_status();
             function scReloadSoon() {
                 setTimeout(function () { location.reload(); }, 1300);
             }
+
+            //Token 输入状态提示
+            $('#ep-token').on('input', function () {
+                var $s = $('#ep-token-status');
+                if ($.trim($(this).val()) !== '') {
+                    $s.removeClass('off').addClass('on').text('Token 已输入（未保存）');
+                } else {
+                    $s.removeClass('on').addClass('off').text('Token 未配置');
+                }
+            });
+
+            //粘贴代码安装（不依赖 GitHub 拉取）
+            $('#btn-ep-install').on('click', function () {
+                var code = $.trim($('#ep-code').val());
+                if (code === '') { tip(false, '请先粘贴完整的 1.php 代码'); return; }
+                layer.confirm('将把粘贴的代码保存到 kanju/remote.php，是否继续？', function (index) {
+                    layer.close(index);
+                    var btn = $('#btn-ep-install').prop('disabled', true).text('保存中…');
+                    scLogStart('开始安装粘贴的代码…');
+                    $.post("admin.php", { type: "endpoint_install", ep_code: code }, function (d) {
+                        btn.prop('disabled', false).text('保存粘贴的代码');
+                        scLogRender(d.logs, d.m);
+                        scLogFinish(d.success == 1, d.m);
+                        tip(d.success == 1, d.m);
+                        if (d.success == 1) { scReloadSoon(); }
+                    }, "json").fail(function () {
+                        btn.prop('disabled', false).text('保存粘贴的代码');
+                        scLogFinish(false, '请求失败，请检查网络或后台登录状态');
+                        tip(false, '请求失败');
+                    });
+                });
+            });
 
             //页面加载时静默检测上游仓库更新（受「检查间隔」限制，未到期不会发起请求）
             $.post("admin.php", { type: "script_auto" }, function (d) {
