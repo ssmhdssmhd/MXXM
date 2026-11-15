@@ -6,6 +6,42 @@ $directList = script_direct_list($SC);
 ?>
 <?php include "block_header.htm"; ?>
 
+<style>
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:12px}
+.sc-card{border:1px solid #e6e9ef;border-radius:8px;background:#fff;padding:12px 14px;transition:border-color .2s,box-shadow .2s;min-width:0}
+.sc-card:hover{border-color:#1e9fff;box-shadow:0 4px 14px rgba(30,159,255,.12)}
+.sc-card.is-off{background:#fafbfc}
+.sc-card-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sc-card-name{font-size:14px;font-weight:700;color:#1c2438;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-tag{flex:0 0 auto;font-size:12px;line-height:20px;padding:0 8px;border-radius:10px;border:1px solid transparent}
+.sc-tag.on{color:#16b777;background:#e8f9f2;border-color:#b7ebd5}
+.sc-tag.off{color:#8a94a6;background:#f2f4f7;border-color:#e2e6ec}
+.sc-card-url{margin-top:6px;font-size:12px;color:#8a94a6;line-height:1.6;word-break:break-all;max-height:38px;overflow:hidden}
+.sc-card-url.blank{color:#b7bec9;font-style:italic}
+.sc-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sc-chip{font-size:11px;line-height:20px;color:#5f6b7f;background:#f4f6fa;border-radius:10px;padding:0 8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-chip b{color:#1e9fff;font-weight:600}
+.sc-chip.miss{color:#ff5722;background:#fff0ec}
+.sc-card-ft{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px dashed #eceff5}
+.sc-card-ft .layui-form-switch{margin:0;height:24px;line-height:24px}
+.sc-card-btns{display:flex;gap:6px;flex:0 0 auto}
+.sc-card-btns .layui-btn{margin:0}
+.sc-empty{padding:34px 16px;text-align:center;color:#98a3b3;border:1px dashed #dfe4ec;border-radius:8px;background:#fbfcfe;margin-bottom:12px}
+.sc-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.sc-tools .sc-url{flex:1 1 320px;min-width:240px}
+.sc-tools .layui-btn{margin:0}
+.sc-log-wrap{display:none;margin:6px 0 16px;border:1px solid #1e293b;border-radius:8px;overflow:hidden;background:#0f172a}
+.sc-log-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 12px;background:#131f36;color:#cbd5e1;font-size:12px}
+.sc-log-hd em{font-style:normal;margin-left:6px;color:#94a3b8}
+.sc-log-hd .layui-btn{margin:0}
+.sc-log{height:190px;overflow:auto;padding:8px 12px;font:12px/1.9 Consolas,Monaco,"Courier New",monospace;color:#cbd5e1;background:#0b1220}
+.sc-log-line{word-break:break-all}
+.sc-log-t{color:#64748b;margin-right:8px}
+.sc-log-ok{color:#4ade80}
+.sc-log-err{color:#f87171}
+.sc-log-warn{color:#fbbf24}
+</style>
+
 <body>
     <div class="x-nav">
         <span class="layui-breadcrumb">
@@ -21,11 +57,12 @@ $directList = script_direct_list($SC);
         <blockquote class="layui-elem-quote layui-quote-nm">
             <h2>说明：</h2>
             ① 支持添加多个用户脚本，自动读取其中的解析线路（<code>videoParseList</code> / <code>parseApis</code>），线路按接口地址去重后合并使用；<br>
-            ② 「添加脚本」/「更新」会从脚本地址实时拉取并解析线路，「全部更新」可一次刷新全部脚本；<br>
+            ② 「添加脚本」/「更新」会从脚本地址实时拉取并解析线路，「全部更新」可一次刷新全部脚本，过程日志显示在下方「操作日志」面板；<br>
             ③ 播放入口：<code>域名/plus/script/?url=官方视频地址</code>；直连线路（无损云）会自动搜索资源站并播放 m3u8；<b>直连线路参数必须提供 m3u8 播放源</b>（资源接口返回的播放地址需为 m3u8）；<br>
             ④ JSON 调用接口：<code>域名/plus/mxjx/?url=官方视频地址</code>；自动搜索资源站并返回 JSON，<code>url</code> 为 m3u8 地址，返回字段可在「返回响应设置」中自定义；<br>
             ⑤ 「同步到解析线路」会把带接口地址的线路追加到「系统设置 → 解析设置 → 解析线路」，供前台解析使用；<br>
-            ⑥ 对外接口（支持跨域，可独立接入）：<code>域名/plus/script/api.php?list=1</code> 获取线路列表，<code>域名/plus/script/api.php?url=官方视频地址[&amp;line=线路序号]</code> 返回 JSON，<code>type</code> 为 <code>direct</code>（m3u8）/ <code>iframe</code>（内嵌地址）/ <code>popup</code>（新窗口打开）。
+            ⑥ 对外接口（支持跨域，可独立接入）：<code>域名/plus/script/api.php?list=1</code> 获取线路列表，<code>域名/plus/script/api.php?url=官方视频地址[&amp;line=线路序号]</code> 返回 JSON，<code>type</code> 为 <code>direct</code>（m3u8）/ <code>iframe</code>（内嵌地址）/ <code>popup</code>（新窗口打开）；<br>
+            ⑦ 「导出」把每个脚本源码（<code>.user.js</code>）与清单 <code>scripts.json</code> 写入源码根目录 <code>/MXJB/</code>；「导入」读取该目录恢复脚本（目录不存在时自动创建），更新失败时会自动改用本地源码副本。
         </blockquote>
 
         <div class="layui-tab layui-tab-brief" lay-filter="scTab">
@@ -48,54 +85,72 @@ $directList = script_direct_list($SC);
                         <fieldset class="layui-elem-field">
                             <legend>用户脚本列表（可添加多个，线路自动合并）</legend>
                             <div class="layui-field-box">
-                                <div class="layui-form-mid layui-word-aux" style="margin-bottom:8px">
+                                <div class="layui-form-mid layui-word-aux" style="margin-bottom:10px">
                                     支持 <code>videoParseList</code> 与 <code>parseApis</code> 两种线路格式；同一接口地址自动去重，弹窗专用接口会标记「弹窗」并在播放入口跳转打开。
                                 </div>
-                                <table class="layui-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:50px">序号</th>
-                                            <th>脚本名称</th>
-                                            <th>脚本地址</th>
-                                            <th style="width:80px">版本</th>
-                                            <th style="width:70px">线路</th>
-                                            <th style="width:100px">状态</th>
-                                            <th style="width:130px">操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="sc-script-body">
-                                        <?php if (empty($SC['scripts'])): ?>
-                                        <tr class="sc-script-empty"><td colspan="7" style="text-align:center;color:#999">暂无脚本，请在下方填写脚本地址并点击「添加脚本」</td></tr>
-                                        <?php else: foreach ($SC['scripts'] as $si => $sc): $sc = is_array($sc) ? $sc : array(); $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'lines' => array(), 'off' => '1'); ?>
-                                        <tr class="sc-script-row">
-                                            <td style="text-align:center"><?php echo $si + 1; ?></td>
-                                            <td>
-                                                <?php echo htmlspecialchars($sc['name'] !== '' ? $sc['name'] : '（未命名脚本）'); ?>
-                                                <input type="hidden" name="sc_sid[]" value="<?php echo htmlspecialchars($sc['id']); ?>">
-                                            </td>
-                                            <td style="word-break:break-all;font-size:12px;color:#666"><?php echo htmlspecialchars($sc['url']); ?></td>
-                                            <td><?php echo htmlspecialchars($sc['version'] !== '' ? $sc['version'] : '—'); ?></td>
-                                            <td style="text-align:center"><?php echo count($sc['lines']); ?></td>
-                                            <td>
-                                                <select name="sc_soff[]">
-                                                    <option value="1" <?php echo (string)$sc['off'] === '1' ? 'selected' : ''; ?>>启用</option>
-                                                    <option value="0" <?php echo (string)$sc['off'] !== '1' ? 'selected' : ''; ?>>停用</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <button type="button" class="layui-btn layui-btn-xs sc-script-update" data-sid="<?php echo htmlspecialchars($sc['id']); ?>" data-url="<?php echo htmlspecialchars($sc['url']); ?>">更新</button>
-                                                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger sc-script-del" data-sid="<?php echo htmlspecialchars($sc['id']); ?>">删除</button>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; endif; ?>
-                                    </tbody>
-                                </table>
-                                <div class="layui-form-item" style="margin-bottom:0">
-                                    <div class="layui-input-inline" style="width:auto;min-width:320px">
-                                        <input type="text" id="sc-new-url" autocomplete="off" class="layui-input" placeholder="新脚本地址，如 https://cdn.jsdelivr.net/gh/whyyy-404/video_freevip@main/vip-video.user.js">
-                                    </div>
+
+                                <div class="sc-tools">
+                                    <input type="text" id="sc-new-url" autocomplete="off" class="layui-input sc-url" placeholder="新脚本地址，如 https://cdn.jsdelivr.net/gh/whyyy-404/video_freevip@main/vip-video.user.js">
                                     <button type="button" class="layui-btn layui-btn-normal" id="sc-new-add">＋ 添加脚本</button>
                                     <button type="button" class="layui-btn layui-btn-warm" id="btn-sc-update-all">全部更新</button>
+                                    <button type="button" class="layui-btn layui-btn-primary" id="btn-sc-import">导入</button>
+                                    <button type="button" class="layui-btn layui-btn-primary" id="btn-sc-export">导出</button>
+                                </div>
+
+                                <?php if (empty($SC['scripts'])): ?>
+                                <div class="sc-empty">暂无脚本，请在上方填写脚本地址并点击「添加脚本」，或把 <code>.user.js</code> 放入 <code>/MXJB/</code> 后点击「导入」</div>
+                                <?php else: ?>
+                                <div class="sc-grid">
+                                    <?php foreach ($SC['scripts'] as $si => $sc): $sc = is_array($sc) ? $sc : array(); $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'lines' => array(), 'off' => '1', 'time' => '', 'file' => '');
+                                        $scName = $sc['name'] !== '' ? $sc['name'] : '（未命名脚本）';
+                                        $scOn = (string)$sc['off'] === '1';
+                                        $scFile = isset($sc['file']) ? basename(trim((string)$sc['file'])) : '';
+                                        $scFileExists = $scFile !== '' && is_file(dirname(__FILE__) . '/../../MXJB/' . $scFile);
+                                        $scTime = script_time_fmt($sc['time']);
+                                    ?>
+                                    <div class="sc-card<?php echo $scOn ? '' : ' is-off'; ?>">
+                                        <div class="sc-card-hd">
+                                            <div class="sc-card-name" title="<?php echo htmlspecialchars($scName); ?>"><?php echo htmlspecialchars($scName); ?></div>
+                                            <span class="sc-tag <?php echo $scOn ? 'on' : 'off'; ?>"><?php echo $scOn ? '启用中' : '已停用'; ?></span>
+                                        </div>
+                                        <div class="sc-card-url<?php echo $sc['url'] === '' ? ' blank' : ''; ?>" title="<?php echo htmlspecialchars($sc['url']); ?>"><?php echo $sc['url'] !== '' ? htmlspecialchars($sc['url']) : '本地脚本（未填写远程地址）'; ?></div>
+                                        <div class="sc-meta">
+                                            <span class="sc-chip">版本 <b><?php echo htmlspecialchars($sc['version'] !== '' ? $sc['version'] : '—'); ?></b></span>
+                                            <span class="sc-chip">线路 <b><?php echo count($sc['lines']); ?></b></span>
+                                            <?php if ($scFileExists): ?>
+                                            <span class="sc-chip" title="源码已保存到 /MXJB/<?php echo htmlspecialchars($scFile); ?>">源码 <b><?php echo htmlspecialchars($scFile); ?></b></span>
+                                            <?php elseif ($scFile !== ''): ?>
+                                            <span class="sc-chip miss">源码缺失</span>
+                                            <?php else: ?>
+                                            <span class="sc-chip">源码未导出</span>
+                                            <?php endif; ?>
+                                            <span class="sc-chip">更新 <?php echo $scTime !== '' ? htmlspecialchars($scTime) : '—'; ?></span>
+                                        </div>
+                                        <div class="sc-card-ft">
+                                            <div>
+                                                <input type="hidden" name="sc_sid[<?php echo (int)$si; ?>]" value="<?php echo htmlspecialchars($sc['id']); ?>">
+                                                <input type="checkbox" name="sc_soff[<?php echo (int)$si; ?>]" value="1" lay-skin="switch" lay-text="启用|停用" <?php echo $scOn ? 'checked' : ''; ?>>
+                                            </div>
+                                            <div class="sc-card-btns">
+                                                <button type="button" class="layui-btn layui-btn-xs sc-script-update" data-sid="<?php echo htmlspecialchars($sc['id']); ?>" data-url="<?php echo htmlspecialchars($sc['url']); ?>">更新</button>
+                                                <button type="button" class="layui-btn layui-btn-xs layui-btn-danger sc-script-del" data-sid="<?php echo htmlspecialchars($sc['id']); ?>">删除</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php endif; ?>
+
+                                <div class="layui-form-mid layui-word-aux" style="margin-bottom:0">
+                                    导入 / 导出目录：源码根目录 <code>/MXJB/</code>（不存在时自动创建），导出内容包含各脚本源码与 <code>scripts.json</code> 清单。
+                                </div>
+
+                                <div class="sc-log-wrap" id="sc-log-wrap">
+                                    <div class="sc-log-hd">
+                                        <span>操作日志<em id="sc-log-state"></em></span>
+                                        <button type="button" class="layui-btn layui-btn-xs layui-btn-primary" id="sc-log-clear">清空</button>
+                                    </div>
+                                    <div class="sc-log" id="sc-log"></div>
                                 </div>
                             </div>
                         </fieldset>
@@ -229,9 +284,86 @@ $directList = script_direct_list($SC);
     <script>
         layui.use(['form', 'layer', 'element'], function () {
             var $ = layui.jquery, form = layui.form, layer = layui.layer, element = layui.element;
+            form.render();
 
             function tip(ok, msg) {
                 $('#sc-tip').css('color', ok ? '#5fb878' : '#ff5722').text(msg);
+            }
+
+            // ===== 操作日志面板（刷新页面后保留上次日志） =====
+            var SC_LOG_KEY = 'scAdminLog';
+
+            function scNow() {
+                var d = new Date();
+                function p(n) { return (n < 10 ? '0' : '') + n; }
+                return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+            }
+            function scLogAppend(ok, msg, t) {
+                var cls = ok === 0 ? 'sc-log-err' : (ok === 2 ? 'sc-log-warn' : 'sc-log-ok');
+                var $line = $('<div class="sc-log-line"></div>');
+                $line.append($('<span class="sc-log-t"></span>').text(t || scNow()));
+                $line.append($('<span></span>').addClass(cls).text(msg || ''));
+                $('#sc-log').append($line);
+                var el = $('#sc-log')[0];
+                if (el) { el.scrollTop = el.scrollHeight; }
+            }
+            function scLogStart(title) {
+                $('#sc-log-wrap').show();
+                $('#sc-log').empty();
+                $('#sc-log-state').text('进行中…').css('color', '#fbbf24');
+                scLogAppend(1, title, scNow());
+            }
+            function scLogRender(logs, fallback) {
+                var list = logs || [];
+                if (!list.length) {
+                    if (fallback) { scLogAppend(1, fallback, scNow()); }
+                    return;
+                }
+                $.each(list, function (i, it) {
+                    var ok = (it.ok === 0 || it.ok === false) ? 0 : ((it.ok === 2) ? 2 : 1);
+                    scLogAppend(ok, it.msg || '', it.t || '');
+                });
+            }
+            function scLogFinish(ok, extra) {
+                $('#sc-log-wrap').show();
+                $('#sc-log-state').text(ok ? '完成' : '失败').css('color', ok ? '#4ade80' : '#f87171');
+                if (extra) { scLogAppend(ok ? 1 : 0, extra, scNow()); }
+                try {
+                    var arr = [];
+                    $('#sc-log .sc-log-line').each(function () {
+                        var $m = $(this).find('span').eq(1);
+                        arr.push({
+                            t: $(this).find('.sc-log-t').text(),
+                            ok: $m.hasClass('sc-log-err') ? 0 : ($m.hasClass('sc-log-warn') ? 2 : 1),
+                            msg: $m.text()
+                        });
+                    });
+                    sessionStorage.setItem(SC_LOG_KEY, JSON.stringify(arr));
+                } catch (e) {}
+            }
+            function scLogRestore() {
+                try {
+                    var raw = sessionStorage.getItem(SC_LOG_KEY);
+                    if (!raw) { return; }
+                    sessionStorage.removeItem(SC_LOG_KEY);
+                    var arr = JSON.parse(raw);
+                    if (!arr || !arr.length) { return; }
+                    $('#sc-log-wrap').show();
+                    $.each(arr, function (i, it) { scLogAppend(it.ok, it.msg, it.t); });
+                    $('#sc-log-state').text('上次操作日志').css('color', '#93c5fd');
+                } catch (e) {}
+            }
+            scLogRestore();
+
+            $('#sc-log-clear').on('click', function () {
+                $('#sc-log').empty();
+                $('#sc-log-state').text('');
+                $('#sc-log-wrap').hide();
+                try { sessionStorage.removeItem(SC_LOG_KEY); } catch (e) {}
+            });
+
+            function scReloadSoon() {
+                setTimeout(function () { location.reload(); }, 1300);
             }
 
             //页面加载时静默检测上游仓库更新（受「检查间隔」限制，未到期不会发起请求）
@@ -298,25 +430,34 @@ $directList = script_direct_list($SC);
                 var url = $.trim($('#sc-new-url').val());
                 if (!/^https?:\/\//i.test(url)) { tip(false, '请填写 http(s) 开头的脚本地址'); return; }
                 var btn = $(this).prop('disabled', true).text('添加中…');
+                scLogStart('添加脚本：' + url);
                 $.post("admin.php", { type: "script_update", url: url }, function (d) {
                     btn.prop('disabled', false).text('＋ 添加脚本');
+                    scLogRender(d.logs, d.m);
+                    scLogFinish(d.success == 1, d.m);
                     tip(d.success == 1, d.m);
-                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 900); }
+                    if (d.success == 1) { scReloadSoon(); }
                 }, "json").fail(function () {
                     btn.prop('disabled', false).text('＋ 添加脚本');
+                    scLogFinish(false, '请求失败，请检查网络或后台登录状态');
                     tip(false, '请求失败');
                 });
             });
 
             //更新单个脚本
             $(document).on('click', '.sc-script-update', function () {
-                var btn = $(this).prop('disabled', true).text('更新中…');
-                $.post("admin.php", { type: "script_update", sid: btn.data('sid'), url: btn.data('url') }, function (d) {
+                var btn = $(this), url = btn.data('url') || '';
+                btn.prop('disabled', true).text('更新中…');
+                scLogStart('开始更新：' + (url || btn.data('sid')));
+                $.post("admin.php", { type: "script_update", sid: btn.data('sid'), url: url }, function (d) {
                     btn.prop('disabled', false).text('更新');
+                    scLogRender(d.logs, d.m);
+                    scLogFinish(d.success == 1, d.m);
                     tip(d.success == 1, d.m);
-                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 900); }
+                    if (d.success == 1) { scReloadSoon(); }
                 }, "json").fail(function () {
                     btn.prop('disabled', false).text('更新');
+                    scLogFinish(false, '请求失败，请检查网络或后台登录状态');
                     tip(false, '请求失败');
                 });
             });
@@ -337,16 +478,57 @@ $directList = script_direct_list($SC);
             function scUpdateAll(btn) {
                 var old = btn.text();
                 btn.prop('disabled', true).text('更新中…');
+                scLogStart('开始全部更新…');
                 $.post("admin.php", { type: "script_update_all" }, function (d) {
                     btn.prop('disabled', false).text(old);
+                    scLogRender(d.logs, d.m);
+                    scLogFinish(d.success == 1, d.m);
                     tip(d.success == 1, d.m);
-                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 1200); }
+                    if (d.success == 1) { scReloadSoon(); }
                 }, "json").fail(function () {
                     btn.prop('disabled', false).text(old);
+                    scLogFinish(false, '请求失败，请检查网络或后台登录状态');
                     tip(false, '请求失败');
                 });
             }
             $('#btn-sc-update-all, #btn-sc-update-all-2').on('click', function () { scUpdateAll($(this)); });
+
+            //导出脚本源码与清单到 /MXJB/
+            $('#btn-sc-export').on('click', function () {
+                var btn = $(this).prop('disabled', true).text('导出中…');
+                scLogStart('正在导出脚本源码到源码目录 /MXJB/ …');
+                $.post("admin.php", { type: "script_export" }, function (d) {
+                    btn.prop('disabled', false).text('导出');
+                    scLogRender(d.logs, d.m);
+                    scLogFinish(d.success == 1, d.m);
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { scReloadSoon(); }
+                }, "json").fail(function () {
+                    btn.prop('disabled', false).text('导出');
+                    scLogFinish(false, '请求失败，请检查网络或后台登录状态');
+                    tip(false, '请求失败');
+                });
+            });
+
+            //从 /MXJB/ 导入脚本
+            $('#btn-sc-import').on('click', function () {
+                layer.confirm('将从源码目录 /MXJB/ 读取 scripts.json 清单与 .user.js 文件并导入脚本，是否继续？', function (index) {
+                    layer.close(index);
+                    var btn = $('#btn-sc-import').prop('disabled', true).text('导入中…');
+                    scLogStart('正在从源码目录 /MXJB/ 导入脚本 …');
+                    $.post("admin.php", { type: "script_import" }, function (d) {
+                        btn.prop('disabled', false).text('导入');
+                        scLogRender(d.logs, d.m);
+                        scLogFinish(d.success == 1, d.m);
+                        tip(d.success == 1, d.m);
+                        if (d.success == 1) { scReloadSoon(); }
+                    }, "json").fail(function () {
+                        btn.prop('disabled', false).text('导入');
+                        scLogFinish(false, '请求失败，请检查网络或后台登录状态');
+                        tip(false, '请求失败');
+                    });
+                });
+            });
 
             //同步到解析线路
             $('#btn-sc-sync').on('click', function () {

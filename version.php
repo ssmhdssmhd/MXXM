@@ -8,9 +8,9 @@
 
 return array(
     // 当前版本号（v.主.次.修）
-    'version' => 'v.0.0.44',
+    'version' => 'v.0.0.45',
     // 版本发布时间（YmdHis）
-    'time'    => '202611120626',
+    'time'    => '202611160629',
     // GitHub 仓库（在线更新的代码来源）
     'repo'    => 'ssmhdssmhd/MXXM',
     // 更新分支

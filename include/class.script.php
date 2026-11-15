@@ -401,6 +401,303 @@ function script_time_ts($s) {
     return $d ? $d->getTimestamp() : 0;
 }
 
+// YmdHis（北京时间）-> 易读时间（无效时返回空）
+function script_time_fmt($s) {
+    $s = preg_replace('/\D/', '', (string)$s);
+    if (strlen($s) < 14) { return ''; }
+    return substr($s, 0, 4) . '-' . substr($s, 4, 2) . '-' . substr($s, 6, 2)
+        . ' ' . substr($s, 8, 2) . ':' . substr($s, 10, 2);
+}
+
+// 日志时间（北京时间 H:i:s）
+function script_log_time() {
+    $d = new DateTime('now', new DateTimeZone('Asia/Shanghai'));
+    return $d->format('H:i:s');
+}
+
+/* ==================== 用户脚本源码（MXJB） ==================== */
+
+// 用户脚本源码目录：源码根目录 /MXJB（不存在时自动创建）
+function script_src_dir() {
+    static $dir = null;
+    if ($dir !== null) { return $dir; }
+    $path = dirname(__FILE__) . '/../MXJB';
+    if (!is_dir($path)) { @mkdir($path, 0755, true); }
+    $real = is_dir($path) ? realpath($path) : false;
+    $dir = $real ? rtrim(str_replace('\\', '/', $real), '/') : '';
+    return $dir;
+}
+
+// 生成安全的脚本文件名（仅保留中文 / 字母 / 数字 / 下划线，不使用 -）
+function script_src_file($name, $id) {
+    $name = preg_replace('/[^\p{Han}\p{L}\p{N}_]+/u', '_', (string)$name);
+    $name = trim(preg_replace('/_+/', '_', $name), '_');
+    if ($name === '') { $name = 'script'; }
+    if (function_exists('mb_substr')) { $name = mb_substr($name, 0, 40, 'UTF-8'); }
+    $suffix = substr(preg_replace('/[^0-9a-z]/i', '', (string)$id), 0, 8);
+    return $name . ($suffix !== '' ? '+' . $suffix : '') . '.user.js';
+}
+
+// 读取 MXJB/scripts.json 清单（按 id 索引；兼容旧版纯列表格式）
+function script_manifest_load($dir = '') {
+    if ($dir === '') { $dir = script_src_dir(); }
+    $out = array('time' => '', 'scripts' => array());
+    if ($dir === '') { return $out; }
+    $file = $dir . '/scripts.json';
+    if (!is_file($file)) { return $out; }
+    $j = json_decode((string)@file_get_contents($file), true);
+    if (!is_array($j)) { return $out; }
+    $list = (isset($j['scripts']) && is_array($j['scripts'])) ? $j['scripts'] : $j;
+    foreach ($list as $it) {
+        if (!is_array($it)) { continue; }
+        $id = isset($it['id']) ? trim((string)$it['id']) : '';
+        if ($id === '' && isset($it['url'])) { $id = md5(trim((string)$it['url'])); }
+        if ($id === '') { continue; }
+        $it['id'] = $id;
+        $out['scripts'][$id] = $it;
+    }
+    $out['time'] = isset($j['time']) ? (string)$j['time'] : '';
+    return $out;
+}
+
+// 写入 MXJB/scripts.json 清单
+function script_manifest_save($dir, $scripts) {
+    if ($dir === '') { return false; }
+    $data = array(
+        'app'     => 'MXXM',
+        'type'    => 'user-script',
+        'time'    => script_now(),
+        'scripts' => array_values($scripts),
+    );
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    if ($json === false) { return false; }
+    return @file_put_contents($dir . '/scripts.json', $json) !== false;
+}
+
+// 读取脚本的本地源码副本（优先 file 字段，其次按脚本地址匹配清单）
+function script_local_source($sc) {
+    $dir = script_src_dir();
+    if ($dir === '') { return ''; }
+    $sc = is_array($sc) ? $sc : array();
+    $file = isset($sc['file']) ? basename(trim((string)$sc['file'])) : '';
+    if ($file !== '' && is_file($dir . '/' . $file)) {
+        return (string)@file_get_contents($dir . '/' . $file);
+    }
+    $url = isset($sc['url']) ? trim((string)$sc['url']) : '';
+    if ($url === '') { return ''; }
+    $man = script_manifest_load($dir);
+    foreach ($man['scripts'] as $it) {
+        if (isset($it['url']) && trim((string)$it['url']) === $url) {
+            $f = isset($it['file']) ? basename(trim((string)$it['file'])) : '';
+            if ($f !== '' && is_file($dir . '/' . $f)) {
+                return (string)@file_get_contents($dir . '/' . $f);
+            }
+        }
+    }
+    return '';
+}
+
+// 保存脚本源码到 MXJB/ 并更新清单（返回文件名，失败返回空）
+function script_save_source($sc, $js, $lines = null) {
+    $dir = script_src_dir();
+    if ($dir === '' || !is_string($js) || trim($js) === '') { return ''; }
+    $sc = is_array($sc) ? $sc : array();
+    $id = isset($sc['id']) ? trim((string)$sc['id']) : '';
+    $url = isset($sc['url']) ? trim((string)$sc['url']) : '';
+    if ($id === '') { $id = md5($url !== '' ? $url : (string)time()); }
+    $name = isset($sc['name']) ? trim((string)$sc['name']) : '';
+    $file = isset($sc['file']) ? basename(trim((string)$sc['file'])) : '';
+    if ($file === '') { $file = script_src_file($name !== '' ? $name : $url, $id); }
+    if (@file_put_contents($dir . '/' . $file, $js) === false) { return ''; }
+
+    $man = script_manifest_load($dir);
+    $entry = (isset($man['scripts'][$id]) && is_array($man['scripts'][$id])) ? $man['scripts'][$id] : array();
+    $entry['id'] = $id;
+    if ($name !== '') { $entry['name'] = $name; }
+    if ($url !== '') { $entry['url'] = $url; }
+    if (isset($sc['version']) && trim((string)$sc['version']) !== '') { $entry['version'] = trim((string)$sc['version']); }
+    $entry['file'] = $file;
+    $entry['time'] = script_now();
+    if (is_array($lines)) { $entry['lines'] = $lines; }
+    $man['scripts'][$id] = $entry;
+    script_manifest_save($dir, $man['scripts']);
+    return $file;
+}
+
+// 从脚本头提取下载 / 更新地址（用于导入本地 .user.js 时补全脚本地址）
+function script_meta_url($js) {
+    foreach (array('@downloadURL', '@updateURL') as $key) {
+        if (preg_match('/' . preg_quote($key, '/') . '\s+([^\r\n]+)/', $js, $m)) {
+            $url = trim($m[1]);
+            if (preg_match('~^https?://~i', $url)) { return $url; }
+        }
+    }
+    return '';
+}
+
+/**
+ * 导出全部脚本源码与清单到 /MXJB/
+ *
+ * @param array $cfg  脚本配置（会补全 file 字段）
+ * @param array $logs 过程日志（t / ok / msg）
+ * @return int 成功导出的源码文件数
+ */
+function script_export(&$cfg, &$logs) {
+    $logs = is_array($logs) ? $logs : array();
+    $dir = script_src_dir();
+    if ($dir === '') {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '无法创建源码目录 /MXJB/，请检查根目录写权限');
+        return 0;
+    }
+    $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '导出目录：/MXJB/');
+
+    $entries = array();
+    $ok = 0;
+    foreach ((array)$cfg['scripts'] as $i => $sc) {
+        if (!is_array($sc)) { continue; }
+        $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'off' => '1', 'lines' => array());
+        $id = trim((string)$sc['id']);
+        if ($id === '') {
+            $seed = trim((string)$sc['url']) !== '' ? trim((string)$sc['url']) : (trim((string)$sc['name']) . '#' . $i);
+            $id = md5($seed);
+            $cfg['scripts'][$i]['id'] = $id;
+        }
+        $label = $sc['name'] !== '' ? $sc['name'] : ('脚本' . ($i + 1));
+
+        $js = script_local_source($sc);
+        $fromLocal = ($js !== '');
+        if ($js === '' && trim((string)$sc['url']) !== '') {
+            $js = script_fetch(trim((string)$sc['url']), 10);
+        }
+
+        $file = isset($sc['file']) ? basename(trim((string)$sc['file'])) : '';
+        if ($file === '') { $file = script_src_file($label, $id); }
+        $written = ($js !== '' && @file_put_contents($dir . '/' . $file, $js) !== false);
+        if ($written) {
+            $cfg['scripts'][$i]['file'] = $file;
+            $ok++;
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => $label . '：已导出 ' . $file . ($fromLocal ? '（本地副本）' : '（远程拉取）'));
+        } else {
+            $file = '';
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => $label . '：源码不可用（远程与本地均获取失败），仅导出配置');
+        }
+        $entries[$id] = array(
+            'id'      => $id,
+            'name'    => $sc['name'],
+            'url'     => $sc['url'],
+            'version' => $sc['version'],
+            'off'     => (string)$sc['off'] === '1' ? '1' : '0',
+            'file'    => $file,
+            'lines'   => (array)$sc['lines'],
+            'time'    => script_now(),
+        );
+    }
+    if (script_manifest_save($dir, $entries)) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '已写入清单 scripts.json（' . count($entries) . ' 个脚本）');
+    } else {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '清单 scripts.json 写入失败');
+    }
+    return $ok;
+}
+
+/**
+ * 从 /MXJB/ 导入脚本（scripts.json 清单 + 目录内未被引用的 .user.js）
+ *
+ * @param array $cfg  脚本配置（导入后回写）
+ * @param array $logs 过程日志（t / ok / msg）
+ * @return int 处理成功的脚本数
+ */
+function script_import(&$cfg, &$logs) {
+    $logs = is_array($logs) ? $logs : array();
+    $dir = script_src_dir();
+    if ($dir === '') {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '无法创建源码目录 /MXJB/，请检查根目录写权限');
+        return 0;
+    }
+
+    $man = script_manifest_load($dir);
+    $cands = $man['scripts'];
+
+    // 扫描目录内未被清单引用的 .user.js
+    $used = array();
+    foreach ($cands as $it) {
+        if (!empty($it['file'])) { $used[basename((string)$it['file'])] = 1; }
+    }
+    $files = glob($dir . '/*.user.js');
+    if (is_array($files)) {
+        foreach ($files as $path) {
+            $base = basename($path);
+            if (isset($used[$base])) { continue; }
+            $js = (string)@file_get_contents($path);
+            if (trim($js) === '') { continue; }
+            $url = script_meta_url($js);
+            list($name, $ver) = script_meta($js);
+            $id = md5($url !== '' ? $url : 'local:' . $base);
+            if (isset($cands[$id])) { continue; }
+            $cands[$id] = array(
+                'id'      => $id,
+                'name'    => $name !== '' ? $name : pathinfo($base, PATHINFO_FILENAME),
+                'url'     => $url,
+                'version' => $ver,
+                'off'     => '1',
+                'file'    => $base,
+            );
+        }
+    }
+    if (empty($cands)) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => 'MXJB/ 目录为空，请放入 .user.js 或 scripts.json 后重试');
+        return 0;
+    }
+    $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '导入目录：/MXJB/，发现 ' . count($cands) . ' 个候选脚本');
+
+    $count = 0;
+    foreach ($cands as $id => $it) {
+        $it = is_array($it) ? $it : array();
+        $url = isset($it['url']) ? trim((string)$it['url']) : '';
+        $file = isset($it['file']) ? basename(trim((string)$it['file'])) : '';
+        $lines = (isset($it['lines']) && is_array($it['lines'])) ? $it['lines'] : array();
+        $label = isset($it['name']) ? trim((string)$it['name']) : '';
+        if ($label === '') { $label = $url !== '' ? $url : $file; }
+
+        // 清单里没有线路时，从本地源码解析
+        if (empty($lines) && $file !== '' && is_file($dir . '/' . $file)) {
+            $js = (string)@file_get_contents($dir . '/' . $file);
+            if ($js !== '') {
+                $ext = script_extract_lines($js);
+                if ($ext !== false) { $lines = $ext; }
+            }
+        }
+        if (empty($lines)) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => $label . '：未解析到线路，已跳过');
+            continue;
+        }
+
+        $entry = array(
+            'id'         => $id,
+            'name'       => $label,
+            'url'        => $url,
+            'version'    => isset($it['version']) ? trim((string)$it['version']) : '',
+            'lines'      => $lines,
+            'lines_hash' => md5(json_encode($lines)),
+            'off'        => (isset($it['off']) && (string)$it['off'] === '0') ? '0' : '1',
+            'time'       => script_now(),
+            'last_check' => script_now(),
+        );
+        if ($file !== '') { $entry['file'] = $file; }
+
+        $idx = script_find_index($cfg, $id, $url);
+        if ($idx >= 0) {
+            $cfg['scripts'][$idx] = array_merge($cfg['scripts'][$idx], $entry);
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => $label . '：已更新（' . count($lines) . ' 条线路）');
+        } else {
+            $cfg['scripts'][] = $entry;
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => $label . '：已导入（' . count($lines) . ' 条线路）');
+        }
+        $count++;
+    }
+    return $count;
+}
+
 /**
  * 自动检测上游仓库更新并同步线路
  *

@@ -45,3 +45,6 @@ mx2/config/.env.ini
 /mx2/config/sites.json
 /mx2/config/settings.json
 /mx2/config/mapping.json
+
+# ===== 用户脚本导入导出目录（运行时自动创建，避免污染仓库）=====
+/MXJB/

@@ -1079,21 +1079,32 @@ switch ($type) {
     case 'script_update':
         header('Content-Type: application/json; charset=utf-8');
         $cfg = script_load();
+        $logs = array();
         $sid = trim((string)(isset($_POST['sid']) ? $_POST['sid'] : ''));
         $url = trim((string)(isset($_POST['url']) ? $_POST['url'] : ''));
         $idx = ($sid !== '') ? script_find_index($cfg, $sid) : -1;
         if ($url === '' && $idx >= 0) { $url = trim((string)$cfg['scripts'][$idx]['url']); }
         if ($url === '' && $idx < 0) { $url = trim((string)$cfg['url']); }
         if (!preg_match('~^https?://~i', $url)) {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本地址无效，请填写 http(s) 开头的地址！'), JSON_UNESCAPED_UNICODE));
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '脚本地址无效');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本地址无效，请填写 http(s) 开头的地址！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
         }
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '开始更新：' . $url);
         $js = script_fetch($url, 20);
         if ($js === '') {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '拉取脚本失败，请检查脚本地址或服务器网络！'), JSON_UNESCAPED_UNICODE));
+            $js = script_local_source($idx >= 0 ? $cfg['scripts'][$idx] : array('url' => $url));
+            if ($js !== '') {
+                $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '远程拉取失败，已改用 MXJB/ 本地副本');
+            }
+        }
+        if ($js === '') {
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '拉取失败：远程与本地副本均不可用');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '拉取脚本失败，请检查脚本地址或服务器网络！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
         }
         $lines = script_extract_lines($js);
         if ($lines === false) {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本中未找到解析线路（videoParseList / parseApis），请确认脚本地址！'), JSON_UNESCAPED_UNICODE));
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '未找到解析线路（videoParseList / parseApis）');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本中未找到解析线路（videoParseList / parseApis），请确认脚本地址！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
         }
         list($name, $ver) = script_meta($js);
         if ($idx < 0) { $idx = script_find_index($cfg, '', $url); }
@@ -1111,6 +1122,18 @@ switch ($type) {
         $cfg['scripts'][$idx]['lines_hash'] = md5(json_encode($lines));
         $cfg['scripts'][$idx]['time'] = script_now();
         $cfg['scripts'][$idx]['last_check'] = $cfg['scripts'][$idx]['time'];
+        // 保存脚本源码到源码目录 /MXJB/
+        $srcFile = script_save_source(array(
+            'id'      => $cfg['scripts'][$idx]['id'],
+            'name'    => $cfg['scripts'][$idx]['name'],
+            'url'     => $url,
+            'version' => isset($cfg['scripts'][$idx]['version']) ? $cfg['scripts'][$idx]['version'] : '',
+            'file'    => isset($cfg['scripts'][$idx]['file']) ? $cfg['scripts'][$idx]['file'] : '',
+        ), $js, $lines);
+        if ($srcFile !== '') {
+            $cfg['scripts'][$idx]['file'] = $srcFile;
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '源码已保存：MXJB/' . $srcFile);
+        }
         // 兼容旧字段（取第一个脚本）
         $cfg['url'] = $cfg['scripts'][0]['url'];
         $cfg['name'] = $cfg['scripts'][0]['name'];
@@ -1119,33 +1142,58 @@ switch ($type) {
         script_rebuild_lines($cfg);
         $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
         if (!script_save($cfg)) {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '配置保存失败，请检查 save/ 目录写权限');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
         }
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '解析出 ' . count($lines) . ' 条线路，版本 ' . ($ver !== '' ? $ver : '—') . '，配置已保存');
         $syncMsg = '';
         if ($cfg['auto_sync'] === '1') {
             $added = script_sync_lines($cfg);
-            if ($added > 0) { $syncMsg = "，已同步 {$added} 条到解析线路"; }
+            if ($added > 0) {
+                $syncMsg = "，已同步 {$added} 条到解析线路";
+                $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '已同步 ' . $added . ' 条线路到解析线路');
+            }
         }
         exit(json_encode(array(
             'success' => 1, 'icon' => 6,
             'm' => ($isNew ? '已添加脚本：' : '更新成功：') . '解析出 ' . count($lines) . ' 条线路，脚本版本 ' . ($ver !== '' ? $ver : '—') . $syncMsg,
+            'logs' => $logs,
         ), JSON_UNESCAPED_UNICODE));
 
     //脚本解析 全部脚本一键更新
     case 'script_update_all':
         header('Content-Type: application/json; charset=utf-8');
         $cfg = script_load();
+        $logs = array();
         if (empty($cfg['scripts'])) {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '尚未添加任何脚本，请先添加脚本地址！'), JSON_UNESCAPED_UNICODE));
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '尚未添加任何脚本');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '尚未添加任何脚本，请先添加脚本地址！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
         }
         $ok = 0; $fail = 0;
         foreach ($cfg['scripts'] as $i => $sc) {
+            if (!is_array($sc)) { $fail++; continue; }
             $url = isset($sc['url']) ? trim((string)$sc['url']) : '';
-            if ($url === '') { $fail++; continue; }
+            $label = isset($sc['name']) && trim((string)$sc['name']) !== '' ? trim((string)$sc['name']) : ('脚本' . ($i + 1));
+            if ($url === '') {
+                $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => $label . '：未填写脚本地址，已跳过');
+                $fail++;
+                continue;
+            }
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '开始更新：' . $label . '（' . $url . '）');
             $js = script_fetch($url . (strpos($url, '?') === false ? '?' : '&') . '_t=' . time(), 12);
             if ($js === '') { $js = script_fetch($url, 10); }
+            if ($js === '') {
+                $js = script_local_source($sc);
+                if ($js !== '') {
+                    $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => $label . '：远程拉取失败，已改用 MXJB/ 本地副本');
+                }
+            }
             $lines = ($js !== '') ? script_extract_lines($js) : false;
-            if ($lines === false) { $fail++; continue; }
+            if ($lines === false) {
+                $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => $label . '：拉取或解析失败');
+                $fail++;
+                continue;
+            }
             list($name, $ver) = script_meta($js);
             if ($name !== '') { $cfg['scripts'][$i]['name'] = $name; }
             if ($ver !== '') { $cfg['scripts'][$i]['version'] = $ver; }
@@ -1153,22 +1201,89 @@ switch ($type) {
             $cfg['scripts'][$i]['lines_hash'] = md5(json_encode($lines));
             $cfg['scripts'][$i]['time'] = script_now();
             $cfg['scripts'][$i]['last_check'] = $cfg['scripts'][$i]['time'];
+            $srcFile = script_save_source($cfg['scripts'][$i], $js, $lines);
+            if ($srcFile !== '') { $cfg['scripts'][$i]['file'] = $srcFile; }
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => $label . '：更新成功，' . count($lines) . ' 条线路，版本 ' . ($ver !== '' ? $ver : '—'));
             $ok++;
         }
         script_rebuild_lines($cfg);
         $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
         if (!script_save($cfg)) {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '配置保存失败，请检查 save/ 目录写权限');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '保存失败，请检查 save/ 目录写权限！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
         }
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '全部更新完成：成功 ' . $ok . ' 个，失败 ' . $fail . ' 个，共 ' . count($cfg['lines']) . ' 条线路');
         $syncMsg = '';
         if ($cfg['auto_sync'] === '1') {
             $added = script_sync_lines($cfg);
-            if ($added > 0) { $syncMsg = "，已同步 {$added} 条到解析线路"; }
+            if ($added > 0) {
+                $syncMsg = "，已同步 {$added} 条到解析线路";
+                $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '已同步 ' . $added . ' 条线路到解析线路');
+            }
         }
         exit(json_encode(array(
             'success' => $ok > 0 ? 1 : 0,
             'icon' => $ok > 0 ? 6 : 5,
             'm' => "全部更新完成：成功 {$ok} 个，失败 {$fail} 个，当前共 " . count($cfg['lines']) . ' 条线路' . $syncMsg,
+            'logs' => $logs,
+        ), JSON_UNESCAPED_UNICODE));
+
+    //脚本解析 导出脚本源码与清单到源码目录 /MXJB/
+    case 'script_export':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $logs = array();
+        if (empty($cfg['scripts'])) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '尚未添加任何脚本');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '尚未添加任何脚本，无法导出！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
+        }
+        $n = script_export($cfg, $logs);
+        script_rebuild_lines($cfg);
+        if (!script_save($cfg)) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '配置保存失败，请检查 save/ 目录写权限');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '配置保存失败，请检查 save/ 目录写权限！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array(
+            'success' => $n > 0 ? 1 : 0,
+            'icon'    => $n > 0 ? 6 : 5,
+            'm'       => '导出完成：源码已写入 /MXJB/（成功 ' . $n . ' 个，脚本 ' . count($cfg['scripts']) . ' 个）',
+            'logs'    => $logs,
+        ), JSON_UNESCAPED_UNICODE));
+
+    //脚本解析 从源码目录 /MXJB/ 导入脚本
+    case 'script_import':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $logs = array();
+        $n = script_import($cfg, $logs);
+        if ($n <= 0) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '导入失败：未从 /MXJB/ 读取到可用脚本', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
+        }
+        script_rebuild_lines($cfg);
+        $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
+        $cfg['time'] = script_now();
+        if (!empty($cfg['scripts'])) {
+            $cfg['url'] = isset($cfg['scripts'][0]['url']) ? $cfg['scripts'][0]['url'] : $cfg['url'];
+            $cfg['name'] = isset($cfg['scripts'][0]['name']) ? $cfg['scripts'][0]['name'] : $cfg['name'];
+            $cfg['version'] = isset($cfg['scripts'][0]['version']) ? $cfg['scripts'][0]['version'] : $cfg['version'];
+        }
+        if (!script_save($cfg)) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '配置保存失败，请检查 save/ 目录写权限');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '配置保存失败，请检查 save/ 目录写权限！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
+        }
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '配置已保存，当前共 ' . count($cfg['scripts']) . ' 个脚本、' . count($cfg['lines']) . ' 条线路');
+        $syncMsg = '';
+        if ($cfg['auto_sync'] === '1') {
+            $added = script_sync_lines($cfg);
+            if ($added > 0) {
+                $syncMsg = "，已同步 {$added} 条到解析线路";
+                $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '已同步 ' . $added . ' 条线路到解析线路');
+            }
+        }
+        exit(json_encode(array(
+            'success' => 1, 'icon' => 6,
+            'm'       => '导入完成：处理 ' . $n . ' 个脚本，当前共 ' . count($cfg['scripts']) . ' 个脚本、' . count($cfg['lines']) . ' 条线路' . $syncMsg,
+            'logs'    => $logs,
         ), JSON_UNESCAPED_UNICODE));
 
     //脚本解析 删除脚本
