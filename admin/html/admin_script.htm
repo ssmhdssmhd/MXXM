@@ -266,13 +266,13 @@ $EP_STATUS = script_endpoint_status();
                                 </div>
 
                                 <div class="layui-form-item">
-                                    <label class="layui-form-label">访问密钥</label>
+                                    <label class="layui-form-label">固定访问密钥</label>
                                     <div class="layui-input-block">
                                         <input type="text" name="ep_access_key" id="ep-access-key" autocomplete="off" value="<?php echo htmlspecialchars($EP['access_key']); ?>" class="layui-input" placeholder="留空=不限制；设置后在 url 参数后追加 &key=密钥">
                                     </div>
                                     <div class="sc-hint" style="margin:6px 0 0">
-                                        <span class="sc-tag <?php echo !empty($EP['access_key']) ? 'on' : 'off'; ?>" id="ep-access-key-status"><?php echo !empty($EP['access_key']) ? '已启用密钥鉴权' : '未设置（任何人可调用）'; ?></span>
-                                        设置后调用 /1.php 必须在 <code>url</code> 参数后携带 <code>&amp;key=你的密钥</code>，否则返回 403。这是「不是所有人都能调用」的主要保护手段。
+                                        <span class="sc-tag <?php echo !empty($EP['access_key']) ? 'on' : 'off'; ?>" id="ep-access-key-status"><?php echo !empty($EP['access_key']) ? '已启用密钥鉴权' : '未设置固定密钥'; ?></span>
+                                        固定密钥不会被自动轮换，仅管理员使用；设置后调用 /1.php 必须在 <code>url</code> 参数后携带 <code>&amp;key=你的密钥</code>。给他人使用请到「扩展功能 → 每小时动态密钥」获取当前临时密钥。
                                     </div>
                                 </div>
 
@@ -488,7 +488,7 @@ $EP_STATUS = script_endpoint_status();
                 if ($.trim($(this).val()) !== '') {
                     $s.removeClass('off').addClass('on').text('已启用密钥鉴权（未保存）');
                 } else {
-                    $s.removeClass('on').addClass('off').text('未设置（任何人可调用）');
+                    $s.removeClass('on').addClass('off').text('未设置固定密钥（动态密钥可能仍在生效）');
                 }
             });
 

@@ -1168,15 +1168,18 @@ function sp_resolve_direct($directs, $url, $wd, $vid, $ep) {
 // 配置保存在 save/kanju.config.php（含可选 Token，不入库）
 function script_endpoint_defaults() {
     return array(
-        'off'        => '1',
-        'firewall'   => '1',
-        'repo'       => 'ssmhdssmhd/kanju-api',
-        'branch'     => 'main',
-        'file'       => '1.php',
-        'token'      => '',
-        'access_key' => '',
-        'synced'     => '',
-        'sync_msg'   => '',
+        'off'             => '1',
+        'firewall'        => '1',
+        'repo'            => 'ssmhdssmhd/kanju-api',
+        'branch'          => 'main',
+        'file'            => '1.php',
+        'token'           => '',
+        'access_key'      => '',
+        'dynamic_off'     => '1',
+        'dynamic_key'     => '',
+        'dynamic_expires' => 0,
+        'synced'          => '',
+        'sync_msg'        => '',
     );
 }
 
@@ -1199,9 +1202,48 @@ function script_endpoint_save($cfg) {
     $dir  = dirname($path);
     if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
     $out = "<?php\n// 独立接口配置（含可选 GitHub Token，请勿提交到公开仓库）\nreturn " . var_export($cfg, true) . ";\n";
-    if (@file_put_contents($path, $out) === false) { return false; }
+    if (@file_put_contents($path, $out, LOCK_EX) === false) { return false; }
     @chmod($path, 0600);
     return true;
+}
+
+// 生成指定长度的随机字母数字密钥，排除 0/O、1/l/I 等易混淆字符
+function script_endpoint_random_key($length = 18) {
+    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    $max = strlen($chars) - 1;
+    $key = '';
+    for ($i = 0; $i < $length; $i++) {
+        $key .= $chars[random_int(0, $max)];
+    }
+    return $key;
+}
+
+// 每小时动态密钥：固定密钥只初始化一次；临时密钥到期后生成新的 18 位随机字符
+// 无需计划任务，后台打开扩展页或 /1.php 收到请求时都会自动检查是否到期
+function script_endpoint_hourly_sync($cfg, $force = false, &$error = null) {
+    $error = '';
+    if (!isset($cfg['dynamic_off']) || (string)$cfg['dynamic_off'] !== '1') { return $cfg; }
+
+    $before = $cfg;
+    $changed = false;
+    if (trim((string)(isset($cfg['access_key']) ? $cfg['access_key'] : '')) === '') {
+        $cfg['access_key'] = script_endpoint_random_key(18);
+        $changed = true;
+    }
+
+    $key = isset($cfg['dynamic_key']) ? (string)$cfg['dynamic_key'] : '';
+    $expires = isset($cfg['dynamic_expires']) ? (int)$cfg['dynamic_expires'] : 0;
+    if ($force || !preg_match('/^[A-Za-z0-9]{18}$/', $key) || $expires <= time()) {
+        $cfg['dynamic_key'] = script_endpoint_random_key(18);
+        $cfg['dynamic_expires'] = time() + 3600;
+        $changed = true;
+    }
+
+    if ($changed && !script_endpoint_save($cfg)) {
+        $error = '访问密钥保存失败，请检查 save/ 目录写权限';
+        return $before;
+    }
+    return $cfg;
 }
 
 function script_endpoint_remote_path() {

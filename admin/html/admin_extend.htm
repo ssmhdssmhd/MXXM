@@ -1,0 +1,146 @@
+<?php
+require_once dirname(__FILE__) . '/../../include/class.script.php';
+$EP = script_endpoint_load();
+$EP_KEY_ERROR = '';
+$EP = script_endpoint_hourly_sync($EP, false, $EP_KEY_ERROR);
+$DYNAMIC_ON = isset($EP['dynamic_off']) && (string)$EP['dynamic_off'] === '1';
+$FIXED_KEY = isset($EP['access_key']) ? (string)$EP['access_key'] : '';
+$DYNAMIC_KEY = $DYNAMIC_ON && isset($EP['dynamic_key']) ? (string)$EP['dynamic_key'] : '';
+$DYNAMIC_EXPIRES = isset($EP['dynamic_expires']) ? (int)$EP['dynamic_expires'] : 0;
+$CALL_BASE = 'https://ssmhd.com/1.php?url=官方视频地址';
+$FIXED_URL = $FIXED_KEY !== '' ? $CALL_BASE . '&key=' . $FIXED_KEY : '';
+$DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
+?>
+<?php include "block_header.htm"; ?>
+
+<style>
+.ext-card{border:1px solid #e6e9ef;border-radius:8px;background:#fff;padding:18px;max-width:1100px}
+.ext-card-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.ext-card-title{font-size:18px;font-weight:700;color:#1c2438}
+.ext-tag{font-size:12px;line-height:24px;padding:0 10px;border-radius:12px}
+.ext-tag.on{color:#16b777;background:#e8f9f2}
+.ext-tag.off{color:#8a94a6;background:#f2f4f7}
+.ext-key{font-family:Consolas,Monaco,"Courier New",monospace;letter-spacing:1px;font-weight:700}
+.ext-key-box{padding:12px;border-radius:6px;background:#f7f9fc;margin-bottom:12px}
+.ext-key-label{font-size:13px;font-weight:700;color:#39445a;margin-bottom:6px}
+.ext-call{word-break:break-all;line-height:1.8;color:#526079;font-size:12px}
+.ext-call code{color:#1e9fff;user-select:all}
+.ext-warning{color:#ff5722;font-size:12px;line-height:1.8}
+.ext-muted{color:#8a94a6;font-size:12px;line-height:1.8}
+</style>
+
+<body>
+    <div class="x-nav">
+        <span class="layui-breadcrumb">
+            <a><cite>首页</cite></a>
+            <a><cite>扩展功能</cite></a>
+            <a><cite>每小时动态密钥</cite></a>
+        </span>
+        <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+    </div>
+
+    <div class="x-body">
+        <blockquote class="layui-elem-quote layui-quote-nm">
+            <h2>扩展功能说明：</h2>
+            ① 当前扩展为独立接口 <code>/1.php</code> 提供“固定密钥＋每小时临时密钥”双重鉴权；<br>
+            ② <b>固定密钥由管理员自己保管</b>，不会被自动轮换修改；<b>临时密钥提供给调用方</b>，每隔一小时自动更换为新的 18 位随机字母数字；<br>
+            ③ 两种密钥都能调用接口。临时密钥到期后旧密钥立即失效，固定密钥仍可正常使用；<br>
+            ④ 无需配置计划任务：打开本页面或接口收到请求时会自动检查，到期立即更换；后续其他扩展功能也可在此继续添加。
+        </blockquote>
+
+        <?php if ($EP_KEY_ERROR !== ''): ?>
+        <div class="layui-bg-red" style="padding:10px 14px;margin-bottom:12px"><?php echo htmlspecialchars($EP_KEY_ERROR); ?></div>
+        <?php endif; ?>
+
+        <div class="ext-card">
+            <div class="ext-card-hd">
+                <div class="ext-card-title">扩展 1：每小时动态密钥</div>
+                <span class="ext-tag <?php echo $DYNAMIC_ON ? 'on' : 'off'; ?>"><?php echo $DYNAMIC_ON ? '已启用' : '已停用'; ?></span>
+            </div>
+
+            <form class="layui-form layui-form-pane" action="" id="ext-key-form">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">动态密钥开关</label>
+                    <div class="layui-input-block">
+                        <input type="checkbox" name="dynamic_off" value="1" lay-skin="switch" lay-text="启用|停用" <?php echo $DYNAMIC_ON ? 'checked' : ''; ?>>
+                    </div>
+                    <div class="ext-muted" style="margin-top:6px">停用后临时密钥立即不可调用；只要固定密钥不为空，接口仍要求固定密钥。</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">固定密钥</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="access_key" id="ext-fixed-key" value="<?php echo htmlspecialchars($FIXED_KEY); ?>" class="layui-input ext-key" maxlength="64" placeholder="启用动态密钥时留空会自动生成 18 位固定密钥">
+                    </div>
+                    <div class="ext-muted" style="margin-top:6px">固定不变，仅管理员使用。修改后请保存；留空且启用动态密钥时会自动生成一次，之后不再自动修改。</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <button class="layui-btn" lay-submit="" lay-filter="extKeySave">保存密钥设置</button>
+                    <button type="button" class="layui-btn layui-btn-warm" id="btn-ext-rotate" <?php echo $DYNAMIC_ON ? '' : 'disabled'; ?>>立即更换临时密钥</button>
+                </div>
+            </form>
+
+            <div class="ext-key-box">
+                <div class="ext-key-label">当前临时密钥（给人使用）</div>
+                <?php if ($DYNAMIC_KEY !== ''): ?>
+                <input type="text" class="layui-input ext-key" readonly onclick="this.select()" value="<?php echo htmlspecialchars($DYNAMIC_KEY); ?>">
+                <div class="ext-muted" style="margin-top:6px">下次自动更换时间：<b><?php echo date('Y-m-d H:i:s', $DYNAMIC_EXPIRES); ?></b>（更换后需要把新密钥提供给调用方）</div>
+                <?php else: ?>
+                <div class="ext-warning">动态密钥当前已停用。</div>
+                <?php endif; ?>
+            </div>
+
+            <div class="ext-key-box">
+                <div class="ext-key-label">临时密钥调用示例（推荐对外提供）</div>
+                <?php if ($DYNAMIC_URL !== ''): ?>
+                <div class="ext-call"><code><?php echo htmlspecialchars($DYNAMIC_URL); ?></code></div>
+                <div class="ext-muted">密钥放在 <code>url</code> 参数后，使用 <code>&amp;key=当前临时密钥</code>；密钥每小时变化，旧示例到期后需替换为新密钥。</div>
+                <?php else: ?>
+                <div class="ext-warning">启用动态密钥后显示完整调用地址。</div>
+                <?php endif; ?>
+            </div>
+
+            <div class="ext-key-box" style="margin-bottom:0">
+                <div class="ext-key-label">固定密钥调用示例（仅管理员使用）</div>
+                <?php if ($FIXED_URL !== ''): ?>
+                <div class="ext-call"><code><?php echo htmlspecialchars($FIXED_URL); ?></code></div>
+                <div class="ext-warning">请勿把固定密钥或此调用地址发给普通调用方。</div>
+                <?php else: ?>
+                <div class="ext-warning">固定密钥为空。启用动态密钥并保存后会自动生成。</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    layui.use(['form', 'layer'], function () {
+        var form = layui.form, layer = layui.layer, $ = layui.jquery;
+
+        function tip(ok, msg) {
+            layer.msg(msg, {icon: ok ? 6 : 5, time: 1800});
+        }
+
+        form.on('submit(extKeySave)', function () {
+            $.post('admin.php', $('#ext-key-form').serialize() + '&type=endpoint_key_save', function (d) {
+                tip(d.success == 1, d.m);
+                if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+            }, 'json').fail(function () { tip(false, '请求失败'); });
+            return false;
+        });
+
+        $('#btn-ext-rotate').on('click', function () {
+            if ($(this).prop('disabled')) { return false; }
+            layer.confirm('立即更换后，当前临时密钥马上失效，是否继续？', function (index) {
+                layer.close(index);
+                $.post('admin.php', {type: 'endpoint_key_rotate'}, function (d) {
+                    tip(d.success == 1, d.m);
+                    if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+                }, 'json').fail(function () { tip(false, '请求失败'); });
+            });
+            return false;
+        });
+    });
+    </script>
+</body>
+</html>

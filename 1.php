@@ -1,6 +1,6 @@
 <?php
 /**
- * 独立解析接口：域名/1.php?url=官方视频地址
+ * 独立解析接口：域名/1.php?url=官方视频地址&key=固定密钥或当前临时密钥
  *
  * 业务代码来源：github.com/ssmhdssmhd/kanju-api
  * 由后台「脚本解析 → 独立 PHP 接口」同步并保存到 kanju/remote.php（含登录账号，不入库）
@@ -11,21 +11,8 @@
 
 @set_time_limit(30);
 
-$KANJU = array(
-    'off'      => '1',                        // 接口总开关
-    'firewall' => '1',                        // 是否启用系统防火墙校验
-    'repo'     => 'ssmhdssmhd/kanju-api',     // 代码仓库
-    'branch'   => 'main',
-    'file'     => '1.php',
-    'synced'   => '',
-    'sync_msg' => '',
-);
-
-$__kanju_cfg = dirname(__FILE__) . '/save/kanju.config.php';
-if (is_file($__kanju_cfg)) {
-    $__kanju_saved = include $__kanju_cfg;
-    if (is_array($__kanju_saved)) { $KANJU = array_merge($KANJU, $__kanju_saved); }
-}
+require_once dirname(__FILE__) . '/include/class.script.php';
+$KANJU = script_endpoint_load();
 
 function kanju_out($code, $msg) {
     header('Content-Type: application/json; charset=utf-8');
@@ -37,13 +24,25 @@ if ((string)$KANJU['off'] !== '1') {
     kanju_out(403, '接口已关闭');
 }
 
-// 访问密钥鉴权：配置了 access_key 后，调用必须携带 ?key=密钥，否则返回 403
-// 这是「不是所有人都能调用」的主要保护手段，比来源域名/IP 更灵活
-if (!empty($KANJU['access_key'])) {
+// 固定密钥 + 每小时临时密钥：固定密钥自己保管，临时密钥提供给调用方
+// 临时密钥到期时自动更换，旧的临时密钥立即失效；固定密钥保持有效
+$__kanju_key_error = '';
+$KANJU = script_endpoint_hourly_sync($KANJU, false, $__kanju_key_error);
+if ($__kanju_key_error !== '') {
+    kanju_out(500, $__kanju_key_error);
+}
+
+$__kanju_fixed = isset($KANJU['access_key']) ? (string)$KANJU['access_key'] : '';
+$__kanju_dynamic_on = isset($KANJU['dynamic_off']) && (string)$KANJU['dynamic_off'] === '1';
+$__kanju_dynamic = $__kanju_dynamic_on && isset($KANJU['dynamic_key']) ? (string)$KANJU['dynamic_key'] : '';
+
+if ($__kanju_fixed !== '' || $__kanju_dynamic !== '') {
     $req_key = isset($_GET['key']) ? (string)$_GET['key']
              : (isset($_GET['access_key']) ? (string)$_GET['access_key']
              : (isset($_POST['key']) ? (string)$_POST['key'] : ''));
-    if ($req_key !== (string)$KANJU['access_key']) {
+    $fixed_ok = $__kanju_fixed !== '' && hash_equals($__kanju_fixed, $req_key);
+    $dynamic_ok = $__kanju_dynamic !== '' && hash_equals($__kanju_dynamic, $req_key);
+    if (!$fixed_ok && !$dynamic_ok) {
         kanju_out(403, '接口未授权，请携带正确的访问密钥');
     }
 }

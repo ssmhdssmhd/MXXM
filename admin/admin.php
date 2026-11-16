@@ -23,7 +23,8 @@ header('Content-Type: application/json; charset=utf-8');
 
 //独立接口（/1.php）表单收集与校验
 function script_endpoint_from_post() {
-    $cfg = script_endpoint_defaults();
+    // 以现有配置为基础，保留动态密钥等非本表单字段，避免保存时覆盖
+    $cfg = script_endpoint_load();
     $cfg['off']        = (isset($_POST['ep_off']) && (string)$_POST['ep_off'] === '1') ? '1' : '0';
     $cfg['firewall']   = (isset($_POST['ep_firewall']) && (string)$_POST['ep_firewall'] === '1') ? '1' : '0';
     $cfg['token']      = trim((string)(isset($_POST['ep_token']) ? $_POST['ep_token'] : ''));
@@ -1364,6 +1365,37 @@ switch ($type) {
             'm'       => '导入完成：处理 ' . $n . ' 个脚本，当前共 ' . count($cfg['scripts']) . ' 个脚本、' . count($cfg['lines']) . ' 条线路' . $syncMsg,
             'logs'    => $logs,
         ), JSON_UNESCAPED_UNICODE));
+
+    //扩展功能：保存固定密钥与每小时动态密钥开关
+    case 'endpoint_key_save':
+        $ecfg = script_endpoint_load();
+        $ecfg['access_key'] = trim((string)(isset($_POST['access_key']) ? $_POST['access_key'] : ''));
+        $ecfg['dynamic_off'] = (isset($_POST['dynamic_off']) && (string)$_POST['dynamic_off'] === '1') ? '1' : '0';
+        if ($ecfg['dynamic_off'] === '0' && $ecfg['access_key'] === '') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '停用动态密钥前必须设置固定密钥，否则接口将完全不限制访问'), JSON_UNESCAPED_UNICODE));
+        }
+        if (!script_endpoint_save($ecfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '配置保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
+        }
+        $key_error = '';
+        $ecfg = script_endpoint_hourly_sync($ecfg, false, $key_error);
+        if ($key_error !== '') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => $key_error), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '密钥设置已保存'), JSON_UNESCAPED_UNICODE));
+
+    //扩展功能：立即更换 18 位临时密钥
+    case 'endpoint_key_rotate':
+        $ecfg = script_endpoint_load();
+        if ((string)$ecfg['dynamic_off'] !== '1') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请先启用每小时动态密钥'), JSON_UNESCAPED_UNICODE));
+        }
+        $key_error = '';
+        $ecfg = script_endpoint_hourly_sync($ecfg, true, $key_error);
+        if ($key_error !== '') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => $key_error), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '临时密钥已更换，旧临时密钥已失效'), JSON_UNESCAPED_UNICODE));
 
     //独立接口 保存配置
     case 'endpoint_save':
