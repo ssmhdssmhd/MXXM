@@ -50,6 +50,16 @@ $EP_STATUS = script_endpoint_status();
 .sc-paste{margin-top:12px;border:1px solid #e6e9ef;border-radius:8px;padding:10px 12px;background:#fbfcfe}
 .sc-paste summary{cursor:pointer;font-size:13px;color:#1e9fff;font-weight:600;outline:none}
 .sc-paste textarea{margin-top:8px;height:140px;font:12px/1.6 Consolas,Monaco,"Courier New",monospace}
+.sc-lines-view{padding:16px;background:#fff}
+.sc-lines-summary{margin-bottom:10px;color:#5f6b7f;font-size:13px;line-height:1.7;word-break:break-all}
+.sc-lines-scroll{max-height:calc(80vh - 105px);overflow:auto;border:1px solid #eceff3}
+.sc-lines-table{margin:0;min-width:720px;table-layout:fixed}
+.sc-lines-table th,.sc-lines-table td{word-break:break-all;vertical-align:middle}
+.sc-lines-table .sc-line-no{width:50px;text-align:center}
+.sc-lines-table .sc-line-name{width:150px}
+.sc-lines-table .sc-line-kind,.sc-lines-table .sc-line-state{width:70px;text-align:center}
+.sc-lines-url{font:12px/1.6 Consolas,Monaco,"Courier New",monospace;color:#5f6b7f}
+.sc-lines-empty{padding:40px 12px;text-align:center;color:#98a3b3}
 </style>
 
 <body>
@@ -144,6 +154,7 @@ $EP_STATUS = script_endpoint_status();
                                                 <input type="checkbox" name="sc_soff[<?php echo (int)$si; ?>]" value="1" lay-skin="switch" lay-text="启用|停用" <?php echo $scOn ? 'checked' : ''; ?>>
                                             </div>
                                             <div class="sc-card-btns">
+                                                <button type="button" class="layui-btn layui-btn-xs layui-btn-primary sc-script-lines" data-sid="<?php echo htmlspecialchars($sc['id']); ?>">线路</button>
                                                 <button type="button" class="layui-btn layui-btn-xs sc-script-update" data-sid="<?php echo htmlspecialchars($sc['id']); ?>" data-url="<?php echo htmlspecialchars($sc['url']); ?>">更新</button>
                                                 <button type="button" class="layui-btn layui-btn-xs layui-btn-danger sc-script-del" data-sid="<?php echo htmlspecialchars($sc['id']); ?>">删除</button>
                                             </div>
@@ -636,6 +647,48 @@ $EP_STATUS = script_endpoint_status();
                     }).always(next);
                 }
                 next();
+            });
+
+            //查看当前脚本的原始线路
+            $(document).on('click', '.sc-script-lines', function () {
+                var btn = $(this), scriptName = $.trim(btn.closest('.sc-card').find('.sc-card-name').text());
+                btn.prop('disabled', true).text('加载中…');
+                $.post("admin.php", { type: "script_line_list", sid: btn.data('sid') }, function (d) {
+                    btn.prop('disabled', false).text('线路');
+                    if (d.success != 1) { tip(false, d.m || '线路读取失败'); return; }
+                    var lines = d.lines || [];
+                    var $view = $('<div class="sc-lines-view"></div>');
+                    $view.append($('<div class="sc-lines-summary"></div>').text(scriptName + '：共 ' + lines.length + ' 条线路（仅当前脚本，未合并其他脚本或手动线路）'));
+                    if (!lines.length) {
+                        $view.append($('<div class="sc-lines-empty"></div>').text('当前脚本暂无线路，请点击“更新”重新解析'));
+                    } else {
+                        var $table = $('<table class="layui-table sc-lines-table"><thead><tr><th class="sc-line-no">序号</th><th class="sc-line-name">线路名称</th><th>接口 / 资源 API 地址</th><th class="sc-line-kind">类型</th><th class="sc-line-state">状态</th></tr></thead><tbody></tbody></table>');
+                        $.each(lines, function (i, line) {
+                            var kind = line.direct === '1' ? '直连' : (line.popup === '1' ? '弹窗' : '内嵌');
+                            var state = line.off === '1' ? '启用' : '停用';
+                            var url = line.url || (line.direct === '1' ? '使用全局直连配置' : '—');
+                            var $tr = $('<tr></tr>');
+                            $tr.append($('<td class="sc-line-no"></td>').text(i + 1));
+                            $tr.append($('<td class="sc-line-name"></td>').text(line.name || '（未命名线路）'));
+                            $tr.append($('<td class="sc-lines-url"></td>').text(url));
+                            $tr.append($('<td class="sc-line-kind"></td>').text(kind));
+                            $tr.append($('<td class="sc-line-state"></td>').text(state));
+                            $table.find('tbody').append($tr);
+                        });
+                        $view.append($('<div class="sc-lines-scroll"></div>').append($table));
+                    }
+                    layer.open({
+                        type: 1,
+                        title: '脚本线路（' + lines.length + '）',
+                        area: $(window).width() < 700 ? ['95%', '80%'] : ['900px', '80%'],
+                        shadeClose: true,
+                        scrollbar: false,
+                        content: $view.prop('outerHTML')
+                    });
+                }, "json").fail(function () {
+                    btn.prop('disabled', false).text('线路');
+                    tip(false, '线路读取失败，请检查网络或后台登录状态');
+                });
             });
 
             //更新单个脚本

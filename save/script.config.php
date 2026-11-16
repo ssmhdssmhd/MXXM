@@ -239,7 +239,7 @@ $SCRIPT_CONFIG = array (
   ),
   'auto_update' => '1',
   'interval' => '6',
-  'last_check' => '20261112054646',
+  'last_check' => '20261117070933',
   'lines_hash' => 'e979941b9aac211d9f59e7ba7c566c68',
   'resp' => 
   array (
@@ -294,8 +294,8 @@ $SCRIPT_CONFIG = array (
       'url' => 'https://cdn.jsdelivr.net/gh/88lin/video_vip@main/video_vip.user.js',
       'repo' => 'https://github.com/88lin/video_vip',
       'version' => '3.2.11',
-      'time' => '20261112054636',
-      'last_check' => '20261112054636',
+      'time' => '20261117070932',
+      'last_check' => '20261117070932',
       'lines' => 
       array (
         0 => 
@@ -388,7 +388,7 @@ $SCRIPT_CONFIG = array (
       'name' => '🫧404小站 — 🎬VIP追剧神器 | 完全免费 | 支持多平台 | (电脑/手机/平板...自适应)',
       'url' => 'https://cdn.jsdelivr.net/gh/whyyy-404/video_freevip@main/vip-video.user.js',
       'repo' => 'https://github.com/whyyy-404/video_freevip',
-      'version' => '3.6.3.4',
+      'version' => '3.6.5',
       'lines' => 
       array (
         0 => 
@@ -593,8 +593,8 @@ $SCRIPT_CONFIG = array (
         ),
       ),
       'lines_hash' => '6b58d681cf0f0e4126ea267780ea0319',
-      'time' => '20261112054637',
-      'last_check' => '20261112054637',
+      'time' => '20261117070933',
+      'last_check' => '20261117070933',
       'off' => '1',
     ),
   ),

@@ -1155,6 +1155,36 @@ switch ($type) {
             'm'       => $r['msg'],
         ), JSON_UNESCAPED_UNICODE));
 
+    //脚本解析 查看单个脚本自己的线路（不混入其他脚本或手动线路）
+    case 'script_line_list':
+        header('Content-Type: application/json; charset=utf-8');
+        $cfg = script_load();
+        $sid = trim((string)(isset($_POST['sid']) ? $_POST['sid'] : ''));
+        $idx = script_find_index($cfg, $sid);
+        if ($idx < 0) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本不存在或已被删除！'), JSON_UNESCAPED_UNICODE));
+        }
+        $sc = $cfg['scripts'][$idx];
+        $lines = array();
+        foreach ((array)$sc['lines'] as $it) {
+            if (!is_array($it)) { continue; }
+            $it = script_line_norm($it);
+            $lines[] = array(
+                'name'   => $it['name'],
+                'url'    => $it['url'],
+                'type'   => $it['type'],
+                'direct' => $it['direct'],
+                'popup'  => $it['popup'],
+                'off'    => $it['off'],
+            );
+        }
+        exit(json_encode(array(
+            'success' => 1,
+            'name'    => isset($sc['name']) && trim((string)$sc['name']) !== '' ? trim((string)$sc['name']) : '（未命名脚本）',
+            'total'   => count($lines),
+            'lines'   => $lines,
+        ), JSON_UNESCAPED_UNICODE));
+
     //脚本解析 实时拉取脚本并解析其中的解析线路（支持添加新脚本 / 更新指定脚本）
     case 'script_update':
         header('Content-Type: application/json; charset=utf-8');
