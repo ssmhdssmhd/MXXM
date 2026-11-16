@@ -156,6 +156,20 @@ $CONFIG=array (
         'match' => '0',
         'num' => '80',
       ),
+      8 =>
+      array (
+        'off' => '1',
+        'type' => '0',
+        'for' => '1.php',
+        'val' =>
+        array (
+          0 => '$host',
+        ),
+        'black' => '9',
+        'name' => '保护独立接口(1.php)',
+        'match' => '0',
+        'num' => '50',
+      ),
     ),
     'black' => 
     array (
@@ -221,6 +235,13 @@ $CONFIG=array (
         'action' => '1',
         'info' => 'ZWNobyAi6K+35Yu/6Z2e5rOV6LCD55So77yM6I635Y+W5o6I5p2D6K+36IGU57O75pys56uZ566h55CG5ZGYIjs=',
         'name' => '提示非法调用',
+      ),
+      9 =>
+      array (
+        'type' => '1',
+        'action' => '1',
+        'info' => 'aGVhZGVyKCJIVFRQLzEuMSA0MDMgRm9yYmlkZGVuIik7CmVjaG8ganNvbl9lbmNvZGUoYXJyYXkoImNvZGUiPT40MDMsIm1zZyI9PiLmjqXlj6PmnKrmjojmnYPvvIzor7fpgJrov4fmraPluLjpgJTlvoTorr/pl64iKSwgSlNPTl9VTkVTQ0FQRURfVU5JQ09ERSk7',
+        'name' => '提示接口未授权',
       ),
     ),
     'adblack' => 
