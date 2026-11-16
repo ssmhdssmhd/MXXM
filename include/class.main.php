@@ -243,6 +243,107 @@ function lsReferer($key)
     return preg_match('/' . $key . "/i", parse_url(@$_SERVER['HTTP_REFERER'], PHP_URL_HOST));
 }
 
+//读取解析线路；包装后由同源入口识别 JSON，普通网页接口仍回退原地址
+function mxxm_jx_lines($jx_url, $wrap = false)
+{
+    $root = rtrim(str_replace("\\", "/", FCPATH), '/') . '/';
+    if (file_exists($root . 'save/script.config.php')) {
+        require_once $root . 'include/class.script.php';
+        $SCFG = script_load();
+        if ((string)$SCFG['auto_sync'] === '1') {
+            $jx_url = script_jx_merge($SCFG, $jx_url);
+        }
+    }
+    $lines = array();
+    foreach ((array)$jx_url as $line) {
+        $p = explode('=>', (string)$line, 2);
+        if (!isset($p[1]) || trim($p[1]) === '') { continue; }
+        $api = trim($p[1]);
+        if ($wrap) { $api = GlobalBase::is_dir() . 'jx.php?line=' . count($lines) . '&url='; }
+        $lines[] = array('name' => $p[0], 'url' => $api);
+    }
+    return $lines;
+}
+
+//按原始查询串还原接口地址，保留视频链接中的 & 及解析附加参数
+function mxxm_jx_target($api, $query_string)
+{
+    if (!preg_match('~^https?://~i', $api)) { return ''; }
+    if (!preg_match('/(?:^|&)url=(.*)$/', (string)$query_string, $match) || $match[1] === '') { return ''; }
+    return $api . $match[1];
+}
+
+//仅请求后台已配置的线路，不跟随重定向，避免形成任意外链请求入口
+function mxxm_jx_fetch($url)
+{
+    $ua = isset($_SERVER['HTTP_USER_AGENT']) && $_SERVER['HTTP_USER_AGENT'] !== ''
+        ? $_SERVER['HTTP_USER_AGENT']
+        : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36';
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_ENCODING, '');
+    curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Accept: application/json, text/html;q=0.9, */*;q=0.8'));
+    $body = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if (!is_string($body) || $status < 200 || $status >= 400) { return ''; }
+    return $body;
+}
+
+//只提取 JSON 顶层 url；播放页直接打开，裸媒体地址交给当前播放器
+function mxxm_jx_decode($body)
+{
+    if (!is_string($body) || trim($body) === '') { return false; }
+    $body = trim($body);
+    if (substr($body, 0, 3) === "\xEF\xBB\xBF") { $body = substr($body, 3); }
+    $json = json_decode($body, true);
+    if (!is_array($json) || !isset($json['url']) || !is_string($json['url'])) { return false; }
+    $url = trim($json['url']);
+    if (!preg_match('~^https?://~i', $url) || !filter_var($url, FILTER_VALIDATE_URL)) { return false; }
+    $path = parse_url($url, PHP_URL_PATH);
+    $ext = strtolower(pathinfo($path ? $path : '', PATHINFO_EXTENSION));
+    $type = isset($json['type']) ? strtolower(trim((string)$json['type'])) : '';
+    $media = array('m3u8', 'mp4', 'ogg', 'webm', 'flv', 'mpd');
+    $player = in_array($ext, $media, true) || in_array($type, array('m3u8', 'mp4', 'hls', 'video', 'ogg', 'webm', 'flv', 'dash'), true);
+    return array('url' => $url, 'player' => $player);
+}
+
+//复用 xyplay 的播放器包装，兼容自定义播放器与本地播放器
+function mxxm_jx_player_url($media, $config)
+{
+    $device = lsMobile() ? 'wap' : 'pc';
+    $play = isset($config['play']['play'][$device]) ? $config['play']['play'][$device] : array();
+    $all = isset($config['play']['play']['all']) ? $config['play']['play']['all'] : array();
+    $myplay = isset($play['player']) ? $play['player'] : 'mpv';
+    $autoplay = isset($play['autoplay']) ? $play['autoplay'] : '1';
+    if ($myplay === '自定义') {
+        $diy = isset($play['player_diy']) ? $play['player_diy'] : '';
+        $url = $diy . $media;
+    } else {
+        $fields = array(
+            'live' => '0',
+            'autoplay' => $autoplay,
+            'url' => $media,
+            'logo_off' => isset($all['logo_off']) ? $all['logo_off'] : '0',
+            'logo_style' => isset($all['logo_style']) ? $all['logo_style'] : '',
+            'ver' => isset($all['ver']) && (string)$all['ver'] === '1' ? 'x' : '',
+            'p2pinfo' => isset($all['p2pinfo']) ? $all['p2pinfo'] : '0',
+            'posterr' => isset($config['play']['off']['posterr']) ? $config['play']['off']['posterr'] : '0',
+            'seektime' => isset($all['seektime']) ? $all['seektime'] : '0',
+            'danmaku' => isset($all['danmaku']) ? $all['danmaku'] : '0',
+        );
+        $url = $myplay . '/?' . http_build_query($fields, '', '&');
+    }
+    return GlobalBase::is_dir() . 'player/?url=' . base64_encode($url);
+}
+
 //广告过滤类
 
 class AdBlack

@@ -59,17 +59,7 @@ $JXAUTO = array('off' => '1', 'wait' => '1', 'allin' => '1');
 if (isset($CONFIG['play']['autojx']) && is_array($CONFIG['play']['autojx'])) {
     $JXAUTO = array_merge($JXAUTO, $CONFIG['play']['autojx']);
 }
-$JX_SRC = $CONFIG["jx_url"];
-if (file_exists(FCPATH . 'save/script.config.php')) {
-    require_once FCPATH . '/include/class.script.php';
-    $SCFG = script_load();
-    if ((string)$SCFG['auto_sync'] === '1') { $JX_SRC = script_jx_merge($SCFG, $JX_SRC); }
-}
-$JX_LINES = array();
-foreach ((array)$JX_SRC as $line) {
-    $p = explode('=>', (string)$line, 2);
-    if (isset($p[1]) && trim($p[1]) !== '') { $JX_LINES[] = array('name' => $p[0], 'url' => trim($p[1])); }
-}
+$JX_LINES = mxxm_jx_lines($CONFIG["jx_url"], true);
 $LINE_MODE = isset($CONFIG['play']['line']['all']['mode']) ? $CONFIG['play']['line']['all']['mode'] : 'auto';
 $DEV_LINE  = lsMobile() ? $CONFIG['play']['line']['wap']['line'] : $CONFIG['play']['line']['pc']['line'];
 $JX_START  = 0;

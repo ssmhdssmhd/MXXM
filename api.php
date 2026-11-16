@@ -105,13 +105,10 @@ switch ($tp) {
         if (!isset($CONFIG["play"]['line']['all']['autoline']) || !is_array($CONFIG["play"]['line']['all']['autoline'])) {
             $CONFIG["play"]['line']['all']['autoline'] = array('off' => '0', 'val' => array());
         }
-        //合并全部接口：脚本解析中启用的接口自动并入解析线路，按地址去重
-        $JX_URL = $CONFIG["jx_url"];
-        if (file_exists(FCPATH . '/save/script.config.php')) {
-            require_once FCPATH . '/include/class.script.php';
-            $SCFG = script_load();
-            if ((string)$SCFG['auto_sync'] === '1') { $JX_URL = script_jx_merge($SCFG, $JX_URL); }
-        }
+        //合并全部接口，并通过同源入口兼容 JSON 返回
+        $JX_LINES = mxxm_jx_lines($CONFIG["jx_url"], true);
+        $JX_URL = array();
+        foreach ($JX_LINES as $jxLine) { $JX_URL[] = $jxLine['name'] . '=>' . $jxLine['url']; }
         $CONFIG["play"]['define']['jx_url'] = $JX_URL;
         $CONFIG["play"]['define']['live_url'] = $CONFIG["live_url"];
         //前台解析广告配置（自动识别电脑端 / 移动端）
