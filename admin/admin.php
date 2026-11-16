@@ -24,12 +24,13 @@ header('Content-Type: application/json; charset=utf-8');
 //独立接口（/1.php）表单收集与校验
 function script_endpoint_from_post() {
     $cfg = script_endpoint_defaults();
-    $cfg['off']      = (isset($_POST['ep_off']) && (string)$_POST['ep_off'] === '1') ? '1' : '0';
-    $cfg['firewall'] = (isset($_POST['ep_firewall']) && (string)$_POST['ep_firewall'] === '1') ? '1' : '0';
-    $cfg['token']    = trim((string)(isset($_POST['ep_token']) ? $_POST['ep_token'] : ''));
-    $cfg['repo']     = trim((string)(isset($_POST['ep_repo']) ? $_POST['ep_repo'] : ''));
-    $cfg['branch']   = trim((string)(isset($_POST['ep_branch']) ? $_POST['ep_branch'] : 'main'));
-    $cfg['file']     = trim((string)(isset($_POST['ep_file']) ? $_POST['ep_file'] : '1.php'));
+    $cfg['off']        = (isset($_POST['ep_off']) && (string)$_POST['ep_off'] === '1') ? '1' : '0';
+    $cfg['firewall']   = (isset($_POST['ep_firewall']) && (string)$_POST['ep_firewall'] === '1') ? '1' : '0';
+    $cfg['token']      = trim((string)(isset($_POST['ep_token']) ? $_POST['ep_token'] : ''));
+    $cfg['access_key'] = trim((string)(isset($_POST['ep_access_key']) ? $_POST['ep_access_key'] : ''));
+    $cfg['repo']       = trim((string)(isset($_POST['ep_repo']) ? $_POST['ep_repo'] : ''));
+    $cfg['branch']     = trim((string)(isset($_POST['ep_branch']) ? $_POST['ep_branch'] : 'main'));
+    $cfg['file']       = trim((string)(isset($_POST['ep_file']) ? $_POST['ep_file'] : '1.php'));
 
     if (!preg_match('~^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$~', $cfg['repo'])) {
         return array($cfg, '仓库格式无效，应为 owner/repo，例如 ssmhdssmhd/kanju-api');
@@ -40,6 +41,63 @@ function script_endpoint_from_post() {
         return array($cfg, '脚本文件路径无效');
     }
     return array($cfg, '');
+}
+
+// ===== 配置迁移：确保独立接口 /1.php 的防火墙规则与动作存在 =====
+// save/config.php 是用户运行时配置，在线更新时不会被覆盖，
+// 因此新版本新增的规则/动作需要在此注入到用户现有配置中。
+function mxxm_migrate_blacklist() {
+    global $CONFIG;
+    if (!isset($CONFIG['BLACKLIST']) || !is_array($CONFIG['BLACKLIST'])) { return false; }
+    if (!isset($CONFIG['BLACKLIST']['match'])) { $CONFIG['BLACKLIST']['match'] = array(); }
+    if (!isset($CONFIG['BLACKLIST']['black'])) { $CONFIG['BLACKLIST']['black'] = array(); }
+
+    $changed = false;
+
+    // 1) 确保动作 #9「提示接口未授权」存在
+    $has_action = false;
+    foreach ($CONFIG['BLACKLIST']['black'] as $b) {
+        if (isset($b['name']) && strpos($b['name'], '提示接口未授权') !== false) { $has_action = true; break; }
+    }
+    if (!$has_action) {
+        $CONFIG['BLACKLIST']['black'][] = array(
+            'type'   => '1',
+            'action' => '1',
+            'info'   => 'aGVhZGVyKCJIVFRQLzEuMSA0MDMgRm9yYmlkZGVuIik7CmVjaG8ganNvbl9lbmNvZGUoYXJyYXkoImNvZGUiPT40MDMsIm1zZyI9PiLmjqXlj6PmnKrmjojmnYPvvIzor7fpgJrov4fmraPluLjpgJTlvoTorr/pl64iKSwgSlNPTl9VTkVTQ0FQRURfVU5JQ09ERSk7',
+            'name'   => '提示接口未授权',
+        );
+        $changed = true;
+    }
+
+    // 2) 确保规则 #8「保护独立接口(1.php)」存在
+    $has_rule = false;
+    foreach ($CONFIG['BLACKLIST']['match'] as $m) {
+        if (isset($m['for']) && strpos($m['for'], '1.php') !== false) { $has_rule = true; break; }
+    }
+    if (!$has_rule) {
+        // 取动作索引（指向「提示接口未授权」）
+        $black_idx = 0;
+        foreach ($CONFIG['BLACKLIST']['black'] as $idx => $b) {
+            if (isset($b['name']) && strpos($b['name'], '提示接口未授权') !== false) { $black_idx = $idx; break; }
+        }
+        $CONFIG['BLACKLIST']['match'][] = array(
+            'off'   => '0',
+            'type'  => '3',
+            'for'   => '1.php',
+            'val'   => array('127.0.0.1'),
+            'black' => (string)$black_idx,
+            'name'  => '保护独立接口(1.php)-IP白名单（启用前请先把你的IP加入列表）',
+            'match' => '0',
+            'num'   => '50',
+        );
+        $changed = true;
+    }
+
+    return $changed;
+}
+
+if (mxxm_migrate_blacklist()) {
+    @Main_db::save();
 }
 
 switch ($type) {

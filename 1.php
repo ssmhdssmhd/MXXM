@@ -37,6 +37,17 @@ if ((string)$KANJU['off'] !== '1') {
     kanju_out(403, '接口已关闭');
 }
 
+// 访问密钥鉴权：配置了 access_key 后，调用必须携带 ?key=密钥，否则返回 403
+// 这是「不是所有人都能调用」的主要保护手段，比来源域名/IP 更灵活
+if (!empty($KANJU['access_key'])) {
+    $req_key = isset($_GET['key']) ? (string)$_GET['key']
+             : (isset($_GET['access_key']) ? (string)$_GET['access_key']
+             : (isset($_POST['key']) ? (string)$_POST['key'] : ''));
+    if ($req_key !== (string)$KANJU['access_key']) {
+        kanju_out(403, '接口未授权，请携带正确的访问密钥');
+    }
+}
+
 // 系统防火墙：未通过规则的请求会在此被拦截
 if ((string)$KANJU['firewall'] === '1') {
     define('FCPATH', str_replace('\\', '/', dirname(__FILE__)));

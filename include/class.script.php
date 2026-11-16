@@ -1168,14 +1168,15 @@ function sp_resolve_direct($directs, $url, $wd, $vid, $ep) {
 // 配置保存在 save/kanju.config.php（含可选 Token，不入库）
 function script_endpoint_defaults() {
     return array(
-        'off'      => '1',
-        'firewall' => '1',
-        'repo'     => 'ssmhdssmhd/kanju-api',
-        'branch'   => 'main',
-        'file'     => '1.php',
-        'token'    => '',
-        'synced'   => '',
-        'sync_msg' => '',
+        'off'        => '1',
+        'firewall'   => '1',
+        'repo'       => 'ssmhdssmhd/kanju-api',
+        'branch'     => 'main',
+        'file'       => '1.php',
+        'token'      => '',
+        'access_key' => '',
+        'synced'     => '',
+        'sync_msg'   => '',
     );
 }
 

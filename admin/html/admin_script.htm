@@ -266,6 +266,17 @@ $EP_STATUS = script_endpoint_status();
                                 </div>
 
                                 <div class="layui-form-item">
+                                    <label class="layui-form-label">访问密钥</label>
+                                    <div class="layui-input-block">
+                                        <input type="text" name="ep_access_key" id="ep-access-key" autocomplete="off" value="<?php echo htmlspecialchars($EP['access_key']); ?>" class="layui-input" placeholder="留空=不限制；设置后调用必须带 ?key=密钥">
+                                    </div>
+                                    <div class="sc-hint" style="margin:6px 0 0">
+                                        <span class="sc-tag <?php echo !empty($EP['access_key']) ? 'on' : 'off'; ?>" id="ep-access-key-status"><?php echo !empty($EP['access_key']) ? '已启用密钥鉴权' : '未设置（任何人可调用）'; ?></span>
+                                        设置后调用 /1.php 必须携带 <code>?key=你的密钥</code>，否则返回 403。这是「不是所有人都能调用」的主要保护手段。
+                                    </div>
+                                </div>
+
+                                <div class="layui-form-item">
                                     <label class="layui-form-label">代码仓库</label>
                                     <div class="layui-input-inline" style="width:260px">
                                         <input type="text" name="ep_repo" autocomplete="off" value="<?php echo htmlspecialchars($EP['repo']); ?>" class="layui-input" placeholder="ssmhdssmhd/kanju-api">
@@ -465,6 +476,16 @@ $EP_STATUS = script_endpoint_status();
                     $s.removeClass('off').addClass('on').text('Token 已输入（未保存）');
                 } else {
                     $s.removeClass('on').addClass('off').text('Token 未配置');
+                }
+            });
+
+            //访问密钥输入状态提示
+            $('#ep-access-key').on('input', function () {
+                var $s = $('#ep-access-key-status');
+                if ($.trim($(this).val()) !== '') {
+                    $s.removeClass('off').addClass('on').text('已启用密钥鉴权（未保存）');
+                } else {
+                    $s.removeClass('on').addClass('off').text('未设置（任何人可调用）');
                 }
             });
 
