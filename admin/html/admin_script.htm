@@ -66,7 +66,7 @@ $EP_STATUS = script_endpoint_status();
     <div class="x-body">
         <blockquote class="layui-elem-quote layui-quote-nm">
             <h2>说明：</h2>
-            ① 支持添加多个用户脚本，自动读取其中的解析线路（<code>videoParseList</code> / <code>parseApis</code>），线路按接口地址去重后合并使用；<br>
+            ① 支持添加多个用户脚本，自动读取其中的解析线路（<code>videoParseList</code> / <code>parseApis</code> / <code>RAW_APIS</code>），线路按接口地址去重后合并使用；<br>
             ② 「添加脚本」/「更新」会从脚本地址实时拉取并解析线路，「全部更新」可一次刷新全部脚本，过程日志显示在下方「操作日志」面板；<br>
             ③ 播放入口：<code>域名/plus/script/?url=官方视频地址</code>；直连线路（无损云）会自动搜索资源站并播放 m3u8；<b>直连线路参数必须提供 m3u8 播放源</b>（资源接口返回的播放地址需为 m3u8）；<br>
             ④ JSON 调用接口：<code>域名/plus/mxjx/?url=官方视频地址</code>；自动搜索资源站并返回 JSON，<code>url</code> 为 m3u8 地址，返回字段可在「返回响应设置」中自定义；<br>
@@ -97,7 +97,7 @@ $EP_STATUS = script_endpoint_status();
                             <legend>用户脚本列表（可添加多个，线路自动合并）</legend>
                             <div class="layui-field-box">
                                 <div class="sc-hint">
-                                    支持 <code>videoParseList</code> 与 <code>parseApis</code> 两种线路格式；同一接口地址自动去重，弹窗专用接口会标记「弹窗」并在播放入口跳转打开。
+                                    支持 <code>videoParseList</code>、<code>parseApis</code> 与 <code>RAW_APIS</code> 三种线路格式；同一接口地址自动去重，<code>RAW_APIS</code> 按资源 API 搜索并作为直连线路使用，弹窗专用接口会标记「弹窗」并在播放入口跳转打开。
                                 </div>
 
                                 <div class="sc-tools">

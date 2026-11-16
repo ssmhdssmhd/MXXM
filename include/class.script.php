@@ -128,9 +128,13 @@ function script_line_norm($it) {
     return $it;
 }
 
-// 线路去重键：直连线路按名称，接口线路按地址
+// 线路去重键：资源线路按 API，其他直连线路按名称，接口线路按地址
 function script_line_key($it) {
-    if ((string)$it['direct'] === '1' || $it['url'] === '') { return 'direct:' . $it['name']; }
+    if ((string)$it['direct'] === '1') {
+        if (!empty($it['resource']) && !empty($it['api'])) { return 'resource:' . $it['api']; }
+        return 'direct:' . $it['name'];
+    }
+    if ($it['url'] === '') { return 'direct:' . $it['name']; }
     return 'url:' . $it['url'];
 }
 
@@ -252,7 +256,17 @@ function script_resolve_line($cfg, $line, $url, $wd = '', $vid = '', $ep = 0) {
     );
     if ($line['direct'] === '1') {
         $out['type'] = 'direct';
-        $res = sp_resolve_direct(script_direct_list($cfg), $url, $wd, $vid, (int)$ep);
+        $directs = script_direct_list($cfg);
+        // RAW_APIS 资源线路使用自身 API 搜索，播放器沿用直连参数中的播放器
+        if (!empty($line['resource']) && !empty($line['api'])) {
+            $directs = array(array(
+                'site'     => $directs[0]['site'],
+                'api'      => $line['api'],
+                'player'   => $directs[0]['player'],
+                'resource' => '1',
+            ));
+        }
+        $res = sp_resolve_direct($directs, $url, $wd, $vid, (int)$ep);
         if (!$res['ok']) {
             $out['code'] = (int)$res['code'];
             $out['msg'] = ($out['code'] === 400) ? '未能自动识别片名，请补充片名后重试' : $res['msg'];
@@ -321,14 +335,13 @@ function script_strip_comments($js) {
     return preg_replace('/^[ \t]*\/\/[^\r\n]*/m', '', $js);
 }
 
-// 从脚本中提取一种线路数组（videoParseList / parseApis）并转为线路数组
-function script_parse_lines($js, $key) {
+// 按括号配对截取指定变量后的数组字面量（忽略字符串内的括号）
+function script_js_array($js, $key) {
     $pos = strpos($js, $key);
     if ($pos === false) { return false; }
     $open = strpos($js, '[', $pos);
     if ($open === false) { return false; }
 
-    // 按括号配对截取数组字面量（忽略字符串内的括号）
     $len = strlen($js); $depth = 0; $inStr = false; $quote = ''; $end = -1;
     for ($i = $open; $i < $len; $i++) {
         $ch = $js[$i];
@@ -342,8 +355,13 @@ function script_parse_lines($js, $key) {
         elseif ($ch === ']') { $depth--; if ($depth === 0) { $end = $i; break; } }
     }
     if ($end < 0) { return false; }
+    return substr($js, $open, $end - $open + 1);
+}
 
-    $raw = substr($js, $open, $end - $open + 1);
+// 从脚本中提取一种线路数组（videoParseList / parseApis）并转为线路数组
+function script_parse_lines($js, $key) {
+    $raw = script_js_array($js, $key);
+    if ($raw === false) { return false; }
     // 去掉尾随逗号（部分脚本的数组字面量允许尾逗号，但 JSON 不允许）
     $clean = preg_replace('/,\s*([\]}])/', '$1', $raw);
     $arr = json_decode($clean, true);
@@ -377,14 +395,61 @@ function script_parse_lines($js, $key) {
     return empty($lines) ? false : $lines;
 }
 
-// 提取脚本中的解析线路（兼容 videoParseList 与 parseApis 两种格式）
+// 读取简单 JS 对象中的字符串属性，不执行脚本代码
+function script_js_prop($obj, $key) {
+    $pattern = '~(?:^|[,\{])\s*' . preg_quote($key, '~')
+        . '\s*:\s*(?:"((?:\\\\.|[^"\\\\])*)"|\'((?:\\\\.|[^\'\\\\])*)\')~s';
+    if (!preg_match($pattern, $obj, $m)) { return ''; }
+    $value = (isset($m[1]) && $m[1] !== '') ? $m[1] : (isset($m[2]) ? $m[2] : '');
+    return trim(str_replace(array('\\"', "\\'", '\\\\'), array('"', "'", '\\'), $value));
+}
+
+// 读取 atob("...") 属性中的 Base64 字符串
+function script_js_atob($obj, $key) {
+    $pattern = '~(?:^|[,\{])\s*' . preg_quote($key, '~')
+        . '\s*:\s*atob\(\s*(?:"([A-Za-z0-9+\/=]+)"|\'([A-Za-z0-9+\/=]+)\')\s*\)~s';
+    if (!preg_match($pattern, $obj, $m)) { return ''; }
+    return isset($m[1]) && $m[1] !== '' ? $m[1] : (isset($m[2]) ? $m[2] : '');
+}
+
+// 提取 RAW_APIS：{ n: "名称", u: atob("Base64 资源 API") }
+function script_parse_raw_apis($js) {
+    $raw = script_js_array($js, 'RAW_APIS');
+    if ($raw === false || !preg_match_all('~\{[^{}]*\}~s', $raw, $objects)) { return false; }
+    $lines = array();
+    $seen = array();
+    foreach ($objects[0] as $obj) {
+        $name = script_js_prop($obj, 'n');
+        if ($name === '') { continue; }
+        $encoded = script_js_atob($obj, 'u');
+        $api = $encoded !== '' ? base64_decode($encoded, true) : script_js_prop($obj, 'u');
+        if (!is_string($api)) { continue; }
+        $api = trim($api);
+        if (!preg_match('~^https?://~i', $api) || !filter_var($api, FILTER_VALIDATE_URL) || isset($seen[$api])) { continue; }
+        $seen[$api] = true;
+        $lines[] = array(
+            'name'     => $name,
+            'url'      => $api,
+            'api'      => $api,
+            'type'     => '1',
+            'direct'   => '1',
+            'resource' => '1',
+            'off'      => '1',
+            'popup'    => '0',
+            'clean'    => '0',
+        );
+    }
+    return empty($lines) ? false : $lines;
+}
+
+// 提取脚本中的解析线路（兼容 videoParseList、parseApis 与 RAW_APIS）
 function script_extract_lines($js) {
     $js = script_strip_comments($js);
     foreach (array('videoParseList', 'parseApis') as $key) {
         $lines = script_parse_lines($js, $key);
         if ($lines !== false) { return $lines; }
     }
-    return false;
+    return script_parse_raw_apis($js);
 }
 
 // 当前时间（统一使用北京时间 YmdHis）
@@ -1047,8 +1112,27 @@ function sp_search($site, $wd) {
     return $out;
 }
 
+// 通过资源 API 搜索候选（ac=list，失败时用 ac=detail 兜底）
+function sp_api_search($api, $wd) {
+    $out = array();
+    foreach (array('list', 'detail') as $ac) {
+        $q = rtrim($api, '/') . '/?' . http_build_query(array('ac' => $ac, 'wd' => $wd));
+        $j = json_decode(sp_http($q, 10), true);
+        $list = (is_array($j) && !empty($j['list']) && is_array($j['list'])) ? $j['list'] : array();
+        foreach (array_slice($list, 0, 60) as $it) {
+            if (!is_array($it) || empty($it['vod_id']) || !isset($it['vod_name'])) { continue; }
+            $out[] = array('id' => (int)$it['vod_id'], 'name' => (string)$it['vod_name']);
+        }
+        if (!empty($out)) { break; }
+    }
+    usort($out, function ($a, $b) use ($wd) {
+        return sp_score($b['name'], $wd) - sp_score($a['name'], $wd);
+    });
+    return $out;
+}
+
 // 取资源详情中的剧集列表
-function sp_episodes($api, $vid, &$vodName = null) {
+function sp_episodes($api, $vid, &$vodName = null, $last = false) {
     $q = rtrim($api, '/') . '/?' . http_build_query(array('ac' => 'detail', 'ids' => $vid));
     $json = sp_http($q, 12);
     $j = json_decode($json, true);
@@ -1057,8 +1141,9 @@ function sp_episodes($api, $vid, &$vodName = null) {
     $play = isset($vod['vod_play_url']) ? (string)$vod['vod_play_url'] : '';
     if ($play === '') { return array(); }
     $groups = explode('$$$', $play);
+    $group = $last ? end($groups) : $groups[0];
     $eps = array();
-    foreach (explode('#', $groups[0]) as $seg) {
+    foreach (explode('#', $group) as $seg) {
         $i = strpos($seg, '$');
         $name = $i > 0 ? trim(substr($seg, 0, $i)) : '';
         $link = $i > 0 ? trim(substr($seg, $i + 1)) : trim($seg);
@@ -1117,7 +1202,9 @@ function sp_resolve_direct($directs, $url, $wd, $vid, $ep) {
         $tryVid = $vid;
         $tryTitle = $title;
         if ($tryVid === '') {
-            $cands = sp_search($direct['site'], $tryTitle);
+            $cands = !empty($direct['resource'])
+                ? sp_api_search($direct['api'], $tryTitle)
+                : sp_search($direct['site'], $tryTitle);
             if (empty($cands)) {
                 $lastCode = 404;
                 $lastMsg = '资源站未搜索到影片';
@@ -1128,7 +1215,7 @@ function sp_resolve_direct($directs, $url, $wd, $vid, $ep) {
         }
 
         $vodName = '';
-        $eps = sp_episodes($direct['api'], $tryVid, $vodName);
+        $eps = sp_episodes($direct['api'], $tryVid, $vodName, !empty($direct['resource']));
         if (empty($eps)) {
             $lastCode = 404;
             $lastMsg = '资源详情获取失败';

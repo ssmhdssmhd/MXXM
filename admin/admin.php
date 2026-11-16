@@ -1183,8 +1183,8 @@ switch ($type) {
         }
         $lines = script_extract_lines($js);
         if ($lines === false) {
-            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '未找到解析线路（videoParseList / parseApis）');
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本中未找到解析线路（videoParseList / parseApis），请确认脚本地址！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '未找到解析线路（videoParseList / parseApis / RAW_APIS）');
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '脚本中未找到解析线路（videoParseList / parseApis / RAW_APIS），请确认脚本地址！', 'logs' => $logs), JSON_UNESCAPED_UNICODE));
         }
         list($name, $ver) = script_meta($js);
         if ($idx < 0) { $idx = script_find_index($cfg, '', $url); }
