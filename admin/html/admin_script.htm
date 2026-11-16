@@ -32,7 +32,7 @@ $EP_STATUS = script_endpoint_status();
 .sc-card-btns .layui-btn{margin:0}
 .sc-empty{padding:34px 16px;text-align:center;color:#98a3b3;border:1px dashed #dfe4ec;border-radius:8px;background:#fbfcfe;margin-bottom:12px}
 .sc-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;clear:both}
-.sc-tools .sc-url{flex:1 1 300px;min-width:0;max-width:100%}
+.sc-tools .sc-url{flex:1 1 100%;min-width:0;max-width:100%;height:120px;resize:vertical;font:12px/1.6 Consolas,Monaco,"Courier New",monospace}
 .sc-tools .layui-btn{margin:0}
 .sc-hint{color:#8a94a6;font-size:12px;line-height:1.7;margin:0 0 10px;clear:both}
 .sc-grid{clear:both}
@@ -101,12 +101,13 @@ $EP_STATUS = script_endpoint_status();
                                 </div>
 
                                 <div class="sc-tools">
-                                    <input type="text" id="sc-new-url" autocomplete="off" class="layui-input sc-url" placeholder="新脚本地址，如 https://cdn.jsdelivr.net/gh/whyyy-404/video_freevip@main/vip-video.user.js">
-                                    <button type="button" class="layui-btn layui-btn-normal" id="sc-new-add">＋ 添加脚本</button>
+                                    <textarea id="sc-new-url" spellcheck="false" class="layui-textarea sc-url" placeholder="批量添加脚本：每行一个 http(s) 脚本地址，例如：&#10;https://scriptcat.org/scripts/code/7671/script.user.js&#10;https://scriptcat.org/scripts/code/7648/script.user.js"></textarea>
+                                    <button type="button" class="layui-btn layui-btn-normal" id="sc-new-add">＋ 批量添加</button>
                                     <button type="button" class="layui-btn layui-btn-warm" id="btn-sc-update-all">全部更新</button>
                                     <button type="button" class="layui-btn layui-btn-primary" id="btn-sc-import">导入</button>
                                     <button type="button" class="layui-btn layui-btn-primary" id="btn-sc-export">导出</button>
                                 </div>
+                                <div class="sc-hint">支持单条或批量添加，每行一个地址；自动忽略空行与重复脚本，逐条拉取并显示进度，失败项不会中断后续添加，处理期间请勿关闭页面。</div>
 
                                 <?php if (empty($SC['scripts'])): ?>
                                 <div class="sc-empty">暂无脚本，请在上方填写脚本地址并点击「添加脚本」，或把 <code>.user.js</code> 放入 <code>/MXJB/</code> 后点击「导入」</div>
@@ -573,23 +574,68 @@ $EP_STATUS = script_endpoint_status();
                 return false;
             });
 
-            //添加脚本：拉取脚本地址并解析线路
-            $('#sc-new-add').on('click', function () {
-                var url = $.trim($('#sc-new-url').val());
-                if (!/^https?:\/\//i.test(url)) { tip(false, '请填写 http(s) 开头的脚本地址'); return; }
-                var btn = $(this).prop('disabled', true).text('添加中…');
-                scLogStart('添加脚本：' + url);
-                $.post("admin.php", { type: "script_update", url: url }, function (d) {
-                    btn.prop('disabled', false).text('＋ 添加脚本');
-                    scLogRender(d.logs, d.m);
-                    scLogFinish(d.success == 1, d.m);
-                    tip(d.success == 1, d.m);
-                    if (d.success == 1) { scReloadSoon(); }
-                }, "json").fail(function () {
-                    btn.prop('disabled', false).text('＋ 添加脚本');
-                    scLogFinish(false, '请求失败，请检查网络或后台登录状态');
-                    tip(false, '请求失败');
+            //拆分批量地址：每行一个，保留无效项用于日志与统计
+            function scParseBatchUrls(text) {
+                var result = { urls: [], invalid: [], duplicates: [] }, seen = {};
+                String(text || '').split(/\r?\n/).forEach(function (line) {
+                    var url = line.trim();
+                    if (!url) { return; }
+                    if (!/^https?:\/\/\S+$/i.test(url)) { result.invalid.push(url); return; }
+                    if (seen[url]) { result.duplicates.push(url); return; }
+                    seen[url] = true;
+                    result.urls.push(url);
                 });
+                return result;
+            }
+
+            //添加脚本：单条走同一队列，批量逐条处理，失败后继续
+            $('#sc-new-add').on('click', function () {
+                var raw = $('#sc-new-url').val();
+                if ($.trim(raw) === '') { tip(false, '请粘贴脚本地址，每行一个'); return; }
+                var parsed = scParseBatchUrls(raw), existing = {};
+                $('.sc-script-update').each(function () {
+                    var url = $.trim($(this).attr('data-url') || '');
+                    if (url) { existing[url] = true; }
+                });
+                var queue = [], skipped = parsed.duplicates.length;
+                $.each(parsed.urls, function (i, url) {
+                    if (existing[url]) { skipped++; return; }
+                    queue.push(url);
+                });
+                var total = queue.length + parsed.invalid.length + skipped;
+                var btn = $(this).prop('disabled', true).text('准备添加…');
+                scLogStart('开始添加脚本：共 ' + total + ' 个地址，有效新地址 ' + queue.length + ' 个');
+                $.each(parsed.invalid, function (i, url) { scLogAppend(0, '地址无效，已跳过：' + url); });
+                $.each(parsed.duplicates, function (i, url) { scLogAppend(2, '输入地址重复，已跳过：' + url); });
+                $.each(parsed.urls, function (i, url) {
+                    if (existing[url]) { scLogAppend(2, '脚本已存在，已跳过：' + url); }
+                });
+
+                var ok = 0, fail = parsed.invalid.length, current = 0;
+                function finish() {
+                    btn.prop('disabled', false).text('＋ 批量添加');
+                    var msg = '批量添加完成：成功 ' + ok + ' 个，失败 ' + fail + ' 个，重复 ' + skipped + ' 个，共 ' + total + ' 个地址';
+                    scLogFinish(ok > 0, msg);
+                    tip(ok > 0, msg);
+                    if (ok > 0) { scReloadSoon(); }
+                }
+                if (!queue.length) { finish(); return; }
+
+                function next() {
+                    if (current >= queue.length) { finish(); return; }
+                    var pos = current + 1, url = queue[current];
+                    current++;
+                    btn.text('添加中 ' + pos + '/' + queue.length + '…');
+                    scLogAppend(1, '[' + pos + '/' + queue.length + '] 开始添加：' + url);
+                    $.post("admin.php", { type: "script_update", url: url }, function (d) {
+                        scLogRender(d.logs, d.m);
+                        if (d.success == 1) { ok++; } else { fail++; }
+                    }, "json").fail(function () {
+                        fail++;
+                        scLogAppend(0, '[' + pos + '/' + queue.length + '] 请求失败，继续下一个：' + url);
+                    }).always(next);
+                }
+                next();
             });
 
             //更新单个脚本
