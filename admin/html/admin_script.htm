@@ -268,11 +268,11 @@ $EP_STATUS = script_endpoint_status();
                                 <div class="layui-form-item">
                                     <label class="layui-form-label">访问密钥</label>
                                     <div class="layui-input-block">
-                                        <input type="text" name="ep_access_key" id="ep-access-key" autocomplete="off" value="<?php echo htmlspecialchars($EP['access_key']); ?>" class="layui-input" placeholder="留空=不限制；设置后调用必须带 ?key=密钥">
+                                        <input type="text" name="ep_access_key" id="ep-access-key" autocomplete="off" value="<?php echo htmlspecialchars($EP['access_key']); ?>" class="layui-input" placeholder="留空=不限制；设置后在 url 参数后追加 &key=密钥">
                                     </div>
                                     <div class="sc-hint" style="margin:6px 0 0">
                                         <span class="sc-tag <?php echo !empty($EP['access_key']) ? 'on' : 'off'; ?>" id="ep-access-key-status"><?php echo !empty($EP['access_key']) ? '已启用密钥鉴权' : '未设置（任何人可调用）'; ?></span>
-                                        设置后调用 /1.php 必须携带 <code>?key=你的密钥</code>，否则返回 403。这是「不是所有人都能调用」的主要保护手段。
+                                        设置后调用 /1.php 必须在 <code>url</code> 参数后携带 <code>&amp;key=你的密钥</code>，否则返回 403。这是「不是所有人都能调用」的主要保护手段。
                                     </div>
                                 </div>
 
@@ -311,7 +311,10 @@ $EP_STATUS = script_endpoint_status();
                                 </div>
 
                                 <div class="sc-hint" style="margin-bottom:0">
-                                    调用示例：<code>https://你的域名/1.php?url=官方视频地址</code>，可用 <code>&amp;ep=12</code> 指定集数、<code>&amp;line=线路名</code> 指定线路。
+                                    调用方法：把官方视频地址放在 <code>url=</code> 后面；未设置访问密钥时直接调用，已设置访问密钥时必须在后面追加 <code>&amp;key=你的访问密钥</code>。<br>
+                                    未设置密钥：<code>https://ssmhd.com/1.php?url=官方视频地址</code><br>
+                                    已设置密钥：<code>https://ssmhd.com/1.php?url=官方视频地址&amp;key=你的访问密钥</code><br>
+                                    还可用 <code>&amp;ep=12</code> 指定集数、<code>&amp;line=线路名</code> 指定线路，例如：<code>https://ssmhd.com/1.php?url=官方视频地址&amp;key=你的访问密钥&amp;ep=12</code>。
                                 </div>
                             </div>
                         </fieldset>
