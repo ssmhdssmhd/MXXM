@@ -158,7 +158,7 @@ $CONFIG=array (
       ),
       8 =>
       array (
-        'off' => '1',
+        'off' => '0',
         'type' => '0',
         'for' => '1.php',
         'val' =>
@@ -166,7 +166,7 @@ $CONFIG=array (
           0 => '$host',
         ),
         'black' => '9',
-        'name' => '保护独立接口(1.php)',
+        'name' => '保护独立接口(1.php)（默认停用：直接调用API无来源会被拦截，按需启用）',
         'match' => '0',
         'num' => '50',
       ),
