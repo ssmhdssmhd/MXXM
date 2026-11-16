@@ -4,6 +4,8 @@ require_once dirname(__FILE__) . '/../../include/class.script.php';
 $SC = script_load();
 $directList = script_direct_list($SC);
 $EP = script_endpoint_load();
+// 本地已保存的接口代码若含 PHP 7.1+ 语法，打开本页时自动降级修复，避免服务器解析报错
+$EP_FIX = script_endpoint_local_compat();
 $EP_STATUS = script_endpoint_status();
 ?>
 <?php include "block_header.htm"; ?>
@@ -290,6 +292,11 @@ $EP_STATUS = script_endpoint_status();
                                         ｜ 最近同步：<?php echo htmlspecialchars($EP['synced'] !== '' ? $EP['synced'] : '—'); ?>
                                         <?php if ($EP['sync_msg'] !== ''): ?>｜ <?php echo htmlspecialchars($EP['sync_msg']); ?><?php endif; ?>
                                     </span>
+                                    <?php if (!empty($EP_FIX['msg'])): ?>
+                                    <div class="sc-hint" style="margin:8px 0 0;color:<?php echo $EP_FIX['changed'] ? '#16b777' : '#ff5722'; ?>">
+                                        <?php echo htmlspecialchars($EP_FIX['msg']); ?>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
 
                                 <div class="sc-hint" style="margin-bottom:0">

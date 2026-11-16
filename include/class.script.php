@@ -1226,11 +1226,138 @@ function script_endpoint_fallback() {
         . "echo json_encode(array('code' => 503, 'msg' => '接口代码未同步，请到后台脚本设置同步 kanju-api 代码'), JSON_UNESCAPED_UNICODE);\n";
 }
 
-function script_endpoint_write_remote($code) {
+/* ===== PHP 7.0 兼容处理 =====
+ * kanju-api 源码使用了 PHP 7.1+ 语法（?string / void / 箭头函数 / 短数组解构）
+ * 与 PHP 8 函数（str_contains），在 PHP 7.0 服务器上会直接解析失败。
+ * 写入 kanju/remote.php 前统一降级，保证同步下来的代码可以直接运行。
+ */
+
+// 箭头函数 fn(...) => 表达式 转为 function (...) { return 表达式; }
+function script_endpoint_arrow_to_closure($code) {
+    $len = strlen($code);
+    $out = '';
+    $pos = 0;
+    while (($p = strpos($code, 'fn', $pos)) !== false) {
+        $before = $p > 0 ? $code[$p - 1] : '';
+        $after  = ($p + 2 < $len) ? $code[$p + 2] : '';
+        if (($before !== '' && preg_match('/[A-Za-z0-9_$]/', $before)) || ($after !== '' && preg_match('/[A-Za-z0-9_]/', $after))) {
+            $out .= substr($code, $pos, $p + 2 - $pos);
+            $pos = $p + 2;
+            continue;
+        }
+        // 参数括号
+        $i = $p + 2;
+        while ($i < $len && ($code[$i] === ' ' || $code[$i] === "\t")) { $i++; }
+        if ($i >= $len || $code[$i] !== '(') {
+            $out .= substr($code, $pos, $p + 2 - $pos);
+            $pos = $p + 2;
+            continue;
+        }
+        $depth = 0;
+        $j = $i;
+        for (; $j < $len; $j++) {
+            if ($code[$j] === '(') { $depth++; }
+            elseif ($code[$j] === ')') { $depth--; if ($depth === 0) { break; } }
+        }
+        $args = substr($code, $i + 1, $j - $i - 1);
+        $k = $j + 1;
+        while ($k < $len && ($code[$k] === ' ' || $code[$k] === "\t" || $code[$k] === "\n")) { $k++; }
+        if ($k + 1 >= $len || substr($code, $k, 2) !== '=>') {
+            $out .= substr($code, $pos, $p + 2 - $pos);
+            $pos = $p + 2;
+            continue;
+        }
+        // 表达式结束位置：括号深度为 0 时的 , ; )
+        $e = $k + 2;
+        $d = 0;
+        $quote = '';
+        for (; $e < $len; $e++) {
+            $ch = $code[$e];
+            if ($quote !== '') {
+                if ($ch === '\\') { $e++; continue; }
+                if ($ch === $quote) { $quote = ''; }
+                continue;
+            }
+            if ($ch === "'" || $ch === '"') { $quote = $ch; continue; }
+            if ($ch === '(' || $ch === '[' || $ch === '{') { $d++; continue; }
+            if ($ch === ')' || $ch === ']' || $ch === '}') {
+                if ($d === 0) { break; }
+                $d--;
+                continue;
+            }
+            if ($d === 0 && ($ch === ',' || $ch === ';')) { break; }
+        }
+        $expr = trim(substr($code, $k + 2, $e - $k - 2));
+        $out .= substr($code, $pos, $p - $pos);
+        $out .= 'function (' . $args . ') { return (' . $expr . '); }';
+        $pos = $e;
+    }
+    $out .= substr($code, $pos);
+    return $out;
+}
+
+// 把 PHP 7.1+ / PHP 8 语法降级为 PHP 7.0 可解析写法
+function script_endpoint_php70_compat($code) {
+    if (stripos($code, '<?php') === false) { return $code; }
+
+    // 可空参数类型：?string $body → string $body（带默认值 null 时 PHP 7.0 即视为可空）
+    $code = preg_replace('/\?\s*(string|int|float|bool|array|object|iterable|callable|self)\s+(&\s*)?(\$[A-Za-z_])/', '$1 $2$3', $code);
+    // 可空返回类型：function f(): ?array → function f()
+    $code = preg_replace('/\)\s*:\s*\?\s*(string|int|float|bool|array|object|iterable|callable|self)\s*(?=[{;])/', ') ', $code);
+    // void 返回类型：function f(): void → function f()
+    $code = preg_replace('/\)\s*:\s*void\s*(?=[{;])/', ') ', $code);
+    // 箭头函数
+    $code = script_endpoint_arrow_to_closure($code);
+    // 短数组解构：[$a, $b] = ... / foreach (... as [$a, $b])
+    $code = preg_replace('/^([ \t]*)\[([^\[\]]*)\]\s*=/m', '$1list($2) =', $code);
+    $code = preg_replace('/\bas\s*\[([^\[\]]*)\]/', 'as list($1)', $code);
+
+    // PHP 8 函数补丁（仅在用到且未添加过时插入，且必须位于 declare(strict_types=1) 之后）
+    $hasShim = strpos($code, "if (!function_exists('str_contains'))") !== false;
+    if (!$hasShim && preg_match('/\b(str_contains|str_starts_with|str_ends_with|array_key_first|array_key_last)\s*\(/', $code)) {
+        $shim = "/* PHP 7.0 兼容补丁（后台同步代码时自动添加） */\n"
+            . "if (!function_exists('str_contains')) { function str_contains(\$h, \$n) { return \$n === '' || strpos(\$h, \$n) !== false; } }\n"
+            . "if (!function_exists('str_starts_with')) { function str_starts_with(\$h, \$n) { return \$n === '' || strncmp(\$h, \$n, strlen(\$n)) === 0; } }\n"
+            . "if (!function_exists('str_ends_with')) { function str_ends_with(\$h, \$n) { return \$n === '' || substr(\$h, -strlen(\$n)) === \$n; } }\n"
+            . "if (!function_exists('array_key_first')) { function array_key_first(\$a) { foreach (\$a as \$k => \$v) { return \$k; } return null; } }\n"
+            . "if (!function_exists('array_key_last')) { function array_key_last(\$a) { return \$a ? key(array_slice(\$a, -1, 1, true)) : null; } }\n";
+        // 补丁必须放在 declare(strict_types=1) 之后（否则严格模式声明会失效报错）
+        if (preg_match('/declare\s*\(\s*strict_types\s*=\s*1\s*\)\s*;/i', $code, $m, PREG_OFFSET_CAPTURE)) {
+            $at = $m[0][1] + strlen($m[0][0]);
+            $code = substr($code, 0, $at) . "\n" . $shim . substr($code, $at);
+        } else {
+            $p = stripos($code, '<?php');
+            $code = substr($code, 0, $p + 5) . "\n" . $shim . substr($code, $p + 5);
+        }
+    }
+    return $code;
+}
+
+// 检测并修复本地已保存的接口代码（PHP 7.0 服务器无法解析 ?string / : void / 箭头函数等写法）
+function script_endpoint_local_compat() {
+    $file = script_endpoint_remote_path();
+    if (!is_file($file)) { return array('changed' => false, 'msg' => ''); }
+    $code = @file_get_contents($file);
+    if (!is_string($code) || stripos($code, '<?php') === false) { return array('changed' => false, 'msg' => ''); }
+    $fixed = script_endpoint_php70_compat($code);
+    if ($fixed === $code) { return array('changed' => false, 'msg' => ''); }
+    if (@file_put_contents($file, $fixed) === false) {
+        return array('changed' => false, 'msg' => '本地代码包含 PHP 7.1+ 语法，自动修复失败，请检查 kanju/ 目录写权限');
+    }
+    @chmod($file, 0600);
+    return array('changed' => true, 'msg' => '本地代码包含 PHP 7.1+ 语法，已自动转换为 PHP 7.0 兼容写法');
+}
+
+function script_endpoint_write_remote($code, &$compat = null) {
     $file = script_endpoint_remote_path();
     $dir  = dirname($file);
     if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
     if (!is_dir($dir)) { return false; }
+    $compat = false;
+    if (stripos($code, '<?php') !== false) {
+        $fixed = script_endpoint_php70_compat($code);
+        if ($fixed !== $code) { $compat = true; $code = $fixed; }
+    }
     if (@file_put_contents($file, $code) === false) { return false; }
     @chmod($file, 0600);
     return true;
@@ -1312,10 +1439,14 @@ function script_endpoint_sync(&$cfg, &$logs) {
 
     $ok = false;
     if ($code !== '') {
-        if (script_endpoint_write_remote($code)) {
+        $compat = false;
+        if (script_endpoint_write_remote($code, $compat)) {
             $cfg['synced']   = script_now();
             $cfg['sync_msg'] = '已从 ' . $repo . ' 同步';
             $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '代码已保存：kanju/remote.php');
+            if ($compat) {
+                $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '已自动转换为 PHP 7.0 兼容写法（可空类型/void/箭头函数/短数组解构/str_contains）');
+            }
             $ok = true;
         } else {
             $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '代码保存失败，请检查 kanju/ 目录写权限');
@@ -1348,12 +1479,16 @@ function script_endpoint_install($code, &$cfg, &$logs) {
         $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '代码过短（' . strlen($code) . ' 字节），请粘贴完整的 1.php 代码');
         return false;
     }
-    if (!script_endpoint_write_remote($code)) {
+    $compat = false;
+    if (!script_endpoint_write_remote($code, $compat)) {
         $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '代码保存失败，请检查 kanju/ 目录写权限');
         return false;
     }
     $cfg['synced']   = script_now();
     $cfg['sync_msg'] = '已手动安装代码';
     $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '代码已保存：kanju/remote.php（' . strlen($code) . ' 字节）');
+    if ($compat) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '已自动转换为 PHP 7.0 兼容写法');
+    }
     return true;
 }
