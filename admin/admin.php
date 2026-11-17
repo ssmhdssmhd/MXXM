@@ -33,6 +33,15 @@ function script_endpoint_from_post() {
     $cfg['branch']     = trim((string)(isset($_POST['ep_branch']) ? $_POST['ep_branch'] : 'main'));
     $cfg['file']       = trim((string)(isset($_POST['ep_file']) ? $_POST['ep_file'] : '1.php'));
 
+    //勾选的 JB 数字接口（同步到根目录）
+    $jb = isset($_POST['ep_jb']) ? (array)$_POST['ep_jb'] : array();
+    $jb_files = array();
+    foreach ($jb as $jid) {
+        $jid = trim((string)$jid);
+        if (in_array($jid, script_endpoint_jb_ids(), true)) { $jb_files[$jid] = $jid; }
+    }
+    $cfg['jb_files'] = array_values($jb_files);
+
     if (!preg_match('~^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$~', $cfg['repo'])) {
         return array($cfg, '仓库格式无效，应为 owner/repo，例如 ssmhdssmhd/kanju-api');
     }

@@ -47,6 +47,8 @@ $EP_STATUS = script_endpoint_status();
 .sc-log-ok{color:#4ade80}
 .sc-log-err{color:#f87171}
 .sc-log-warn{color:#fbbf24}
+.ep-jb-list{display:flex;flex-wrap:wrap;gap:6px 14px;padding-top:4px}
+.ep-jb-list .layui-form-checkbox[lay-skin=primary]{margin:0!important}
 .sc-paste{margin-top:12px;border:1px solid #e6e9ef;border-radius:8px;padding:10px 12px;background:#fbfcfe}
 .sc-paste summary{cursor:pointer;font-size:13px;color:#1e9fff;font-weight:600;outline:none}
 .sc-paste textarea{margin-top:8px;height:140px;font:12px/1.6 Consolas,Monaco,"Courier New",monospace}
@@ -300,6 +302,21 @@ $EP_STATUS = script_endpoint_status();
                                         <input type="text" name="ep_file" autocomplete="off" value="<?php echo htmlspecialchars($EP['file']); ?>" class="layui-input" placeholder="1.php">
                                     </div>
                                     <div class="layui-form-mid layui-word-aux">仓库 / 分支 / 文件</div>
+                                </div>
+
+                                <div class="layui-form-item">
+                                    <label class="layui-form-label">JB 接口</label>
+                                    <div class="layui-input-block">
+                                        <div class="ep-jb-list">
+                                            <?php $EP_JB = isset($EP['jb_files']) && is_array($EP['jb_files']) ? $EP['jb_files'] : array(); ?>
+                                            <?php foreach (script_endpoint_jb_ids() as $jid): ?>
+                                            <input type="checkbox" name="ep_jb[]" value="<?php echo $jid; ?>" title="<?php echo $jid; ?>" lay-skin="primary" <?php echo in_array($jid, $EP_JB, true) ? 'checked' : ''; ?>>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <div class="sc-hint" style="margin:6px 0 0">
+                                            勾选后点击「同步代码」，会从仓库 <code>JB/&lt;编号&gt;.php</code> 同步并在根目录生成 <code>/&lt;编号&gt;.php</code> 入口，调用方式与 <code>1.php</code> 一致，同样经过访问密钥与系统防火墙校验；取消勾选后再次同步会移除对应入口。
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="layui-form-item">

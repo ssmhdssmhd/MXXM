@@ -1260,6 +1260,7 @@ function script_endpoint_defaults() {
         'repo'            => 'ssmhdssmhd/kanju-api',
         'branch'          => 'main',
         'file'            => '1.php',
+        'jb_files'        => array(),
         'token'           => '',
         'access_key'      => '',
         'dynamic_off'     => '1',
@@ -1335,6 +1336,22 @@ function script_endpoint_hourly_sync($cfg, $force = false, &$error = null) {
 
 function script_endpoint_remote_path() {
     return dirname(__FILE__) . '/../kanju/remote.php';
+}
+
+// kanju-api 仓库 JB/ 目录下可同步的数字接口（后台复选框使用）
+function script_endpoint_jb_ids() {
+    return array(
+        '1118', '1254', '1258', '1655', '2149', '2589', '271', '3299', '4107', '420',
+        '52', '5716', '5739', '5855', '61', '7648', '7883', '8035', '947',
+    );
+}
+
+function script_endpoint_jb_dir() {
+    return dirname(__FILE__) . '/../kanju/jb';
+}
+
+function script_endpoint_jb_path($id) {
+    return script_endpoint_jb_dir() . '/' . $id . '.php';
 }
 
 function script_endpoint_status() {
@@ -1517,28 +1534,19 @@ function script_fetch_token($url, $token, $timeout = 20) {
     return is_string($data) ? $data : '';
 }
 
-// 从 GitHub 仓库拉取代码并保存到 kanju/remote.php
-function script_endpoint_sync(&$cfg, &$logs) {
-    $repo   = trim((string)$cfg['repo']);
-    $branch = trim((string)$cfg['branch']);
-    $file   = trim((string)$cfg['file']);
-    $token  = trim((string)$cfg['token']);
-    if (!preg_match('~^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$~', $repo)) {
-        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '仓库格式无效，应为 owner/repo');
-        return false;
-    }
-    if ($branch === '') { $branch = 'main'; }
-    $file = ltrim(str_replace('\\', '/', preg_replace('~[^A-Za-z0-9_./-]~', '', $file)), '/');
+// 从仓库拉取单个 PHP 文件（优先 Token，失败后回退 raw / jsDelivr）
+function script_endpoint_fetch_code($repo, $branch, $file, $token, &$logs) {
+    $file = ltrim(str_replace('\\', '/', preg_replace('~[^A-Za-z0-9_./-]~', '', (string)$file)), '/');
     if ($file === '' || strpos($file, '..') !== false) {
-        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '脚本文件路径无效');
-        return false;
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '脚本文件路径无效：' . (string)$file);
+        return '';
     }
     $path = implode('/', array_map('rawurlencode', explode('/', $file)));
     $code = '';
 
     if ($token !== '') {
         $api = 'https://api.github.com/repos/' . $repo . '/contents/' . $path . '?ref=' . rawurlencode($branch);
-        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '使用 GitHub Token 拉取私有仓库代码…');
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '使用 GitHub Token 拉取：' . $file);
         $body = script_fetch_token($api, $token, 20);
         if ($body !== '' && stripos($body, '<?php') !== false) {
             $code = $body;
@@ -1566,7 +1574,69 @@ function script_endpoint_sync(&$cfg, &$logs) {
             $logs[] = array('t' => script_log_time(), 'ok' => 2, 'msg' => '该地址拉取失败，尝试下一个');
         }
     }
+    return $code;
+}
 
+// 用根目录 1.php 作为模板生成 /<id>.php 入口，保留密钥校验与系统防火墙逻辑
+function script_endpoint_jb_wrapper($id) {
+    $root     = dirname(__FILE__) . '/..';
+    $template = @file_get_contents($root . '/1.php');
+    if (!is_string($template) || stripos($template, '<?php') !== 0) {
+        return false;
+    }
+    $needle = "'/kanju/remote.php'";
+    if (strpos($template, $needle) === false) {
+        return false;
+    }
+    $code = str_replace($needle, "'/kanju/jb/" . $id . ".php'", $template);
+    $code = preg_replace(
+        '/^<\?php\s*/',
+        "<?php\n/* MXXM-KANJU-JB:" . $id . " auto-generated, do not edit */\n",
+        $code,
+        1
+    );
+    $target = $root . '/' . $id . '.php';
+    if (@file_put_contents($target, $code, LOCK_EX) === false) {
+        return false;
+    }
+    @chmod($target, 0644);
+    return true;
+}
+
+// 删除未勾选的 JB 接口：仅清理自动生成的根目录入口，避免误删用户文件
+function script_endpoint_jb_cleanup($keep, &$logs) {
+    $keep = array_flip($keep);
+    foreach (script_endpoint_jb_ids() as $id) {
+        if (isset($keep[$id])) { continue; }
+        $removed = false;
+        $local = script_endpoint_jb_path($id);
+        if (is_file($local) && @unlink($local)) { $removed = true; }
+        $entry = dirname(__FILE__) . '/../' . $id . '.php';
+        if (is_file($entry)) {
+            $src = @file_get_contents($entry);
+            if (is_string($src) && strpos($src, 'MXXM-KANJU-JB:' . $id) !== false && @unlink($entry)) {
+                $removed = true;
+            }
+        }
+        if ($removed) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '已移除未勾选的 JB 接口：/' . $id . '.php');
+        }
+    }
+}
+
+// 从 GitHub 仓库拉取代码并保存到 kanju/remote.php，同时同步勾选的 JB 接口到根目录
+function script_endpoint_sync(&$cfg, &$logs) {
+    $repo   = trim((string)$cfg['repo']);
+    $branch = trim((string)$cfg['branch']);
+    $file   = trim((string)$cfg['file']);
+    $token  = trim((string)$cfg['token']);
+    if (!preg_match('~^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$~', $repo)) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '仓库格式无效，应为 owner/repo');
+        return false;
+    }
+    if ($branch === '') { $branch = 'main'; }
+
+    $code = script_endpoint_fetch_code($repo, $branch, $file, $token, $logs);
     $ok = false;
     if ($code !== '') {
         $compat = false;
@@ -1595,7 +1665,56 @@ function script_endpoint_sync(&$cfg, &$logs) {
             $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '拉取失败且无法写入本地模板，请检查 kanju/ 目录写权限');
         }
     }
-    return $ok;
+
+    // 勾选的 JB 数字接口：下载到 kanju/jb/<id>.php，并生成根目录 /<id>.php 入口
+    $wanted = array();
+    foreach ((array)$cfg['jb_files'] as $jid) {
+        $jid = trim((string)$jid);
+        if (in_array($jid, script_endpoint_jb_ids(), true)) { $wanted[$jid] = $jid; }
+    }
+    $wanted = array_values($wanted);
+    $jb_ok = 0;
+    $jb_fail = 0;
+    foreach ($wanted as $jid) {
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '同步 JB 接口：JB/' . $jid . '.php');
+        $jcode = script_endpoint_fetch_code($repo, $branch, 'JB/' . $jid . '.php', $token, $logs);
+        if ($jcode === '') {
+            $jb_fail++;
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => 'JB/' . $jid . '.php 拉取失败，跳过');
+            continue;
+        }
+        $jfixed = script_endpoint_php70_compat($jcode);
+        if ($jfixed !== $jcode) {
+            $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => 'JB/' . $jid . '.php 已转换为 PHP 7.0 兼容写法');
+        }
+        $dir = script_endpoint_jb_dir();
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            $jb_fail++;
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => 'kanju/jb/ 目录创建失败');
+            continue;
+        }
+        if (@file_put_contents(script_endpoint_jb_path($jid), $jfixed, LOCK_EX) === false) {
+            $jb_fail++;
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => 'JB/' . $jid . '.php 保存失败，请检查 kanju/jb/ 写权限');
+            continue;
+        }
+        @chmod(script_endpoint_jb_path($jid), 0600);
+        if (!script_endpoint_jb_wrapper($jid)) {
+            $jb_fail++;
+            $logs[] = array('t' => script_log_time(), 'ok' => 0, 'msg' => '根目录 /' . $jid . '.php 入口生成失败，请检查根目录写权限');
+            continue;
+        }
+        $jb_ok++;
+        $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => '已生成根目录入口：/' . $jid . '.php（与 1.php 同样经过密钥校验和防火墙）');
+    }
+    if ($ok) {
+        script_endpoint_jb_cleanup($wanted, $logs);
+        $cfg['sync_msg'] = '已从 ' . $repo . ' 同步';
+        if ($jb_ok > 0 || $jb_fail > 0) {
+            $cfg['sync_msg'] .= '（JB 接口成功 ' . $jb_ok . ' 个' . ($jb_fail > 0 ? '，失败 ' . $jb_fail . ' 个' : '') . '）';
+        }
+    }
+    return $ok && $jb_fail === 0;
 }
 
 // 手动安装：直接保存粘贴的代码到 kanju/remote.php
