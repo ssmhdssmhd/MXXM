@@ -5,6 +5,8 @@ $EP_KEY_ERROR = '';
 $EP = script_endpoint_hourly_sync($EP, false, $EP_KEY_ERROR);
 $DYNAMIC_ON = isset($EP['dynamic_off']) && (string)$EP['dynamic_off'] === '1';
 $FIXED_KEY = isset($EP['access_key']) ? (string)$EP['access_key'] : '';
+$DYNAMIC_HOURS = isset($EP['dynamic_hours']) ? (int)$EP['dynamic_hours'] : 1;
+$DYNAMIC_HOURS = max(0, min(24, $DYNAMIC_HOURS));
 $DYNAMIC_KEY = $DYNAMIC_ON && isset($EP['dynamic_key']) ? (string)$EP['dynamic_key'] : '';
 $DYNAMIC_EXPIRES = isset($EP['dynamic_expires']) ? (int)$EP['dynamic_expires'] : 0;
 $CALL_BASE = 'https://ssmhd.com/1.php?url=官方视频地址';
@@ -34,7 +36,7 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
         <span class="layui-breadcrumb">
             <a><cite>首页</cite></a>
             <a><cite>扩展功能</cite></a>
-            <a><cite>每小时动态密钥</cite></a>
+            <a><cite>动态密钥</cite></a>
         </span>
         <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:location.replace(location.href);" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
     </div>
@@ -42,10 +44,11 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
     <div class="x-body">
         <blockquote class="layui-elem-quote layui-quote-nm">
             <h2>扩展功能说明：</h2>
-            ① 当前扩展为独立接口 <code>/1.php</code> 提供“固定密钥＋每小时临时密钥”双重鉴权；<br>
-            ② <b>固定密钥由管理员自己保管</b>，不会被自动轮换修改；<b>临时密钥提供给调用方</b>，每隔一小时自动更换为新的 18 位随机字母数字；<br>
-            ③ 两种密钥都能调用接口。临时密钥到期后旧密钥立即失效，固定密钥仍可正常使用；<br>
-            ④ 无需配置计划任务：打开本页面或接口收到请求时会自动检查，到期立即更换；后续其他扩展功能也可在此继续添加。
+            ① 当前扩展为独立接口 <code>/1.php</code> 提供“固定密钥＋动态临时密钥”双重鉴权；<br>
+            ② <b>固定密钥由管理员自己保管</b>，不会被自动轮换修改；<b>临时密钥提供给调用方</b>，按设置的周期自动更换为新的 18 位随机字母数字；<br>
+            ③ 更换周期可设置 <b>0-24 小时</b>：0 表示不自动更换，1 表示每小时更换，24 表示每天更换，默认 1 小时；<br>
+            ④ 两种密钥都能调用接口。临时密钥到期后旧密钥立即失效，固定密钥仍可正常使用；<br>
+            ⑤ 无需配置计划任务：打开本页面或接口收到请求时会自动检查，到期立即更换；后续其他扩展功能也可在此继续添加。
         </blockquote>
 
         <?php if ($EP_KEY_ERROR !== ''): ?>
@@ -54,7 +57,7 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
 
         <div class="ext-card">
             <div class="ext-card-hd">
-                <div class="ext-card-title">扩展 1：每小时动态密钥</div>
+                <div class="ext-card-title">扩展 1：动态密钥</div>
                 <span class="ext-tag <?php echo $DYNAMIC_ON ? 'on' : 'off'; ?>"><?php echo $DYNAMIC_ON ? '已启用' : '已停用'; ?></span>
             </div>
 
@@ -65,6 +68,14 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
                         <input type="checkbox" name="dynamic_off" value="1" lay-skin="switch" lay-text="启用|停用" <?php echo $DYNAMIC_ON ? 'checked' : ''; ?>>
                     </div>
                     <div class="ext-muted" style="margin-top:6px">停用后临时密钥立即不可调用；只要固定密钥不为空，接口仍要求固定密钥。</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">更换周期</label>
+                    <div class="layui-input-block">
+                        <input type="number" name="dynamic_hours" min="0" max="24" step="1" value="<?php echo $DYNAMIC_HOURS; ?>" class="layui-input" style="max-width:180px">
+                        <div class="ext-muted" style="margin-top:6px">单位：小时，可设置 0-24。0 = 不自动更换；1 = 每小时更换；24 = 每天更换。默认 1 小时。</div>
+                    </div>
                 </div>
 
                 <div class="layui-form-item">
@@ -85,7 +96,11 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
                 <div class="ext-key-label">当前临时密钥（给人使用）</div>
                 <?php if ($DYNAMIC_KEY !== ''): ?>
                 <input type="text" class="layui-input ext-key" readonly onclick="this.select()" value="<?php echo htmlspecialchars($DYNAMIC_KEY); ?>">
-                <div class="ext-muted" style="margin-top:6px">下次自动更换时间：<b><?php echo date('Y-m-d H:i:s', $DYNAMIC_EXPIRES); ?></b>（更换后需要把新密钥提供给调用方）</div>
+                <?php if ($DYNAMIC_HOURS === 0): ?>
+                <div class="ext-muted" style="margin-top:6px">更换周期为 <b>0 小时</b>：不自动更换，可点击「立即更换临时密钥」手动更换。</div>
+                <?php else: ?>
+                <div class="ext-muted" style="margin-top:6px">更换周期：<b><?php echo $DYNAMIC_HOURS; ?> 小时</b>；下次自动更换时间：<b><?php echo date('Y-m-d H:i:s', $DYNAMIC_EXPIRES); ?></b>（更换后需要把新密钥提供给调用方）</div>
+                <?php endif; ?>
                 <?php else: ?>
                 <div class="ext-warning">动态密钥当前已停用。</div>
                 <?php endif; ?>
@@ -95,7 +110,7 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
                 <div class="ext-key-label">临时密钥调用示例（推荐对外提供）</div>
                 <?php if ($DYNAMIC_URL !== ''): ?>
                 <div class="ext-call"><code><?php echo htmlspecialchars($DYNAMIC_URL); ?></code></div>
-                <div class="ext-muted">密钥放在 <code>url</code> 参数后，使用 <code>&amp;key=当前临时密钥</code>；密钥每小时变化，旧示例到期后需替换为新密钥。</div>
+                <div class="ext-muted">密钥放在 <code>url</code> 参数后，使用 <code>&amp;key=当前临时密钥</code>；密钥按设置的周期自动变化，旧示例到期后需替换为新密钥。</div>
                 <?php else: ?>
                 <div class="ext-warning">启用动态密钥后显示完整调用地址。</div>
                 <?php endif; ?>

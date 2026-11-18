@@ -286,7 +286,7 @@ $EP_STATUS = script_endpoint_status();
                                     </div>
                                     <div class="sc-hint" style="margin:6px 0 0">
                                         <span class="sc-tag <?php echo !empty($EP['access_key']) ? 'on' : 'off'; ?>" id="ep-access-key-status"><?php echo !empty($EP['access_key']) ? '已启用密钥鉴权' : '未设置固定密钥'; ?></span>
-                                        固定密钥不会被自动轮换，仅管理员使用；设置后调用 /1.php 必须在 <code>url</code> 参数后携带 <code>&amp;key=你的密钥</code>。给他人使用请到「扩展功能 → 每小时动态密钥」获取当前临时密钥。
+                                        固定密钥不会被自动轮换，仅管理员使用；设置后调用 /1.php 必须在 <code>url</code> 参数后携带 <code>&amp;key=你的密钥</code>。给他人使用请到「扩展功能 → 动态密钥」获取当前临时密钥。
                                     </div>
                                 </div>
 

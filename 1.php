@@ -24,8 +24,8 @@ if ((string)$KANJU['off'] !== '1') {
     kanju_out(403, '接口已关闭');
 }
 
-// 固定密钥 + 每小时临时密钥：固定密钥自己保管，临时密钥提供给调用方
-// 临时密钥到期时自动更换，旧的临时密钥立即失效；固定密钥保持有效
+// 固定密钥 + 动态临时密钥：固定密钥自己保管，临时密钥提供给调用方
+// 临时密钥按后台设置周期（0-24 小时）到期自动更换，旧的临时密钥立即失效；固定密钥保持有效
 $__kanju_key_error = '';
 $KANJU = script_endpoint_hourly_sync($KANJU, false, $__kanju_key_error);
 if ($__kanju_key_error !== '') {

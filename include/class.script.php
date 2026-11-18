@@ -1264,6 +1264,7 @@ function script_endpoint_defaults() {
         'token'           => '',
         'access_key'      => '',
         'dynamic_off'     => '1',
+        'dynamic_hours'   => 1,
         'dynamic_key'     => '',
         'dynamic_expires' => 0,
         'synced'          => '',
@@ -1306,7 +1307,8 @@ function script_endpoint_random_key($length = 18) {
     return $key;
 }
 
-// 每小时动态密钥：固定密钥只初始化一次；临时密钥到期后生成新的 18 位随机字符
+// 动态密钥：固定密钥只初始化一次；临时密钥按设置周期（0-24 小时）到期后生成新的 18 位随机字符
+// 0 表示不自动更换；1 为每小时；24 为每天；默认 1 小时
 // 无需计划任务，后台打开扩展页或 /1.php 收到请求时都会自动检查是否到期
 function script_endpoint_hourly_sync($cfg, $force = false, &$error = null) {
     $error = '';
@@ -1319,11 +1321,27 @@ function script_endpoint_hourly_sync($cfg, $force = false, &$error = null) {
         $changed = true;
     }
 
+    $hours = isset($cfg['dynamic_hours']) ? (int)$cfg['dynamic_hours'] : 1;
+    if ($hours < 0) { $hours = 0; }
+    if ($hours > 24) { $hours = 24; }
+
     $key = isset($cfg['dynamic_key']) ? (string)$cfg['dynamic_key'] : '';
     $expires = isset($cfg['dynamic_expires']) ? (int)$cfg['dynamic_expires'] : 0;
-    if ($force || !preg_match('/^[A-Za-z0-9]{18}$/', $key) || $expires <= time()) {
+    $key_valid = preg_match('/^[A-Za-z0-9]{18}$/', $key) === 1;
+
+    if ($hours === 0) {
+        // 0 小时：不自动更换，仅在缺失时生成一次
+        if ($force || !$key_valid) {
+            $cfg['dynamic_key'] = script_endpoint_random_key(18);
+            $cfg['dynamic_expires'] = 0;
+            $changed = true;
+        } elseif ($expires !== 0) {
+            $cfg['dynamic_expires'] = 0;
+            $changed = true;
+        }
+    } elseif ($force || !$key_valid || $expires <= time()) {
         $cfg['dynamic_key'] = script_endpoint_random_key(18);
-        $cfg['dynamic_expires'] = time() + 3600;
+        $cfg['dynamic_expires'] = time() + $hours * 3600;
         $changed = true;
     }
 

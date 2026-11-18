@@ -1405,13 +1405,28 @@ switch ($type) {
             'logs'    => $logs,
         ), JSON_UNESCAPED_UNICODE));
 
-    //扩展功能：保存固定密钥与每小时动态密钥开关
+    //扩展功能：保存固定密钥、动态密钥开关与更换周期
     case 'endpoint_key_save':
         $ecfg = script_endpoint_load();
         $ecfg['access_key'] = trim((string)(isset($_POST['access_key']) ? $_POST['access_key'] : ''));
         $ecfg['dynamic_off'] = (isset($_POST['dynamic_off']) && (string)$_POST['dynamic_off'] === '1') ? '1' : '0';
         if ($ecfg['dynamic_off'] === '0' && $ecfg['access_key'] === '') {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '停用动态密钥前必须设置固定密钥，否则接口将完全不限制访问'), JSON_UNESCAPED_UNICODE));
+        }
+        // 更换周期：0-24 小时，0 表示不自动更换，默认 1 小时
+        $hours_raw = trim((string)(isset($_POST['dynamic_hours']) ? $_POST['dynamic_hours'] : '1'));
+        $hours = preg_match('/^\d{1,2}$/', $hours_raw) ? (int)$hours_raw : 1;
+        if ($hours > 24) { $hours = 24; }
+        $old_hours = isset($ecfg['dynamic_hours']) ? (int)$ecfg['dynamic_hours'] : 1;
+        $ecfg['dynamic_hours'] = $hours;
+        if ($hours !== $old_hours) {
+            // 周期变化时保留当前临时密钥，仅重算到期时间；0 小时表示永不过期
+            $cur_key = isset($ecfg['dynamic_key']) ? (string)$ecfg['dynamic_key'] : '';
+            if ($hours === 0) {
+                $ecfg['dynamic_expires'] = 0;
+            } elseif (preg_match('/^[A-Za-z0-9]{18}$/', $cur_key)) {
+                $ecfg['dynamic_expires'] = time() + $hours * 3600;
+            }
         }
         if (!script_endpoint_save($ecfg)) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '配置保存失败，请检查 save/ 目录写权限！'), JSON_UNESCAPED_UNICODE));
@@ -1427,7 +1442,7 @@ switch ($type) {
     case 'endpoint_key_rotate':
         $ecfg = script_endpoint_load();
         if ((string)$ecfg['dynamic_off'] !== '1') {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请先启用每小时动态密钥'), JSON_UNESCAPED_UNICODE));
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请先启用动态密钥'), JSON_UNESCAPED_UNICODE));
         }
         $key_error = '';
         $ecfg = script_endpoint_hourly_sync($ecfg, true, $key_error);
