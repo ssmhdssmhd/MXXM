@@ -5,6 +5,13 @@
 define('FCPATH', str_replace('\\', '/', dirname(__FILE__)));
 require_once FCPATH . '/include/class.main.php';
 require_once FCPATH . '/save/config.php';
+require_once FCPATH . '/include/class.log.php';
+
+//调用日志：解析线路同源适配
+mxxm_log_call_begin('解析线路', 'jx', array(
+    'line' => isset($_GET['line']) ? (string)$_GET['line'] : '',
+    'url'  => isset($_GET['url']) ? (string)$_GET['url'] : '',
+));
 
 header('Cache-Control: no-store, no-cache, must-revalidate');
 header('Pragma: no-cache');

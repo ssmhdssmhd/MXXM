@@ -15,6 +15,11 @@
  */
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/../include/class.log.php';
+
+mxxm_log_call_begin('官替算法2', 'mx2', array(
+    'url' => isset($_GET['url']) ? (string)$_GET['url'] : '',
+));
 
 header('Content-Type: application/json;charset=utf-8');
 

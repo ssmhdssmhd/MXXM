@@ -12,7 +12,15 @@
 @set_time_limit(30);
 
 require_once dirname(__FILE__) . '/include/class.script.php';
+require_once dirname(__FILE__) . '/include/class.log.php';
 $KANJU = script_endpoint_load();
+
+//调用日志：记录独立接口（含同步生成的 JB 接口）的每一次请求
+mxxm_log_call_begin('独立接口', basename(__FILE__), array(
+    'url' => isset($_GET['url']) ? (string)$_GET['url'] : (isset($_GET['ur1']) ? (string)$_GET['ur1'] : ''),
+    'vid' => isset($_GET['vid']) ? (string)$_GET['vid'] : '',
+    'ep'  => isset($_GET['ep']) ? (string)$_GET['ep'] : '',
+));
 
 function kanju_out($code, $msg) {
     header('Content-Type: application/json; charset=utf-8');

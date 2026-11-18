@@ -15,6 +15,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 header('Pragma: no-cache');
 
 require_once dirname(__FILE__) . '/../../include/class.script.php';
+require_once dirname(__FILE__) . '/../../include/class.log.php';
 
 function mxjx_get($k) {
     return isset($_GET[$k]) ? trim((string)$_GET[$k]) : '';
@@ -45,6 +46,14 @@ function mxjx_vars($res) {
         '{msg}'   => isset($res['msg']) ? (string)$res['msg'] : '',
     );
 }
+
+//调用日志：脚本解析 · JSON 调用接口
+mxxm_log_call_begin('JSON解析接口', 'mxjx', array(
+    'url' => mxjx_get('url'),
+    'vid' => mxjx_get('vid'),
+    'wd'  => mxjx_get('wd'),
+    'ep'  => mxjx_get('ep'),
+));
 
 // 未启用
 if ((string)$cfg['off'] !== '1') {

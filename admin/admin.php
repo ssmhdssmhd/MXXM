@@ -2,6 +2,7 @@
 include "config.php";
 include dirname(__FILE__) . '/../include/class.db.php';
 require_once dirname(__FILE__) . '/../include/class.script.php';
+require_once dirname(__FILE__) . '/../include/class.log.php';
 /*
  session_start(); 
  if(isset($_SESSION['lock_config'])){ $time=(int)$_SESSION['lock_config']-(int)time(); if($time>0){ exit(json_encode(array('success'=>0,'icon'=>5,'m'=>"请勿频繁提交，".$time."秒后再试！")));}}
@@ -108,6 +109,16 @@ function mxxm_migrate_blacklist() {
 
 if (mxxm_migrate_blacklist()) {
     @Main_db::save();
+}
+
+//操作日志：在请求结束时解析响应并记录（排除轮询 / 读取类请求）
+$__log_label = mxxm_admin_action_label($type);
+if ($__log_label !== '' && !mxxm_admin_action_ignored($type)) {
+    $__log_action = $__log_label;
+    if ($id !== null && $id !== '') {
+        $__log_action .= ' #' . $id;
+    }
+    mxxm_log_op_begin($type, $__log_action);
 }
 
 switch ($type) {
@@ -1796,6 +1807,46 @@ switch ($type) {
         $info['success'] = 1; $info['icon'] = 6;
         $info['m'] = ($over ? "已覆盖" : "已追加") . "到云播资源列表，本次新增 $added 条，当前共 " . count($list) . " 条";
         exit(json_encode($info));
+
+    //日志与调用：调用日志列表
+    case 'log_call_list':
+        $days  = isset($_POST['days']) ? (int)$_POST['days'] : 1;
+        $page  = isset($_POST['page']) ? (int)$_POST['page'] : 1;
+        $size  = isset($_POST['size']) ? (int)$_POST['size'] : 20;
+        $res = mxxm_log_query('call', array(
+            'days'   => $days,
+            'page'   => $page,
+            'size'   => $size,
+            'status' => isset($_POST['status']) ? trim((string)$_POST['status']) : '',
+            'group'  => isset($_POST['module']) ? trim((string)$_POST['module']) : '',
+            'kw'     => isset($_POST['kw']) ? trim((string)$_POST['kw']) : '',
+        ));
+        exit(json_encode($res, JSON_UNESCAPED_UNICODE));
+
+    //日志与调用：操作日志列表
+    case 'log_op_list':
+        $days  = isset($_POST['days']) ? (int)$_POST['days'] : 1;
+        $page  = isset($_POST['page']) ? (int)$_POST['page'] : 1;
+        $size  = isset($_POST['size']) ? (int)$_POST['size'] : 20;
+        $res = mxxm_log_query('op', array(
+            'days'   => $days,
+            'page'   => $page,
+            'size'   => $size,
+            'status' => isset($_POST['status']) ? trim((string)$_POST['status']) : '',
+            'group'  => isset($_POST['op_type']) ? trim((string)$_POST['op_type']) : '',
+            'kw'     => isset($_POST['kw']) ? trim((string)$_POST['kw']) : '',
+        ));
+        exit(json_encode($res, JSON_UNESCAPED_UNICODE));
+
+    //日志与调用：清空日志
+    case 'log_clear':
+        $kind = isset($_POST['kind']) ? trim((string)$_POST['kind']) : 'all';
+        if (!in_array($kind, array('call', 'op', 'all'), true)) { $kind = 'all'; }
+        mxxm_log_clear($kind);
+        $info['success'] = 1;
+        $info['icon'] = 1;
+        $info['m'] = '日志已清空';
+        exit(json_encode($info, JSON_UNESCAPED_UNICODE));
 
     default:
         exit(json_encode(array('success' => 0, 'icon' => 0, 'm' => "参数错误！")));

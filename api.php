@@ -16,6 +16,7 @@ define("FCPATH", str_replace("\\", "/", dirname(__FILE__)));
 
 //加载配置文件
 require_once FCPATH . '/save/config.php';
+require_once FCPATH . '/include/class.log.php';
 
 define("ROOT_PATH", $CONFIG["ROOT_PATH"]? $CONFIG["ROOT_PATH"] : GlobalBase::is_root());
 
@@ -44,6 +45,16 @@ $flag = isset($flag) ? $flag : '';
 $app = isset($app) ? $app : 'xysoft';
 $dd = isset($dd) && $dd ? $dd : 0;
 $loadjs = isset($loadjs) ? $loadjs : 0;
+
+//调用日志：主解析 API（跳过前端轮询用的辅助类型）
+if (!in_array($tp, array('getnum', 'set', 'getset'), true)) {
+    mxxm_log_call_begin('主解析API', $tp !== '' ? $tp : 'parse', array(
+        'url'  => $url,
+        'wd'   => $wd,
+        'line' => $line,
+        'id'   => $id,
+    ));
+}
 
 //加载搜索数据
 if($wd!=""){

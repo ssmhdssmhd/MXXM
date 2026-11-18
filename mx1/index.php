@@ -12,6 +12,11 @@ $MX1 = @include dirname(__FILE__) . '/../save/mx1.config.php';
 if (!is_array($MX1)) { $MX1 = array(); }
 $MX1 += array('off' => '0', 'qggapi' => '', 'api' => '');
 
+require_once dirname(__FILE__) . '/../include/class.log.php';
+mxxm_log_call_begin('官替算法1', 'mx1', array(
+    'url' => isset($_GET['url']) ? (string)$_GET['url'] : '',
+));
+
 if ($MX1['off'] == '1') {
     $player['code'] = 403;
     $player['msg'] = '官替算法已关闭';

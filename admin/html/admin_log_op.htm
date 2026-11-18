@@ -1,0 +1,237 @@
+<?php include "block_header.htm";?>
+<style>
+.log-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.log-card{background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:14px 16px}
+.log-card .lb{font-size:12px;color:#8a94a6;margin-bottom:6px}
+.log-card .lv{font-size:22px;font-weight:700;color:#1c2438}
+.log-card.ok .lv{color:#16b777}
+.log-card.bad .lv{color:#ff5722}
+.log-card.rate .lv{color:#1e9fff}
+.log-filter{background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:12px;margin-bottom:16px}
+.log-filter .layui-form-item{margin-bottom:0}
+.log-tag{display:inline-block;padding:0 8px;line-height:20px;border-radius:10px;font-size:12px}
+.log-tag.ok{color:#16b777;background:#e8f9f2}
+.log-tag.bad{color:#ff5722;background:#fff0eb}
+.log-tag.type{color:#1e9fff;background:#eef7ff}
+.log-empty{text-align:center;color:#8a94a6;padding:24px 0}
+.log-detail{color:#526079;font-size:12px;word-break:break-all}
+@media (max-width:1100px){.log-cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+<body>
+    <div class="x-nav">
+        <span class="layui-breadcrumb">
+            <a><cite>首页</cite></a>
+            <a><cite>日志与调用</cite></a>
+            <a><cite>操作日志</cite></a>
+        </span>
+        <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:loadLog();" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+    </div>
+
+    <div class="x-body">
+        <blockquote class="layui-elem-quote layui-quote-nm">
+            记录后台登录、退出与各项操作：包含操作类型、结果、账号、IP 与响应信息；<br>
+            日志保存在服务器 <code>save/logs/op/</code>，按天自动分割，默认保留 90 天，不随在线更新覆盖。
+        </blockquote>
+
+        <div class="log-cards">
+            <div class="log-card"><div class="lb">记录总数</div><div class="lv" id="c-total">0</div></div>
+            <div class="log-card ok"><div class="lb">成功</div><div class="lv" id="c-success">0</div></div>
+            <div class="log-card bad"><div class="lb">失败</div><div class="lv" id="c-fail">0</div></div>
+            <div class="log-card ok"><div class="lb">登录成功</div><div class="lv" id="c-login-ok">0</div></div>
+            <div class="log-card bad"><div class="lb">登录失败</div><div class="lv" id="c-login-fail">0</div></div>
+        </div>
+
+        <div class="log-filter">
+            <form class="layui-form" onsubmit="return false;">
+                <div class="layui-form-item">
+                    <div class="layui-inline">
+                        <label class="layui-form-label" style="width:70px">时间范围</label>
+                        <div class="layui-input-inline" style="width:120px">
+                            <select id="f-days">
+                                <option value="1">今天</option>
+                                <option value="7" selected>近 7 天</option>
+                                <option value="30">近 30 天</option>
+                                <option value="90">近 90 天</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <label class="layui-form-label" style="width:50px">类型</label>
+                        <div class="layui-input-inline" style="width:120px">
+                            <select id="f-type">
+                                <option value="">全部</option>
+                                <option value="login">登录</option>
+                                <option value="logout">退出</option>
+                                <option value="operation">操作</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <label class="layui-form-label" style="width:50px">状态</label>
+                        <div class="layui-input-inline" style="width:110px">
+                            <select id="f-status">
+                                <option value="">全部</option>
+                                <option value="success">成功</option>
+                                <option value="fail">失败</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <input type="text" id="f-kw" class="layui-input" style="width:210px" placeholder="关键词：操作 / 账号 / IP / 详情">
+                    </div>
+                    <div class="layui-inline">
+                        <button class="layui-btn" id="btn-search">查询</button>
+                        <button class="layui-btn layui-btn-danger" id="btn-clear">清空操作日志</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <fieldset class="layui-elem-field">
+            <legend>分类统计</legend>
+            <div class="layui-field-box">
+                <table class="layui-table">
+                    <thead>
+                        <tr><th>类型</th><th style="width:100px">数量</th><th style="width:90px">成功</th><th style="width:90px">失败</th><th style="width:100px">成功率</th></tr>
+                    </thead>
+                    <tbody id="stat-body"><tr><td colspan="5" class="log-empty">加载中…</td></tr></tbody>
+                </table>
+            </div>
+        </fieldset>
+
+        <fieldset class="layui-elem-field">
+            <legend>操作明细</legend>
+            <div class="layui-field-box">
+                <table class="layui-table">
+                    <thead>
+                        <tr><th style="width:150px">时间</th><th style="width:80px">类型</th><th style="width:180px">操作</th><th style="width:70px">状态</th><th style="width:100px">账号</th><th style="width:120px">IP</th><th>详情</th></tr>
+                    </thead>
+                    <tbody id="log-body"><tr><td colspan="7" class="log-empty">加载中…</td></tr></tbody>
+                </table>
+                <div id="pager" style="text-align:right"></div>
+            </div>
+        </fieldset>
+    </div>
+
+    <script>
+    layui.use(['form', 'layer', 'laypage'], function () {
+        var form = layui.form, layer = layui.layer, laypage = layui.laypage, $ = layui.jquery;
+        var page = 1, size = 20;
+        var TYPE_LABEL = {login: '登录', logout: '退出', operation: '操作'};
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+            });
+        }
+
+        function renderStats(stats, groups) {
+            $('#c-total').text(stats.total || 0);
+            $('#c-success').text(stats.success || 0);
+            $('#c-fail').text(stats.fail || 0);
+            var lok = 0, lfail = 0;
+            for (var k in groups) {
+                if (!groups.hasOwnProperty(k) || k !== 'login') { continue; }
+                lok = groups[k].success || 0;
+                lfail = groups[k].fail || 0;
+            }
+            $('#c-login-ok').text(lok);
+            $('#c-login-fail').text(lfail);
+
+            var html = '', n = 0;
+            for (var g in groups) {
+                if (!groups.hasOwnProperty(g)) { continue; }
+                var it = groups[g];
+                var rate = it.total > 0 ? Math.round(it.success * 1000 / it.total) / 10 : 0;
+                html += '<tr><td>' + esc(TYPE_LABEL[it.name] || it.name || g) + '</td><td>' + it.total + '</td><td>' + it.success + '</td><td>' + it.fail + '</td><td>' + rate + '%</td></tr>';
+                n++;
+            }
+            $('#stat-body').html(n ? html : '<tr><td colspan="5" class="log-empty">暂无数据</td></tr>');
+        }
+
+        function renderRows(res) {
+            var rows = res.rows || [], html = '';
+            for (var i = 0; i < rows.length; i++) {
+                var r = rows[i];
+                var ok = r.status !== 'fail';
+                var type = r.type || 'operation';
+                html += '<tr>'
+                    + '<td>' + esc(r.t) + '</td>'
+                    + '<td><span class="log-tag type">' + esc(TYPE_LABEL[type] || type) + '</span></td>'
+                    + '<td>' + esc(r.action) + '</td>'
+                    + '<td><span class="log-tag ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '成功' : '失败') + '</span></td>'
+                    + '<td>' + esc(r.user) + '</td>'
+                    + '<td>' + esc(r.ip) + '</td>'
+                    + '<td class="log-detail">' + esc(r.detail) + '</td>'
+                    + '</tr>';
+            }
+            $('#log-body').html(html || '<tr><td colspan="7" class="log-empty">暂无数据</td></tr>');
+
+            laypage.render({
+                elem: 'pager',
+                count: res.total || 0,
+                curr: res.page || 1,
+                limit: res.size || 20,
+                limits: [20, 50, 100],
+                layout: ['count', 'prev', 'page', 'next', 'limit'],
+                jump: function (obj, first) {
+                    if (first) { return; }
+                    page = obj.curr;
+                    size = obj.limit;
+                    loadLog();
+                }
+            });
+        }
+
+        function loadLog() {
+            var data = {
+                type: 'log_op_list',
+                days: $('#f-days').val(),
+                op_type: $('#f-type').val(),
+                status: $('#f-status').val(),
+                kw: $('#f-kw').val(),
+                page: page,
+                size: size
+            };
+
+            $('#log-body').html('<tr><td colspan="7" class="log-empty">加载中…</td></tr>');
+            $.post('admin.php', data, function (res) {
+                if (!res || !res.ok) {
+                    $('#log-body').html('<tr><td colspan="7" class="log-empty">加载失败</td></tr>');
+                    return;
+                }
+                renderStats(res.stats || {}, (res.stats && res.stats.groups) || {});
+                renderRows(res);
+            }, 'json').fail(function () {
+                $('#log-body').html('<tr><td colspan="7" class="log-empty">请求失败，请检查登录状态</td></tr>');
+            });
+        }
+
+        $('#btn-search').on('click', function () {
+            page = 1;
+            loadLog();
+        });
+        $('#f-days, #f-type, #f-status').on('change', function () {
+            page = 1;
+            loadLog();
+        });
+        $('#f-kw').on('keydown', function (e) {
+            if (e.keyCode === 13) { page = 1; loadLog(); }
+        });
+        $('#btn-clear').on('click', function () {
+            layer.confirm('确定要清空全部操作日志吗？该操作不可恢复。', {icon: 3, title: '清空操作日志'}, function (idx) {
+                layer.close(idx);
+                $.post('admin.php', {type: 'log_clear', kind: 'op'}, function (d) {
+                    layer.msg(d && d.m ? d.m : '已清空', {icon: 1, time: 1200});
+                    page = 1;
+                    loadLog();
+                }, 'json').fail(function () { layer.msg('操作失败', {icon: 5}); });
+            });
+        });
+
+        form.render();
+        loadLog();
+    });
+    </script>
+</body>
+</html>

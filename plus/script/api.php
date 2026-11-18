@@ -22,6 +22,7 @@ if (strtoupper(isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 
 }
 
 require_once dirname(__FILE__) . '/../../include/class.script.php';
+require_once dirname(__FILE__) . '/../../include/class.log.php';
 
 function scapi_get($k) {
     return isset($_GET[$k]) ? trim((string)$_GET[$k]) : '';
@@ -31,6 +32,14 @@ function scapi_out($code, $msg, $data = array()) {
     echo json_encode(array_merge(array('code' => $code, 'msg' => $msg), $data), JSON_UNESCAPED_UNICODE);
     exit;
 }
+
+//调用日志：脚本解析对外接口
+mxxm_log_call_begin('脚本解析接口', scapi_get('list') === '1' ? '线路列表' : '解析', array(
+    'url'  => scapi_get('url'),
+    'line' => scapi_get('line'),
+    'wd'   => scapi_get('wd'),
+    'ep'   => scapi_get('ep'),
+));
 
 $cfg = script_load();
 

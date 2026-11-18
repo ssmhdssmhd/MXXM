@@ -1,0 +1,251 @@
+<?php include "block_header.htm";?>
+<style>
+.log-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.log-card{background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:14px 16px}
+.log-card .lb{font-size:12px;color:#8a94a6;margin-bottom:6px}
+.log-card .lv{font-size:22px;font-weight:700;color:#1c2438}
+.log-card.ok .lv{color:#16b777}
+.log-card.bad .lv{color:#ff5722}
+.log-card.rate .lv{color:#1e9fff}
+.log-filter{background:#fff;border:1px solid #e6e9ef;border-radius:8px;padding:12px;margin-bottom:16px}
+.log-filter .layui-form-item{margin-bottom:0}
+.log-tag{display:inline-block;padding:0 8px;line-height:20px;border-radius:10px;font-size:12px}
+.log-tag.ok{color:#16b777;background:#e8f9f2}
+.log-tag.bad{color:#ff5722;background:#fff0eb}
+.log-extra{color:#8a94a6;font-size:12px;word-break:break-all}
+.log-empty{text-align:center;color:#8a94a6;padding:24px 0}
+@media (max-width:1100px){.log-cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+<body>
+    <div class="x-nav">
+        <span class="layui-breadcrumb">
+            <a><cite>首页</cite></a>
+            <a><cite>日志与调用</cite></a>
+            <a><cite>调用日志</cite></a>
+        </span>
+        <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right" href="javascript:loadLog();" title="刷新"><i class="layui-icon" style="line-height:30px">ဂ</i></a>
+    </div>
+
+    <div class="x-body">
+        <blockquote class="layui-elem-quote layui-quote-nm">
+            记录各接口与模块的调用情况：独立 PHP 接口（<code>1.php</code> 及同步生成的 JB 数字接口）、脚本解析接口、JSON 接口、主解析 API、官替算法等；<br>
+            日志保存在服务器 <code>save/logs/call/</code>，按天自动分割，默认保留 30 天，不随在线更新覆盖。
+        </blockquote>
+
+        <div class="log-cards" id="log-cards">
+            <div class="log-card"><div class="lb">调用总数</div><div class="lv" id="c-total">0</div></div>
+            <div class="log-card ok"><div class="lb">成功</div><div class="lv" id="c-success">0</div></div>
+            <div class="log-card bad"><div class="lb">失败</div><div class="lv" id="c-fail">0</div></div>
+            <div class="log-card rate"><div class="lb">成功率</div><div class="lv" id="c-rate">0%</div></div>
+            <div class="log-card"><div class="lb">平均耗时</div><div class="lv" id="c-avg">0 ms</div></div>
+        </div>
+
+        <div class="log-filter">
+            <form class="layui-form" onsubmit="return false;">
+                <div class="layui-form-item">
+                    <div class="layui-inline">
+                        <label class="layui-form-label" style="width:70px">时间范围</label>
+                        <div class="layui-input-inline" style="width:120px">
+                            <select id="f-days">
+                                <option value="1">今天</option>
+                                <option value="7" selected>近 7 天</option>
+                                <option value="30">近 30 天</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <label class="layui-form-label" style="width:50px">模块</label>
+                        <div class="layui-input-inline" style="width:150px">
+                            <select id="f-module"><option value="">全部模块</option></select>
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <label class="layui-form-label" style="width:50px">状态</label>
+                        <div class="layui-input-inline" style="width:110px">
+                            <select id="f-status">
+                                <option value="">全部</option>
+                                <option value="success">成功</option>
+                                <option value="fail">失败</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <input type="text" id="f-kw" class="layui-input" style="width:200px" placeholder="关键词：动作 / IP / 详情">
+                    </div>
+                    <div class="layui-inline">
+                        <button class="layui-btn" id="btn-search">查询</button>
+                        <button class="layui-btn layui-btn-danger" id="btn-clear">清空调用日志</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <fieldset class="layui-elem-field">
+            <legend>模块使用统计</legend>
+            <div class="layui-field-box">
+                <table class="layui-table">
+                    <thead>
+                        <tr><th>模块</th><th style="width:100px">调用次数</th><th style="width:90px">成功</th><th style="width:90px">失败</th><th style="width:100px">成功率</th><th style="width:110px">平均耗时</th></tr>
+                    </thead>
+                    <tbody id="stat-body"><tr><td colspan="6" class="log-empty">加载中…</td></tr></tbody>
+                </table>
+            </div>
+        </fieldset>
+
+        <fieldset class="layui-elem-field">
+            <legend>调用明细</legend>
+            <div class="layui-field-box">
+                <table class="layui-table">
+                    <thead>
+                        <tr><th style="width:150px">时间</th><th style="width:120px">模块</th><th style="width:100px">动作</th><th style="width:70px">状态</th><th style="width:70px">响应码</th><th style="width:80px">耗时</th><th style="width:120px">IP</th><th>参数</th></tr>
+                    </thead>
+                    <tbody id="log-body"><tr><td colspan="8" class="log-empty">加载中…</td></tr></tbody>
+                </table>
+                <div id="pager" style="text-align:right"></div>
+            </div>
+        </fieldset>
+    </div>
+
+    <script>
+    layui.use(['form', 'layer', 'laypage'], function () {
+        var form = layui.form, layer = layui.layer, laypage = layui.laypage, $ = layui.jquery;
+        var page = 1, size = 20;
+        var FIXED = ['独立接口', '脚本解析接口', 'JSON解析接口', '解析线路', '主解析API', '官替算法1', '官替算法2'];
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+            });
+        }
+
+        function extraText(e) {
+            if (!e || typeof e !== 'object') { return ''; }
+            var arr = [];
+            for (var k in e) {
+                if (!e.hasOwnProperty(k)) { continue; }
+                var v = e[k];
+                if (v === '' || v === null || v === undefined) { continue; }
+                arr.push(k + '=' + (typeof v === 'object' ? JSON.stringify(v) : v));
+            }
+            return arr.join('，');
+        }
+
+        function fillModules(groups) {
+            var sel = $('#f-module'), cur = sel.val() || '';
+            var names = FIXED.slice();
+            for (var k in groups) {
+                if (groups.hasOwnProperty(k) && names.indexOf(k) === -1) { names.push(k); }
+            }
+            var html = '<option value="">全部模块</option>';
+            for (var i = 0; i < names.length; i++) {
+                html += '<option value="' + esc(names[i]) + '">' + esc(names[i]) + '</option>';
+            }
+            sel.html(html);
+            if (cur) { sel.val(cur); }
+            form.render('select');
+        }
+
+        function renderStats(stats) {
+            $('#c-total').text(stats.total || 0);
+            $('#c-success').text(stats.success || 0);
+            $('#c-fail').text(stats.fail || 0);
+            $('#c-rate').text((stats.rate || 0) + '%');
+            $('#c-avg').text((stats.avg_ms || 0) + ' ms');
+
+            var groups = stats.groups || {}, html = '', n = 0;
+            for (var k in groups) {
+                if (!groups.hasOwnProperty(k)) { continue; }
+                var g = groups[k];
+                var rate = g.total > 0 ? Math.round(g.success * 1000 / g.total) / 10 : 0;
+                html += '<tr><td>' + esc(g.name || k) + '</td><td>' + g.total + '</td><td>' + g.success + '</td><td>' + g.fail + '</td><td>' + rate + '%</td><td>' + g.avg_ms + ' ms</td></tr>';
+                n++;
+            }
+            $('#stat-body').html(n ? html : '<tr><td colspan="6" class="log-empty">暂无数据</td></tr>');
+        }
+
+        function renderRows(res) {
+            var rows = res.rows || [], html = '';
+            for (var i = 0; i < rows.length; i++) {
+                var r = rows[i];
+                var ok = r.status !== 'fail';
+                html += '<tr>'
+                    + '<td>' + esc(r.t) + '</td>'
+                    + '<td>' + esc(r.module) + '</td>'
+                    + '<td>' + esc(r.action) + '</td>'
+                    + '<td><span class="log-tag ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '成功' : '失败') + '</span></td>'
+                    + '<td>' + esc(r.code) + '</td>'
+                    + '<td>' + esc(r.ms) + ' ms</td>'
+                    + '<td>' + esc(r.ip) + '</td>'
+                    + '<td class="log-extra">' + esc(extraText(r.extra)) + '</td>'
+                    + '</tr>';
+            }
+            $('#log-body').html(html || '<tr><td colspan="8" class="log-empty">暂无数据</td></tr>');
+
+            laypage.render({
+                elem: 'pager',
+                count: res.total || 0,
+                curr: res.page || 1,
+                limit: res.size || 20,
+                limits: [20, 50, 100],
+                layout: ['count', 'prev', 'page', 'next', 'limit'],
+                jump: function (obj, first) {
+                    if (first) { return; }
+                    page = obj.curr;
+                    size = obj.limit;
+                    loadLog();
+                }
+            });
+        }
+
+        function loadLog() {
+            var data = {
+                type: 'log_call_list',
+                days: $('#f-days').val(),
+                module: $('#f-module').val(),
+                status: $('#f-status').val(),
+                kw: $('#f-kw').val(),
+                page: page,
+                size: size
+            };
+            $('#log-body').html('<tr><td colspan="8" class="log-empty">加载中…</td></tr>');
+            $.post('admin.php', data, function (res) {
+                if (!res || !res.ok) {
+                    $('#log-body').html('<tr><td colspan="8" class="log-empty">加载失败</td></tr>');
+                    return;
+                }
+                renderStats(res.stats || {});
+                fillModules((res.stats && res.stats.groups) || {});
+                renderRows(res);
+            }, 'json').fail(function () {
+                $('#log-body').html('<tr><td colspan="8" class="log-empty">请求失败，请检查登录状态</td></tr>');
+            });
+        }
+
+        $('#btn-search').on('click', function () {
+            page = 1;
+            loadLog();
+        });
+        $('#f-days, #f-module, #f-status').on('change', function () {
+            page = 1;
+            loadLog();
+        });
+        $('#f-kw').on('keydown', function (e) {
+            if (e.keyCode === 13) { page = 1; loadLog(); }
+        });
+        $('#btn-clear').on('click', function () {
+            layer.confirm('确定要清空全部调用日志吗？该操作不可恢复。', {icon: 3, title: '清空调用日志'}, function (idx) {
+                layer.close(idx);
+                $.post('admin.php', {type: 'log_clear', kind: 'call'}, function (d) {
+                    layer.msg(d && d.m ? d.m : '已清空', {icon: 1, time: 1200});
+                    page = 1;
+                    loadLog();
+                }, 'json').fail(function () { layer.msg('操作失败', {icon: 5}); });
+            });
+        });
+
+        form.render();
+        loadLog();
+    });
+    </script>
+</body>
+</html>
