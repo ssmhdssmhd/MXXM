@@ -27,6 +27,8 @@
                     <dl class="layui-nav-child"> <!-- 二级菜单 -->
    
                        <dd><a onclick='layer.confirm("视频缓存也将删除，确认要清空吗？",function (index){ x_admin_post("admin.php", {"type":"recache"});});' href="javascript:;">清空缓存</a></dd>
+                       <dd><a onclick='layer.confirm("确定要清空全部调用日志吗？该操作不可恢复。", {icon: 3, title: "清空调用日志"}, function (index){ layer.close(index); x_admin_post("admin.php", {"type":"log_clear","kind":"call"}, function(d){ layer.closeAll("loading"); layer.msg(d && d.m ? d.m : "已清空", {icon: 1}); }); });' href="javascript:;">清空调用日志</a></dd>
+                       <dd><a onclick='layer.confirm("确定要清空全部操作日志吗？该操作不可恢复。", {icon: 3, title: "清空操作日志"}, function (index){ layer.close(index); x_admin_post("admin.php", {"type":"log_clear","kind":"op"}, function(d){ layer.closeAll("loading"); layer.msg(d && d.m ? d.m : "已清空", {icon: 1}); }); });' href="javascript:;">清空操作日志</a></dd>
                        <dd><a onclick='layer.confirm("会覆盖现有配置,确认要恢复初始配置吗？",function (index){ x_admin_post("admin.php", {"type":"reset"});});' href="javascript:;">恢复配置</a></dd>
   
                     </dl>

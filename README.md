@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.60-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.61-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -257,7 +257,7 @@ MXXM/
 - 支持按时间范围、类型、状态、关键词筛选与分页查看
 - 日志按天写入 `save/logs/op/YYYYMMDD.log`，默认保留 90 天
 
-> 日志目录已在 `.gitignore` 中忽略，不随在线更新覆盖；两个页面均提供「清空日志」按钮。
+> 日志目录已在 `.gitignore` 中忽略，不随在线更新覆盖；顶栏「重置」菜单提供「清空调用日志」「清空操作日志」一键清理入口，两个日志页内也保留各自的清空按钮。
 
 ## 开发规范
 
@@ -276,6 +276,11 @@ MXXM/
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.61 · 2026-11-19 07:17（202611190717）
+
+- 顶栏「重置」菜单新增「清空调用日志」「清空操作日志」一键清理入口
+- 清理前二次确认，仅删除对应类型日志，并在操作日志中留下清理记录，便于审计
 
 ### v.0.0.60 · 2026-11-19 07:07（202611190707）
 
