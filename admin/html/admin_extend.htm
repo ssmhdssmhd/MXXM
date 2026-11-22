@@ -12,6 +12,13 @@ $DYNAMIC_EXPIRES = isset($EP['dynamic_expires']) ? (int)$EP['dynamic_expires'] :
 $CALL_BASE = 'https://ssmhd.com/1.php?url=官方视频地址';
 $FIXED_URL = $FIXED_KEY !== '' ? $CALL_BASE . '&key=' . $FIXED_KEY : '';
 $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
+$JSON_ON = !isset($EP['dynamic_json_off']) || (string)$EP['dynamic_json_off'] === '1';
+$__ext_https = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off')
+    || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+$__ext_base = preg_replace('~/admin/[^/]+$~', '', isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '');
+$__ext_origin = ($__ext_https ? 'https' : 'http') . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost') . $__ext_base;
+$JSON_URL = $__ext_origin . '/MXDTKEY.json';
+$JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
 ?>
 <?php include "block_header.htm"; ?>
 
@@ -48,7 +55,8 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
             ② <b>固定密钥由管理员自己保管</b>，不会被自动轮换修改；<b>临时密钥提供给调用方</b>，按设置的周期自动更换为新的 18 位随机字母数字；<br>
             ③ 更换周期可设置 <b>0-24 小时</b>：0 表示不自动更换，1 表示每小时更换，24 表示每天更换，默认 1 小时；<br>
             ④ 两种密钥都能调用接口。临时密钥到期后旧密钥立即失效，固定密钥仍可正常使用；<br>
-            ⑤ 无需配置计划任务：打开本页面或接口收到请求时会自动检查，到期立即更换；后续其他扩展功能也可在此继续添加。
+            ⑤ 无需配置计划任务：打开本页面或接口收到请求时会自动检查，到期立即更换；<br>
+            ⑥ 开启动态 JSON 接口后，APP 可通过 <code>/MXDTKEY.json</code> 自动获取当前临时密钥，避免把会变化的密钥写死在安装包中；接口同步使用系统防火墙并记录调用日志。
         </blockquote>
 
         <?php if ($EP_KEY_ERROR !== ''): ?>
@@ -68,6 +76,14 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
                         <input type="checkbox" name="dynamic_off" value="1" lay-skin="switch" lay-text="启用|停用" <?php echo $DYNAMIC_ON ? 'checked' : ''; ?>>
                     </div>
                     <div class="ext-muted" style="margin-top:6px">停用后临时密钥立即不可调用；只要固定密钥不为空，接口仍要求固定密钥。</div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">动态 JSON 接口</label>
+                    <div class="layui-input-block">
+                        <input type="checkbox" name="dynamic_json_off" value="1" lay-skin="switch" lay-text="启用|停用" <?php echo $JSON_ON ? 'checked' : ''; ?>>
+                    </div>
+                    <div class="ext-muted" style="margin-top:6px">启用后允许 APP 从 <code>/MXDTKEY.json</code> 获取当前临时密钥；停用后该地址返回 403，不影响固定密钥。</div>
                 </div>
 
                 <div class="layui-form-item">
@@ -114,6 +130,19 @@ $DYNAMIC_URL = $DYNAMIC_KEY !== '' ? $CALL_BASE . '&key=' . $DYNAMIC_KEY : '';
                 <?php else: ?>
                 <div class="ext-warning">启用动态密钥后显示完整调用地址。</div>
                 <?php endif; ?>
+            </div>
+
+            <div class="ext-key-box">
+                <div class="ext-key-label">APP 自动获取 Key（JSON 接口）</div>
+                <div class="ext-call">推荐地址：<code><?php echo htmlspecialchars($JSON_URL); ?></code></div>
+                <div class="ext-call">通用地址：<code><?php echo htmlspecialchars($JSON_PHP_URL); ?></code>（不支持伪静态的 Nginx 等环境可直接使用）</div>
+                <?php if ($JSON_ON && $DYNAMIC_ON): ?>
+                <div class="ext-muted" style="margin-top:8px">APP 启动时 GET 推荐地址，读取返回 JSON 顶层的 <code>key</code> 字段，再请求 <code>/1.php?url=视频地址&amp;key=读取到的key</code>。解析接口返回密钥错误时重新获取即可，密钥自动轮换不影响 APP 使用。</div>
+                <div class="ext-muted">返回还包含 <code>expires</code>（到期时间戳）、<code>expires_in</code>（剩余秒数）与 <code>interval</code>（轮换小时数）。<code>/MXDTKEY.json</code> 与 <code>/1.php</code> 使用同一份临时密钥，并同步执行系统防火墙和调用日志记录。</div>
+                <?php else: ?>
+                <div class="ext-warning" style="margin-top:8px">请同时启用「动态密钥开关」和「动态 JSON 接口」并保存后使用。</div>
+                <?php endif; ?>
+                <div class="ext-warning" style="margin-top:8px">JSON 接口只返回临时密钥，不会返回管理员固定密钥。该功能用于避免 APP 硬编码 Key，不等同于私密鉴权；请配合防火墙限制调用来源。</div>
             </div>
 
             <div class="ext-key-box" style="margin-bottom:0">

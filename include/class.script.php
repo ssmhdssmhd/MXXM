@@ -1267,6 +1267,7 @@ function script_endpoint_defaults() {
         'dynamic_hours'   => 1,
         'dynamic_key'     => '',
         'dynamic_expires' => 0,
+        'dynamic_json_off'=> '1',
         'synced'          => '',
         'sync_msg'        => '',
     );

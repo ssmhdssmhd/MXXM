@@ -2,6 +2,9 @@
 
 RewriteEngine On
 
+# 动态密钥 JSON 接口：/MXDTKEY.json → /MXDTKEY.php
+RewriteRule ^MXDTKEY\.json$ MXDTKEY.php [QSA,L]
+
 # 所有请求转发到 index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

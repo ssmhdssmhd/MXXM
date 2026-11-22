@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.61-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.62-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -84,6 +84,7 @@ php -S localhost:8080
 | `/plus/script/api.php` | 脚本解析对外接口，`?list=1` 获取线路 |
 | `/plus/mxjx/?url=` | JSON 解析接口，返回 m3u8 |
 | `/1.php?url=` | 独立官解接口，必须通过密钥与防火墙校验 |
+| `/MXDTKEY.json` | 返回当前动态临时密钥，供 APP 自动替换 Key；兼容 `/MXDTKEY.php` |
 | `/<编号>.php?url=` | 勾选同步后的 JB 接口，行为与 `1.php` 一致 |
 | `/mx1/?url=` | 官替算法 1（数据库匹配） |
 | `/mx2/?url=` | 官替算法 2（多线程搜索） |
@@ -109,6 +110,7 @@ MXXM/
 ├── v.php                  # 播放页
 ├── so.php                 # 搜索页
 ├── 1.php                  # 独立官解接口（密钥 + 防火墙）
+├── MXDTKEY.php            # 动态临时密钥 JSON 接口
 ├── include/               # 核心类库
 │   ├── class.main.php     # 主框架与防火墙
 │   ├── class.db.php       # 数据层
@@ -209,6 +211,9 @@ MXXM/
   - 入口复用 `1.php` 的接口开关、固定/动态密钥与系统防火墙校验
   - 取消勾选后再次同步会移除对应入口
 - 动态密钥：后台「扩展功能 → 动态密钥」可设置更换周期 0-24 小时（0 = 不自动更换，1 = 每小时，24 = 每天，默认 1 小时）
+- 动态密钥 JSON：`/MXDTKEY.json` 返回顶层 `key`、`expires`、`expires_in`、`interval` 等字段；APP 启动或密钥失效时自动读取并替换 `/1.php` 的 `key` 参数
+- JSON 接口与 `/1.php` 共用同一份临时密钥和轮换逻辑，同步执行系统防火墙并写入「动态密钥接口」调用日志；只返回临时密钥，不返回管理员固定密钥
+- Apache 自动将 `/MXDTKEY.json` 转发到 `/MXDTKEY.php`；Nginx 等未配置伪静态的环境可直接使用 `/MXDTKEY.php`
 - 运行时文件 `kanju/jb/`、根目录数字 PHP 均已在 `.gitignore` 中忽略，不污染仓库
 
 ## 资源站与云播放
@@ -276,6 +281,14 @@ MXXM/
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.62 · 2026-11-23 07:24（202611230724）
+
+- 后台「扩展功能 → 动态密钥」新增动态 JSON 接口开关与 APP 接入说明
+- 新增 `/MXDTKEY.json`（通用入口 `/MXDTKEY.php`），返回当前动态临时密钥及到期时间、剩余秒数、轮换周期
+- APP 可读取 JSON 顶层 `key` 自动替换 `/1.php` 的 Key，密钥轮换无需重新打包
+- JSON 接口与 `/1.php` 同步轮换密钥、执行系统防火墙，并记录到「日志与调用 → 调用日志」
+- 仅返回动态临时密钥，不返回管理员固定密钥；支持后台一键停用
 
 ### v.0.0.61 · 2026-11-19 07:17（202611190717）
 

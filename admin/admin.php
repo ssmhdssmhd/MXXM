@@ -1421,6 +1421,7 @@ switch ($type) {
         $ecfg = script_endpoint_load();
         $ecfg['access_key'] = trim((string)(isset($_POST['access_key']) ? $_POST['access_key'] : ''));
         $ecfg['dynamic_off'] = (isset($_POST['dynamic_off']) && (string)$_POST['dynamic_off'] === '1') ? '1' : '0';
+        $ecfg['dynamic_json_off'] = (isset($_POST['dynamic_json_off']) && (string)$_POST['dynamic_json_off'] === '1') ? '1' : '0';
         if ($ecfg['dynamic_off'] === '0' && $ecfg['access_key'] === '') {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '停用动态密钥前必须设置固定密钥，否则接口将完全不限制访问'), JSON_UNESCAPED_UNICODE));
         }

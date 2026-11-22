@@ -110,7 +110,7 @@
     layui.use(['form', 'layer', 'laypage'], function () {
         var form = layui.form, layer = layui.layer, laypage = layui.laypage, $ = layui.jquery;
         var page = 1, size = 20;
-        var FIXED = ['独立接口', '脚本解析接口', 'JSON解析接口', '解析线路', '主解析API', '官替算法1', '官替算法2'];
+        var FIXED = ['独立接口', '动态密钥接口', '脚本解析接口', 'JSON解析接口', '解析线路', '主解析API', '官替算法1', '官替算法2'];
 
         function esc(s) {
             return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
