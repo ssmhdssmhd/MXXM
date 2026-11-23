@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.64-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.65-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -375,6 +375,12 @@ curl -s https://你的域名/MXDTKEY.json
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.65 · 2026-11-23 09:47（202611230947）
+
+- 在线更新进度条完成整体自测：下载、解压、覆盖文件各阶段百分比正常递增，完成后进度到 100%
+- 更新结束后版本号正确回显，进度轮询在更新期间不被会话锁阻塞
+- 运行标识可正确过滤上一轮残留进度，重复更新不会误显示 100%
 
 ### v.0.0.64 · 2026-11-23 09:37（202611230937）
 
