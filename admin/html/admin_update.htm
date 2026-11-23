@@ -1,4 +1,12 @@
 <?php include "block_header.htm";?>
+    <style>
+    .upd-progress{padding:18px 20px 8px}
+    .upd-bar{height:14px;background:#eef1f6;border-radius:7px;overflow:hidden}
+    .upd-bar-inner{height:100%;width:0;border-radius:7px;background:linear-gradient(90deg,#1e9fff,#5fb878);transition:width .35s ease}
+    .upd-meta{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#7a8699}
+    .upd-stage{margin-top:6px;font-size:13px;color:#39445a;min-height:20px;word-break:break-all}
+    .upd-tip{margin-top:10px;padding-bottom:6px;font-size:12px;color:#ff9800}
+    </style>
     <body>
         <div class="x-nav">
             <span class="layui-breadcrumb">
@@ -116,6 +124,55 @@
                     });
                 }
 
+                //更新进度弹窗：真实进度来自后端 save/update_progress_<task>.json
+                function openProgress(title, task, run) {
+                    var html = '<div class="upd-progress">'
+                        + '<div class="upd-bar"><div class="upd-bar-inner" id="upd-bar-inner"></div></div>'
+                        + '<div class="upd-meta"><span id="upd-percent">0%</span><span id="upd-elapsed">已用 0 秒</span></div>'
+                        + '<div class="upd-stage" id="upd-stage">正在准备…</div>'
+                        + '<div class="upd-tip">更新期间请勿关闭页面，服务器正在下载并覆盖文件。</div>'
+                        + '</div>';
+                    var idx = layer.open({type: 1, title: title, area: ['480px', 'auto'], content: html, closeBtn: 0, shadeClose: false, shade: 0.3});
+                    var t0 = Date.now(), timed = null, polling = null, current = -1;
+
+                    function setPct(p) {
+                        current = p;
+                        $('#upd-bar-inner').css('width', p + '%');
+                        $('#upd-percent').text(p + '%');
+                    }
+                    function tickTime() {
+                        $('#upd-elapsed').text('已用 ' + Math.max(0, Math.round((Date.now() - t0) / 1000)) + ' 秒');
+                    }
+                    function poll() {
+                        $.post('admin.php', {type: 'update_progress', task: task, run: run}, function (d) {
+                            if (!d || typeof d.percent === 'undefined') { return; }
+                            if (d.task && d.task !== task) { return; }
+                            var p = Math.max(0, Math.min(100, parseInt(d.percent, 10) || 0));
+                            if (p < current) { return; }
+                            setPct(p);
+                            if (d.stage) { $('#upd-stage').text(d.stage); }
+                        }, 'json');
+                    }
+
+                    timed = setInterval(tickTime, 1000);
+                    polling = setInterval(poll, 900);
+                    poll();
+
+                    return {
+                        finish: function () {
+                            clearInterval(timed); clearInterval(polling);
+                            setPct(100);
+                            $('#upd-stage').text('更新完成');
+                            tickTime();
+                            setTimeout(function () { layer.close(idx); }, 600);
+                        },
+                        close: function () {
+                            clearInterval(timed); clearInterval(polling);
+                            layer.close(idx);
+                        }
+                    };
+                }
+
                 function check() {
                     $('#m_local').html('<i class="layui-icon layui-anim layui-anim-rotate layui-anim-loop">ဂ</i> 检测中…');
                     $('#m_remote').html('<i class="layui-icon layui-anim layui-anim-rotate layui-anim-loop">ဂ</i> 获取中…');
@@ -143,14 +200,15 @@
                 $('#btn_update').on('click', function () {
                     layer.confirm('确定要立即从远程仓库更新代码吗？更新过程需要服务器能够访问外网。', {icon: 3, title: '在线更新'}, function (index) {
                         layer.close(index);
-                        var load = layer.load(2);
-                        $.post("admin.php", {type: "update_run"}, function (d) {
-                            layer.close(load);
+                        var run = 'r' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+                        var ui = openProgress('正在更新', 'update', run);
+                        $.post("admin.php", {type: "update_run", run: run}, function (d) {
+                            if (d.success) { ui.finish(); } else { ui.close(); }
                             layer.alert(d.m, {icon: d.icon || (d.success ? 6 : 5)}, function () {
                                 if (d.success) { check(); }
                             });
                         }, "json").fail(function () {
-                            layer.close(load);
+                            ui.close();
                             layer.alert('更新请求失败，请检查服务器网络或防火墙设置！', {icon: 5});
                         });
                     });
@@ -182,14 +240,15 @@
                     var label = (mod === 'mx1' ? '官替算法 · 算法1' : '官替算法 · 算法2');
                     layer.confirm('确定要更新「' + label + '」到最新版吗？更新过程需要服务器能够访问外网。<br>你的用户配置（资源站列表/设置/映射表）会自动保留。', {icon: 3, title: '官替算法独立更新'}, function (idx) {
                         layer.close(idx);
-                        var load = layer.load(2);
-                        $.post("admin.php", {type: "algo_run", module: mod}, function (d) {
-                            layer.close(load);
+                        var run = 'r' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+                        var ui = openProgress('正在更新 ' + label, 'algo_' + mod, run);
+                        $.post("admin.php", {type: "algo_run", module: mod, run: run}, function (d) {
+                            if (d.success) { ui.finish(); } else { ui.close(); }
                             layer.alert(esc(d.m), {icon: (d.success ? 6 : 5), title: (d.success ? '更新成功' : '更新失败')}, function () {
                                 if (d.success) { checkAlgo(mod); }
                             });
                         }, "json").fail(function () {
-                            layer.close(load);
+                            ui.close();
                             layer.alert('更新请求失败，请检查服务器网络或防火墙设置！', {icon: 5});
                         });
                     });

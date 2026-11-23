@@ -16,6 +16,12 @@ if (!filter_has_var(INPUT_POST, "type")) { exit(json_encode(array('success' => 0
 $type = filter_input(INPUT_POST, 'type');
 $id = filter_input(INPUT_POST, 'id');
 
+//长耗时请求（在线更新 / 算法更新）立即释放会话锁，避免进度轮询请求被阻塞
+if (in_array((string)$type, array('update_run', 'algo_run', 'update_progress'), true)
+    && function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 //json 初始化
 $info = array('success' => 0, 'icon' => 6);
 
@@ -529,32 +535,45 @@ switch ($type) {
         $repo = (is_array($meta) && !empty($meta['repo'])) ? $meta['repo'] : 'ssmhdssmhd/MXXM';
         $branch = (is_array($meta) && !empty($meta['branch'])) ? $meta['branch'] : 'main';
         $root = dirname(dirname(__FILE__));
+        $task = 'update';
+        //本次更新运行标识，用于前端区分上一轮残留进度
+        $GLOBALS['mxxm_progress_run'] = isset($_POST['run']) ? preg_replace('~[^a-zA-Z0-9_]~', '', (string)$_POST['run']) : '';
+
+        mxxm_progress_write($task, 1, '检查运行环境');
 
         if (!class_exists('ZipArchive')) {
+            mxxm_progress_write($task, 100, '更新失败', 'fail', '服务器未开启 ZipArchive 扩展');
             $info['m'] = "服务器未开启 ZipArchive 扩展，无法在线更新！";
             exit(json_encode($info));
         }
         if (!is_writable($root)) {
+            mxxm_progress_write($task, 100, '更新失败', 'fail', '项目根目录不可写');
             $info['m'] = "项目根目录不可写，请检查目录权限后再试！";
             exit(json_encode($info));
         }
 
-        //实时下载仓库最新代码包
-        $data = curl('https://codeload.github.com/' . $repo . '/zip/refs/heads/' . $branch);
+        //实时下载仓库最新代码包（带下载进度）
+        mxxm_progress_write($task, 3, '正在连接远程仓库');
+        $data = mxxm_download_progress('https://codeload.github.com/' . $repo . '/zip/refs/heads/' . $branch, $task, 5, 45);
         if (!$data || strlen($data) < 100) {
+            mxxm_progress_write($task, 100, '更新失败', 'fail', '下载更新包失败');
             $info['m'] = "下载更新包失败，请检查服务器网络或防火墙设置！";
             exit(json_encode($info));
         }
 
+        mxxm_progress_write($task, 48, '正在写入临时文件');
         $tmpZip = tempnam(sys_get_temp_dir(), 'mxxm_');
         if (!@file_put_contents($tmpZip, $data)) {
+            mxxm_progress_write($task, 100, '更新失败', 'fail', '更新包写入失败');
             $info['m'] = "更新包写入失败，请检查服务器临时目录权限！";
             exit(json_encode($info));
         }
 
+        mxxm_progress_write($task, 52, '正在解压更新包');
         $zip = new ZipArchive();
         if ($zip->open($tmpZip) !== true) {
             @unlink($tmpZip);
+            mxxm_progress_write($task, 100, '更新失败', 'fail', '更新包解压失败');
             $info['m'] = "更新包解压失败（文件可能损坏）！";
             exit(json_encode($info));
         }
@@ -569,7 +588,16 @@ switch ($type) {
         $src = !empty($dirs) ? $dirs[0] : $tmpDir;
 
         //覆盖写入项目根目录，跳过 save/ 目录以保护用户配置与数据
-        mxxm_copy_dir($src, $root, array('save'));
+        $total = mxxm_count_files($src, array('save'));
+        $done = 0;
+        mxxm_progress_write($task, 58, '准备覆盖文件（共 ' . $total . ' 个）');
+        mxxm_copy_dir($src, $root, array('save'), function () use (&$done, $total, $task) {
+            $done++;
+            if ($total > 0 && ($done === $total || $done % 10 === 0)) {
+                $pct = 58 + (int)floor(40 * $done / $total);
+                mxxm_progress_write($task, min(98, $pct), '覆盖文件 ' . $done . '/' . $total);
+            }
+        });
 
         //读取更新后的版本号
         $newVer = '';
@@ -578,13 +606,35 @@ switch ($type) {
             if (is_array($nv) && !empty($nv['version'])) { $newVer = $nv['version']; }
         }
 
+        mxxm_progress_write($task, 99, '正在清理临时文件');
         mxxm_rmdir($tmpDir);
 
         $info['success'] = 1;
         $info['icon'] = 6;
         $info['version'] = $newVer;
         $info['m'] = "更新成功！" . ($newVer !== '' ? "当前版本：" . $newVer : "") . "，建议到「清理缓存」清除缓存后使用。";
+        mxxm_progress_write($task, 100, '更新完成', 'done', $info['m']);
         exit(json_encode($info));
+
+    //在线更新 读取更新进度（前端轮询）
+    case 'update_progress':
+        $task = isset($_POST['task']) ? preg_replace('~[^a-z0-9_]~', '', strtolower((string)$_POST['task'])) : 'update';
+        if ($task === '') { $task = 'update'; }
+        $state = mxxm_progress_read($task);
+        $reqRun = isset($_POST['run']) ? preg_replace('~[^a-zA-Z0-9_]~', '', (string)$_POST['run']) : '';
+        if ($reqRun !== '' && isset($state['run']) && (string)$state['run'] !== $reqRun) {
+            //不是当前运行写入的进度（上一轮残留），忽略
+            $state = array();
+        }
+        if (empty($state)) {
+            $info['success'] = 0;
+            $info['m'] = '暂无进度';
+            $info['percent'] = 0;
+            $info['stage'] = '';
+            exit(json_encode($info));
+        }
+        $state['success'] = 1;
+        exit(json_encode($state));
 
 
     //官替算法独立更新 检查版本（支持 mx1 / mx2 等模块）
@@ -717,19 +767,26 @@ switch ($type) {
 
         $dstDir = $root . '/' . $mod;
 
+        $task = 'algo_' . $mod;
+
+        //本次更新运行标识，用于前端区分上一轮残留进度
+        $GLOBALS['mxxm_progress_run'] = isset($_POST['run']) ? preg_replace('~[^a-zA-Z0-9_]~', '', (string)$_POST['run']) : '';
+
+        mxxm_progress_write($task, 1, '检查运行环境');
+
+        if (!class_exists('ZipArchive')) {{ mxxm_progress_write($task, 100, '更新失败', 'fail', '服务器未开启 ZipArchive 扩展'); $info['m'] = "服务器未开启 ZipArchive 扩展！"; exit(json_encode($info)); }}
+
+        if (!is_dir($dstDir))             {{ mxxm_progress_write($task, 100, '更新失败', 'fail', '本地模块目录不存在'); $info['m'] = "本地不存在 {$dstDir} 目录！"; exit(json_encode($info)); }}
+
+        if (!is_writable($dstDir))        {{ mxxm_progress_write($task, 100, '更新失败', 'fail', '模块目录不可写'); $info['m'] = "目录 {$dstDir} 不可写！"; exit(json_encode($info)); }}
 
 
-        if (!class_exists('ZipArchive')) {{ $info['m'] = "服务器未开启 ZipArchive 扩展！"; exit(json_encode($info)); }}
 
-        if (!is_dir($dstDir))             {{ $info['m'] = "本地不存在 {$dstDir} 目录！"; exit(json_encode($info)); }}
+        mxxm_progress_write($task, 3, '正在连接远程仓库');
 
-        if (!is_writable($dstDir))        {{ $info['m'] = "目录 {$dstDir} 不可写！"; exit(json_encode($info)); }}
+        $data = mxxm_download_progress('https://codeload.github.com/' . $repo . '/zip/refs/heads/' . $branch, $task, 5, 40);
 
-
-
-        $data = curl('https://codeload.github.com/' . $repo . '/zip/refs/heads/' . $branch);
-
-        if (!$data || strlen($data) < 100) {{ $info['m'] = "下载更新包失败，请检查服务器网络！"; exit(json_encode($info)); }}
+        if (!$data || strlen($data) < 100) {{ mxxm_progress_write($task, 100, '更新失败', 'fail', '下载更新包失败'); $info['m'] = "下载更新包失败，请检查服务器网络！"; exit(json_encode($info)); }}
 
 
 
@@ -737,9 +794,11 @@ switch ($type) {
 
         @file_put_contents($tmpZip, $data);
 
+        mxxm_progress_write($task, 43, '正在解压更新包');
+
         $zip = new ZipArchive();
 
-        if ($zip->open($tmpZip) !== true) {{ @unlink($tmpZip); $info['m'] = "更新包解压失败！"; exit(json_encode($info)); }}
+        if ($zip->open($tmpZip) !== true) {{ @unlink($tmpZip); mxxm_progress_write($task, 100, '更新失败', 'fail', '更新包解压失败'); $info['m'] = "更新包解压失败！"; exit(json_encode($info)); }}
 
         $tmpDir = sys_get_temp_dir() . '/mxxm_algo_' . $mod . '_' . uniqid();
 
@@ -757,9 +816,11 @@ switch ($type) {
 
         $srcModDir = $srcRoot . '/' . $mod;
 
-        if (!is_dir($srcModDir)) {{ mxxm_rmdir($tmpDir); $info['m'] = "远端未找到 {$mod}/ 目录！"; exit(json_encode($info)); }}
+        if (!is_dir($srcModDir)) {{ mxxm_rmdir($tmpDir); mxxm_progress_write($task, 100, '更新失败', 'fail', '远端未找到模块目录'); $info['m'] = "远端未找到 {$mod}/ 目录！"; exit(json_encode($info)); }}
 
 
+
+        mxxm_progress_write($task, 48, '正在保留用户配置');
 
         $backups = [];
 
@@ -783,11 +844,24 @@ switch ($type) {
 
 
 
+        mxxm_progress_write($task, 52, '正在清理旧文件');
+
         mxxm_clean_dir($dstDir);
 
-        mxxm_copy_dir($srcModDir, $dstDir, array());
+        $total = mxxm_count_files($srcModDir);
+        $done = 0;
+        mxxm_progress_write($task, 55, '准备覆盖文件（共 ' . $total . ' 个）');
+        mxxm_copy_dir($srcModDir, $dstDir, array(), function () use (&$done, $total, $task) {
+            $done++;
+            if ($total > 0 && ($done === $total || $done % 10 === 0)) {
+                $pct = 55 + (int)floor(40 * $done / $total);
+                mxxm_progress_write($task, min(95, $pct), '覆盖文件 ' . $done . '/' . $total);
+            }
+        });
 
 
+
+        mxxm_progress_write($task, 96, '正在恢复用户配置');
 
         foreach ($backups as $rel => $bak) {{
 
@@ -800,6 +874,8 @@ switch ($type) {
             @unlink($bak);
 
         }}
+
+        mxxm_progress_write($task, 98, '正在清理临时文件');
 
         mxxm_rmdir($tmpDir);
 
@@ -818,6 +894,8 @@ switch ($type) {
         $info['module'] = $mod; $info['label'] = $label; $info['version'] = $newVer;
 
         $info['m'] = "{$label} 更新成功！" . ($newVer ? "当前版本：{$newVer}" : "") . (empty($backups) ? '' : "，用户配置已保留");
+
+        mxxm_progress_write($task, 100, '更新完成', 'done', $info['m']);
 
         exit(json_encode($info));
 
@@ -1890,7 +1968,7 @@ function curl($url, $ref = '') {
 }
 
 //在线更新：递归复制目录（$skip 仅在顶层生效，用于跳过 save/ 等用户数据目录）
-function mxxm_copy_dir($src, $dst, $skip = array()) {
+function mxxm_copy_dir($src, $dst, $skip = array(), $on_file = null) {
     if (!is_dir($dst)) { @mkdir($dst, 0755, true); }
     $dh = @opendir($src);
     if (!$dh) { return false; }
@@ -1900,13 +1978,110 @@ function mxxm_copy_dir($src, $dst, $skip = array()) {
         $s = $src . '/' . $file;
         $d = $dst . '/' . $file;
         if (is_dir($s)) {
-            mxxm_copy_dir($s, $d, array());
+            mxxm_copy_dir($s, $d, array(), $on_file);
         } else {
             @copy($s, $d);
+            if (is_callable($on_file)) { call_user_func($on_file, $d); }
         }
     }
     closedir($dh);
     return true;
+}
+
+//在线更新：统计待复制文件数量（用于计算进度）
+function mxxm_count_files($src, $skip = array()) {
+    $n = 0;
+    $dh = @opendir($src);
+    if (!$dh) { return 0; }
+    while (($file = readdir($dh)) !== false) {
+        if ($file === '.' || $file === '..' || in_array($file, $skip, true)) { continue; }
+        $p = $src . '/' . $file;
+        $n += is_dir($p) ? mxxm_count_files($p) : 1;
+    }
+    closedir($dh);
+    return $n;
+}
+
+/* ==================== 在线更新进度 ==================== */
+
+//进度文件路径（保存在 save/，不会被在线更新覆盖）
+function mxxm_progress_file($task) {
+    $task = preg_replace('~[^a-z0-9_]~', '', strtolower((string)$task));
+    if ($task === '') { $task = 'update'; }
+    return dirname(dirname(__FILE__)) . '/save/update_progress_' . $task . '.json';
+}
+
+//读取进度
+function mxxm_progress_read($task) {
+    $file = mxxm_progress_file($task);
+    if (!is_file($file)) { return array(); }
+    $raw = @file_get_contents($file);
+    if ($raw === false || $raw === '') { return array(); }
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : array();
+}
+
+//写入进度（原子写入，避免前端轮询读到半个 JSON）
+function mxxm_progress_write($task, $percent, $stage, $status = 'running', $message = '') {
+    $file = mxxm_progress_file($task);
+    $dir = dirname($file);
+    if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+    $now = time();
+    $old = mxxm_progress_read($task);
+    $oldRun = isset($old['run']) ? (string)$old['run'] : '';
+    $curRun = isset($GLOBALS['mxxm_progress_run']) ? (string)$GLOBALS['mxxm_progress_run'] : '';
+    $started = ($oldRun === $curRun && !empty($old['started'])) ? (int)$old['started'] : $now;
+    $row = array(
+        'task'    => preg_replace('~[^a-z0-9_]~', '', strtolower((string)$task)),
+        'run'     => $curRun,
+        'status'  => $status,
+        'percent' => max(0, min(100, (int)$percent)),
+        'stage'   => (string)$stage,
+        'message' => (string)$message,
+        'started' => $started,
+        'updated' => $now,
+        'elapsed' => max(0, $now - $started),
+    );
+    $json = json_encode($row, JSON_UNESCAPED_UNICODE);
+    $tmp = $file . '.tmp';
+    if (@file_put_contents($tmp, $json) !== false) {
+        @rename($tmp, $file);
+    } else {
+        @file_put_contents($file, $json);
+    }
+}
+
+//带下载进度的更新包下载（$p0 - $p1 为下载阶段占用的进度区间）
+function mxxm_download_progress($url, $task, $p0 = 5, $p1 = 45) {
+    if (!function_exists('curl_init')) { return curl($url); }
+    $last = 0;
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 600);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_ENCODING, '');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36');
+    curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+    curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($resource, $total, $now) use ($task, $p0, $p1, &$last) {
+        if ($total > 0 && $now > 0) {
+            $t = microtime(true);
+            //限制写入频率，避免下载回调过于频繁
+            if ($now < $total && $t - $last < 0.5) { return 0; }
+            $last = $t;
+            $pct = $p0 + (int)floor(($p1 - $p0) * min(1, $now / $total));
+            mxxm_progress_write($task, $pct, '下载更新包 ' . number_format($now / 1048576, 1) . ' MB / ' . number_format($total / 1048576, 1) . ' MB');
+        }
+        return 0;
+    });
+    $data = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($data === false || $code >= 400) { return false; }
+    return $data;
 }
 
 //在线更新：递归删除临时目录

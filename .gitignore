@@ -58,6 +58,10 @@ mx2/config/.env.ini
 /save/kanju.config.php
 /kanju/remote.php
 
+# ===== 在线更新进度（运行时文件，不入库）=====
+/save/update_progress_*.json
+/save/update_progress_*.json.tmp
+
 # ===== 后台同步生成的 JB 接口（运行时文件，不入库）=====
 /kanju/jb/
 /[0-9]*.php

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.63-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.64-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -330,6 +330,8 @@ curl -s https://你的域名/MXDTKEY.json
 - 入口：在线更新 → 版本管理
 - 实时对比本地 `version.php` 与远程仓库版本
 - 一键从 `codeload.github.com` 拉取最新代码
+- 更新过程显示实时进度条：下载更新包、解压、覆盖文件分阶段显示百分比、当前阶段与已用时间
+- 官替算法独立更新使用同一套进度条，更新期间无需猜测等待时间
 - 自动跳过 `save/`，不影响用户配置
 - 顶栏「清理缓存」可清理服务器与浏览器缓存
 
@@ -373,6 +375,13 @@ curl -s https://你的域名/MXDTKEY.json
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.64 · 2026-11-23 09:37（202611230937）
+
+- 在线更新改为实时进度条：下载更新包、解压、覆盖文件分阶段显示百分比、当前阶段与已用时间
+- 官替算法 1 / 2 独立更新同步接入进度条
+- 后端按阶段写入 `save/update_progress_<任务>.json`，前端轮询显示真实进度；长请求提前释放会话锁，避免轮询被阻塞
+- 进度文件为运行时文件，已加入 `.gitignore`，不随在线更新覆盖
 
 ### v.0.0.63 · 2026-11-23 08:50（202611230850）
 
