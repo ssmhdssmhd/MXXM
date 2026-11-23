@@ -36,6 +36,8 @@ $JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
 .ext-call code{color:#1e9fff;user-select:all}
 .ext-warning{color:#ff5722;font-size:12px;line-height:1.8}
 .ext-muted{color:#8a94a6;font-size:12px;line-height:1.8}
+.ext-json-out{margin:10px 0 0;padding:12px;background:#0f172a;color:#a5f3fc;font-size:12px;line-height:1.7;border-radius:6px;overflow:auto;max-height:280px;white-space:pre-wrap;word-break:break-all}
+.ext-json-bar{margin-top:10px}
 </style>
 
 <body>
@@ -133,9 +135,17 @@ $JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
             </div>
 
             <div class="ext-key-box">
-                <div class="ext-key-label">APP 自动获取 Key（JSON 接口）</div>
+                <div class="ext-key-label">APP 自动获取 Key（JSON 接口）
+                    <span class="ext-tag <?php echo ($JSON_ON && $DYNAMIC_ON) ? 'on' : 'off'; ?>" style="margin-left:6px;vertical-align:middle"><?php echo ($JSON_ON && $DYNAMIC_ON) ? '接口可用' : '接口未启用'; ?></span>
+                </div>
                 <div class="ext-call">推荐地址：<code><?php echo htmlspecialchars($JSON_URL); ?></code></div>
                 <div class="ext-call">通用地址：<code><?php echo htmlspecialchars($JSON_PHP_URL); ?></code>（不支持伪静态的 Nginx 等环境可直接使用）</div>
+                <div class="ext-json-bar">
+                    <button type="button" class="layui-btn layui-btn-sm" id="btn-json-test">测试获取 Key</button>
+                    <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="btn-json-copy">复制推荐地址</button>
+                    <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="btn-json-clear" style="display:none">清空结果</button>
+                </div>
+                <pre id="json-test-out" class="ext-json-out" style="display:none"></pre>
                 <?php if ($JSON_ON && $DYNAMIC_ON): ?>
                 <div class="ext-muted" style="margin-top:8px">APP 启动时 GET 推荐地址，读取返回 JSON 顶层的 <code>key</code> 字段，再请求 <code>/1.php?url=视频地址&amp;key=读取到的key</code>。解析接口返回密钥错误时重新获取即可，密钥自动轮换不影响 APP 使用。</div>
                 <div class="ext-muted">返回还包含 <code>expires</code>（到期时间戳）、<code>expires_in</code>（剩余秒数）与 <code>interval</code>（轮换小时数）。<code>/MXDTKEY.json</code> 与 <code>/1.php</code> 使用同一份临时密钥，并同步执行系统防火墙和调用日志记录。</div>
@@ -183,6 +193,55 @@ $JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
                 }, 'json').fail(function () { tip(false, '请求失败'); });
             });
             return false;
+        });
+
+        var JSON_URL = <?php echo json_encode($JSON_URL); ?>;
+
+        function showJson(text) {
+            $('#json-test-out').show().text(text);
+            $('#btn-json-clear').show();
+        }
+
+        $('#btn-json-test').on('click', function () {
+            var $btn = $(this);
+            $btn.prop('disabled', true);
+            showJson('请求中...');
+            $.ajax({
+                url: JSON_URL,
+                type: 'GET',
+                dataType: 'json',
+                cache: false,
+                timeout: 15000
+            }).done(function (d) {
+                showJson(JSON.stringify(d, null, 2));
+                tip(d.code == 200, d.code == 200 ? '接口正常，已获取动态 Key' : (d.msg || '接口返回异常'));
+            }).fail(function (xhr) {
+                var d = xhr.responseJSON;
+                showJson(d ? JSON.stringify(d, null, 2) : ('请求失败：HTTP ' + xhr.status));
+                tip(false, d && d.msg ? d.msg : '接口请求失败');
+            }).always(function () {
+                $btn.prop('disabled', false);
+            });
+        });
+
+        $('#btn-json-copy').on('click', function () {
+            var text = JSON_URL;
+            function fallback() {
+                var $t = $('<textarea>').val(text).css({position: 'fixed', top: '-1000px', left: '-1000px'}).appendTo('body');
+                $t[0].select();
+                try { document.execCommand('copy'); tip(true, '地址已复制'); } catch (e) { tip(false, '复制失败，请手动选择'); }
+                $t.remove();
+            }
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function () { tip(true, '地址已复制'); }, fallback);
+            } else {
+                fallback();
+            }
+        });
+
+        $('#btn-json-clear').on('click', function () {
+            $('#json-test-out').hide().text('');
+            $(this).hide();
         });
     });
     </script>

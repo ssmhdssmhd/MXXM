@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.62-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.63-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -25,6 +25,7 @@
 - [在线播放器](#在线播放器)
 - [官替算法](#官替算法)
 - [脚本解析](#脚本解析)
+- [动态密钥 JSON 接口](#动态密钥-json-接口)
 - [资源站与云播放](#资源站与云播放)
 - [在线更新](#在线更新)
 - [日志与调用](#日志与调用)
@@ -216,6 +217,97 @@ MXXM/
 - Apache 自动将 `/MXDTKEY.json` 转发到 `/MXDTKEY.php`；Nginx 等未配置伪静态的环境可直接使用 `/MXDTKEY.php`
 - 运行时文件 `kanju/jb/`、根目录数字 PHP 均已在 `.gitignore` 中忽略，不污染仓库
 
+## 动态密钥 JSON 接口
+
+用于避免 APP 把会变化的访问密钥写死在安装包中。APP 在启动或密钥失效时请求一次 JSON 接口，拿到当前可用的临时密钥，再调用 `/1.php`。
+
+### 接口地址
+
+| 地址 | 说明 |
+| --- | --- |
+| `/MXDTKEY.json` | 推荐地址，Apache 通过根目录 `.htaccess` 转发到 `MXDTKEY.php` |
+| `/MXDTKEY.php` | 通用地址，Nginx 等未配置伪静态的环境直接使用 |
+
+### 返回示例
+
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "key": "A1b2C3d4E5f6G7h8I9",
+  "expires": 1795393200,
+  "expires_at": "2026-11-23 09:40:00",
+  "expires_in": 3600,
+  "interval": 1,
+  "api": "/1.php",
+  "usage": "/1.php?url=官方视频地址&key=A1b2C3d4E5f6G7h8I9",
+  "server_time": 1795389600
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `code` | 业务状态码，`200` 表示成功 |
+| `msg` | 结果说明 |
+| `key` | 当前动态临时密钥（18 位字母数字） |
+| `expires` | 到期时间戳（秒） |
+| `expires_at` | 到期时间（`Y-m-d H:i:s`） |
+| `expires_in` | 剩余有效秒数 |
+| `interval` | 轮换周期（小时，`0` 表示不自动轮换） |
+| `api` | 需要携带 Key 的业务接口 |
+| `usage` | 完整调用示例 |
+| `server_time` | 服务器当前时间戳 |
+
+### APP 接入流程
+
+1. APP 启动时 `GET /MXDTKEY.json`，读取返回 JSON 顶层的 `key`；
+2. 拼接调用地址：`/1.php?url=官方视频地址&key=读取到的key`；
+3. 业务接口返回 `403`（密钥已轮换）时，重新请求 JSON 获取新 Key 并重试一次；
+4. 可结合 `expires_in` 在本地缓存 Key，快到期时再刷新，减少请求次数。
+
+```javascript
+// H5 / uni-app / Hybrid 通用示例
+async function getDynamicKey() {
+  const res = await fetch('/MXDTKEY.json', { cache: 'no-store' });
+  const data = await res.json();
+  if (data.code !== 200 || !data.key) throw new Error(data.msg || '获取密钥失败');
+  return data.key;
+}
+
+// 调用解析接口，密钥失效时自动刷新重试
+async function parseVideo(url, retry = true) {
+  const key = await getDynamicKey();
+  const res = await fetch(`/1.php?url=${encodeURIComponent(url)}&key=${encodeURIComponent(key)}`);
+  const data = await res.json();
+  if (data.code === 403 && retry) return parseVideo(url, false);
+  return data;
+}
+```
+
+```bash
+# 命令行调试
+curl -s https://你的域名/MXDTKEY.json
+```
+
+### 与 `/1.php` 的关系
+
+- 与 `/1.php` 共用同一份密钥配置和轮换逻辑，两个接口拿到的临时密钥始终一致；
+- 同步执行系统防火墙规则，命中规则的请求同样会被拦截；
+- 每次调用写入「日志与调用 → 调用日志」，模块为「动态密钥接口」；
+- **只返回动态临时密钥，绝不返回管理员固定密钥**；
+- 后台「扩展功能 → 动态密钥 → 动态 JSON 接口」可一键停用，停用后该地址返回 `403`。
+
+### 错误码
+
+| code | 说明 |
+| --- | --- |
+| `200` | 成功，`key` 为当前可用临时密钥 |
+| `403` | 独立接口已关闭 / 动态 JSON 接口已关闭 / 动态密钥未启用 |
+| `500` | 密钥生成或保存失败 |
+| `503` | 动态密钥尚未生成，稍后重试 |
+
+> 该接口用于避免 APP 硬编码 Key，不等同于私密鉴权。若需限制调用来源，请配合后台防火墙使用。
+
 ## 资源站与云播放
 
 ### 资源站设置
@@ -281,6 +373,12 @@ MXXM/
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.63 · 2026-11-23 08:50（202611230850）
+
+- README 新增「动态密钥 JSON 接口」章节：接口地址、返回示例、字段说明、APP 接入流程、错误码
+- 后台「扩展功能 → 动态密钥」新增接口状态标签、「测试获取 Key」与「复制接口地址」按钮
+- 测试按钮直接请求 `/MXDTKEY.json` 并展示完整 JSON 返回，便于确认防火墙与开关是否生效
 
 ### v.0.0.62 · 2026-11-23 07:24（202611230724）
 
