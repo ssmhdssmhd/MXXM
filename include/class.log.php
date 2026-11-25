@@ -458,6 +458,7 @@ function mxxm_admin_action_label($type) {
         'script_import'         => '脚本解析-导入源码',
         'endpoint_key_save'     => '独立接口-保存密钥',
         'endpoint_key_rotate'   => '独立接口-更换临时密钥',
+        'lx_save'               => '轮训接口-保存设置',
         'endpoint_save'         => '独立接口-保存设置',
         'endpoint_sync'         => '独立接口-同步代码',
         'endpoint_install'      => '独立接口-粘贴安装',
@@ -480,6 +481,6 @@ function mxxm_admin_action_label($type) {
 function mxxm_admin_action_ignored($type) {
     return in_array($type, array(
         'check', 'recache', 'update_check', 'algo_check',
-        'script_line_list', 'log_call_list', 'log_op_list',
+        'script_line_list', 'log_call_list', 'log_op_list', 'lx_test',
     ), true);
 }

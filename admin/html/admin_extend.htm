@@ -19,6 +19,11 @@ $__ext_base = preg_replace('~/admin/[^/]+$~', '', isset($_SERVER['SCRIPT_NAME'])
 $__ext_origin = ($__ext_https ? 'https' : 'http') . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost') . $__ext_base;
 $JSON_URL = $__ext_origin . '/MXDTKEY.json';
 $JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
+
+require_once dirname(__FILE__) . '/../../LX/lib.php';
+$LX = lx_config_load();
+$LX_ON = (string)$LX['enabled'] === '1';
+$LX_URL = $__ext_origin . '/LX/?url=官方视频地址';
 ?>
 <?php include "block_header.htm"; ?>
 
@@ -38,6 +43,14 @@ $JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
 .ext-muted{color:#8a94a6;font-size:12px;line-height:1.8}
 .ext-json-out{margin:10px 0 0;padding:12px;background:#0f172a;color:#a5f3fc;font-size:12px;line-height:1.7;border-radius:6px;overflow:auto;max-height:280px;white-space:pre-wrap;word-break:break-all}
 .ext-json-bar{margin-top:10px}
+.lx-line{border:1px solid #e6e9ef;border-radius:8px;padding:12px;margin-bottom:12px;background:#fbfcfe}
+.lx-line-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;color:#39445a}
+.lx-line-hd a{color:#ff5722;font-size:12px}
+.lx-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lx-grid label{display:block;font-size:12px;color:#7a8699}
+.lx-grid .layui-input{margin-top:4px}
+.lx-grid textarea.layui-input{height:80px;resize:vertical;padding:8px;line-height:1.6}
+@media (max-width:768px){.lx-grid{grid-template-columns:1fr}}
 </style>
 
 <body>
@@ -58,7 +71,8 @@ $JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
             ③ 更换周期可设置 <b>0-24 小时</b>：0 表示不自动更换，1 表示每小时更换，24 表示每天更换，默认 1 小时；<br>
             ④ 两种密钥都能调用接口。临时密钥到期后旧密钥立即失效，固定密钥仍可正常使用；<br>
             ⑤ 无需配置计划任务：打开本页面或接口收到请求时会自动检查，到期立即更换；<br>
-            ⑥ 开启动态 JSON 接口后，APP 可通过 <code>/MXDTKEY.json</code> 自动获取当前临时密钥，避免把会变化的密钥写死在安装包中；接口同步使用系统防火墙并记录调用日志。
+            ⑥ 开启动态 JSON 接口后，APP 可通过 <code>/MXDTKEY.json</code> 自动获取当前临时密钥，避免把会变化的密钥写死在安装包中；接口同步使用系统防火墙并记录调用日志；<br>
+            ⑦ 扩展 2 为「轮训接口」：按顺序请求多条解析线路，返回第一条成功解析出 <code>url</code> 的结果；线路全部在下方可视化设置，无需修改代码。
         </blockquote>
 
         <?php if ($EP_KEY_ERROR !== ''): ?>
@@ -165,6 +179,59 @@ $JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
                 <?php endif; ?>
             </div>
         </div>
+
+        <div class="ext-card" style="margin-top:16px">
+            <div class="ext-card-hd">
+                <div class="ext-card-title">扩展 2：轮训接口</div>
+                <span class="ext-tag <?php echo $LX_ON ? 'on' : 'off'; ?>" id="lx-status-tag"><?php echo $LX_ON ? '已启用' : '已停用'; ?></span>
+            </div>
+
+            <div class="ext-key-box">
+                <div class="ext-key-label">调用地址</div>
+                <div class="ext-call"><code><?php echo htmlspecialchars($LX_URL); ?></code></div>
+                <div class="ext-muted">按顺序轮询下方线路，返回第一条成功解析出 <code>url</code> 的结果；可加 <code>&amp;line=2</code> 指定线路。代码与配置位于项目 <code>LX/</code> 目录，保存后即生效，无需修改代码。</div>
+                <div class="ext-json-bar">
+                    <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="btn-lx-copy">复制调用地址</button>
+                </div>
+            </div>
+
+            <form class="layui-form layui-form-pane" id="lx-form">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">启用轮训</label>
+                    <div class="layui-input-block">
+                        <input type="checkbox" id="lx-enabled" lay-skin="switch" lay-text="启用|停用" <?php echo $LX_ON ? 'checked' : ''; ?>>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">指定线路</label>
+                    <div class="layui-input-block">
+                        <input type="number" id="lx-line-id" min="0" max="50" step="1" value="<?php echo (int)$LX['line_id']; ?>" class="layui-input" style="max-width:180px">
+                        <div class="ext-muted" style="margin-top:6px">0 = 自动按顺序轮询；大于 0 = 只使用对应序号的线路。</div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="ext-key-box" style="background:#fff;border:1px dashed #dfe4ee">
+                <div class="ext-key-label">线路列表 <span class="ext-muted" style="font-weight:400">（GET 拼接：把视频地址接在接口地址后；POST 表单：自动填充 url）</span></div>
+                <div id="lx-lines"></div>
+                <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="btn-lx-add">+ 添加线路</button>
+            </div>
+
+            <div class="layui-form-item">
+                <button type="button" class="layui-btn" id="btn-lx-save">保存轮训设置</button>
+            </div>
+
+            <div class="ext-key-box" style="margin-bottom:0">
+                <div class="ext-key-label">测试轮训接口</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <input type="text" id="lx-test-url" class="layui-input" style="flex:1;min-width:260px" placeholder="官方视频地址，例如 https://v.qq.com/x/cover/xxx.html">
+                    <input type="number" id="lx-test-line" class="layui-input" style="width:140px" min="0" max="50" step="1" value="0" placeholder="线路 0=自动">
+                    <button type="button" class="layui-btn" id="btn-lx-test">开始测试</button>
+                </div>
+                <div class="ext-muted" style="margin-top:6px">测试使用当前已保存的线路配置；修改线路后请先保存再测试。</div>
+                <pre id="lx-test-out" class="ext-json-out" style="display:none"></pre>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -242,6 +309,135 @@ $JSON_PHP_URL = $__ext_origin . '/MXDTKEY.php';
         $('#btn-json-clear').on('click', function () {
             $('#json-test-out').hide().text('');
             $(this).hide();
+        });
+
+        // ===== 扩展 2：轮训接口 =====
+        var LX_LINES = <?php echo json_encode(array_values($LX['lines']), JSON_UNESCAPED_UNICODE); ?>;
+        var LX_URL = <?php echo json_encode($LX_URL); ?>;
+
+        function lxEsc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+            });
+        }
+        function lxKvText(o) {
+            if (!o) { return ''; }
+            var out = [];
+            for (var k in o) {
+                if (Object.prototype.hasOwnProperty.call(o, k)) { out.push(k + '=' + o[k]); }
+            }
+            return out.join('\n');
+        }
+        function lxTextKv(t) {
+            var o = {}, arr = String(t || '').split(/\r?\n/);
+            for (var i = 0; i < arr.length; i++) {
+                var s = arr[i], p = s.indexOf('=');
+                if (p <= 0) { continue; }
+                var k = $.trim(s.slice(0, p));
+                if (k === '') { continue; }
+                o[k] = s.slice(p + 1);
+            }
+            return o;
+        }
+        function lxLineHtml(line) {
+            line = line || {};
+            var type = line.type === 'post' ? 'post' : 'json';
+            return '<div class="lx-line">'
+                + '<div class="lx-line-hd"><b class="lx-line-title">线路</b><a href="javascript:;" class="lx-del">删除</a></div>'
+                + '<div class="lx-grid">'
+                + '<label>名称<input type="text" class="layui-input lx-name" maxlength="40" value="' + lxEsc(line.name || '') + '"></label>'
+                + '<label>请求类型<select class="layui-input lx-type" style="height:38px"><option value="json"' + (type === 'json' ? ' selected' : '') + '>GET 拼接</option><option value="post"' + (type === 'post' ? ' selected' : '') + '>POST 表单</option></select></label>'
+                + '<label>超时（秒）<input type="number" class="layui-input lx-timeout" min="1" max="60" step="1" value="' + (parseInt(line.timeout, 10) || 5) + '"></label>'
+                + '<label style="grid-column:1/-1">接口地址<input type="text" class="layui-input lx-api" placeholder="https://example.com/api/?url=" value="' + lxEsc(line.api_url || '') + '"></label>'
+                + '<label style="grid-column:1/-1">Referer（可选）<input type="text" class="layui-input lx-referer" placeholder="https://example.com/" value="' + lxEsc(line.referer || '') + '"></label>'
+                + '<label class="lx-post-only" style="grid-column:1/-1">POST 表单参数（每行 key=value，url 会自动填充）<textarea class="layui-input lx-form">' + lxEsc(lxKvText(line.form)) + '</textarea></label>'
+                + '<label style="grid-column:1/-1">返回附加字段（可选，每行 key=value，覆盖返回同名值）<textarea class="layui-input lx-change">' + lxEsc(lxKvText(line.change)) + '</textarea></label>'
+                + '</div></div>';
+        }
+        function lxRenumber() {
+            $('#lx-lines .lx-line').each(function (i) {
+                $(this).find('.lx-line-title').text('线路 ' + (i + 1));
+            });
+        }
+        function lxAddLine(line) {
+            var $row = $(lxLineHtml(line));
+            $('#lx-lines').append($row);
+            if ($row.find('.lx-type').val() !== 'post') { $row.find('.lx-post-only').hide(); }
+            lxRenumber();
+        }
+
+        for (var lxi = 0; lxi < LX_LINES.length; lxi++) { lxAddLine(LX_LINES[lxi]); }
+        if (LX_LINES.length === 0) { lxAddLine({}); }
+
+        $('#btn-lx-add').on('click', function () { lxAddLine({}); });
+
+        $('#lx-lines').on('click', '.lx-del', function () {
+            $(this).closest('.lx-line').remove();
+            if ($('#lx-lines .lx-line').length === 0) { lxAddLine({}); } else { lxRenumber(); }
+        });
+
+        $('#lx-lines').on('change', '.lx-type', function () {
+            $(this).closest('.lx-line').find('.lx-post-only').toggle($(this).val() === 'post');
+        });
+
+        $('#btn-lx-save').on('click', function () {
+            var lines = [];
+            $('#lx-lines .lx-line').each(function () {
+                var $l = $(this);
+                var api = $.trim($l.find('.lx-api').val());
+                if (api === '') { return; }
+                lines.push({
+                    name: $.trim($l.find('.lx-name').val()) || ('线路' + (lines.length + 1)),
+                    type: $l.find('.lx-type').val() === 'post' ? 'post' : 'json',
+                    api_url: api,
+                    timeout: parseInt($l.find('.lx-timeout').val(), 10) || 5,
+                    referer: $.trim($l.find('.lx-referer').val()),
+                    form: lxTextKv($l.find('.lx-form').val()),
+                    change: lxTextKv($l.find('.lx-change').val())
+                });
+            });
+            var cfg = {
+                enabled: $('#lx-enabled').prop('checked') ? '1' : '0',
+                line_id: parseInt($('#lx-line-id').val(), 10) || 0,
+                lines: lines
+            };
+            var $btn = $(this);
+            $btn.prop('disabled', true);
+            $.post('admin.php', {type: 'lx_save', config: JSON.stringify(cfg)}, function (d) {
+                tip(d.success == 1, d.m);
+                if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+            }, 'json').fail(function () { tip(false, '请求失败'); }).always(function () { $btn.prop('disabled', false); });
+        });
+
+        $('#btn-lx-copy').on('click', function () {
+            var text = LX_URL;
+            function fallback() {
+                var $t = $('<textarea>').val(text).css({position: 'fixed', top: '-1000px', left: '-1000px'}).appendTo('body');
+                $t[0].select();
+                try { document.execCommand('copy'); tip(true, '调用地址已复制'); } catch (e) { tip(false, '复制失败，请手动选择'); }
+                $t.remove();
+            }
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function () { tip(true, '调用地址已复制'); }, fallback);
+            } else { fallback(); }
+        });
+
+        $('#btn-lx-test').on('click', function () {
+            var url = $.trim($('#lx-test-url').val());
+            if (!/^https?:\/\//i.test(url)) { tip(false, '请输入以 http:// 或 https:// 开头的视频地址'); return; }
+            var $btn = $(this), $out = $('#lx-test-out').show().text('测试中，请稍候…');
+            $btn.prop('disabled', true);
+            $.post('admin.php', {
+                type: 'lx_test',
+                url: url,
+                line: parseInt($('#lx-test-line').val(), 10) || 0
+            }, function (d) {
+                $out.text(JSON.stringify(d, null, 2));
+                tip(d.success == 1, d.m);
+            }, 'json').fail(function () {
+                $out.text('请求失败，请检查网络或稍后重试');
+                tip(false, '请求失败');
+            }).always(function () { $btn.prop('disabled', false); });
         });
     });
     </script>

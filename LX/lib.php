@@ -1,0 +1,270 @@
+<?php
+/**
+ * 轮训接口核心库
+ *
+ * 被 LX/index.php 与后台「扩展功能 → 轮训接口」共用：
+ *   - 读取 / 保存 LX/config.php（运行时配置，不入库）
+ *   - 按线路顺序轮询，返回第一条成功解析出 url 的结果
+ */
+
+if (defined('LX_LIB_LOADED')) { return; }
+define('LX_LIB_LOADED', 1);
+//配置文件的直接访问保护标记
+define('LX_INC', 1);
+
+//配置文件路径（运行时生成，已加入 .gitignore，在线更新不会覆盖）
+function lx_config_file() {
+    return dirname(__FILE__) . '/config.php';
+}
+
+//单条线路默认值
+function lx_line_defaults() {
+    return array(
+        'name'    => '',
+        'type'    => 'json',
+        'api_url' => '',
+        'timeout' => 5,
+        'referer' => '',
+        'form'    => array(),
+        'change'  => array(),
+    );
+}
+
+//空配置
+function lx_config_defaults() {
+    return array(
+        'enabled' => '0',
+        'line_id' => 0,
+        'lines'   => array(),
+    );
+}
+
+//规范化单条线路配置
+function lx_config_normalize_line($line, $i = 0) {
+    if (!is_array($line)) { $line = array(); }
+    $out = array();
+    $name = isset($line['name']) ? trim((string)$line['name']) : '';
+    if ($name === '') { $name = '线路' . ($i + 1); }
+    $out['name'] = function_exists('mb_substr') ? mb_substr($name, 0, 40, 'UTF-8') : substr($name, 0, 40);
+    $out['type'] = (isset($line['type']) && (string)$line['type'] === 'post') ? 'post' : 'json';
+    $out['api_url'] = isset($line['api_url']) ? trim((string)$line['api_url']) : '';
+    $timeout = isset($line['timeout']) ? (int)$line['timeout'] : 5;
+    $out['timeout'] = max(1, min(60, $timeout));
+    $out['referer'] = isset($line['referer']) ? trim((string)$line['referer']) : '';
+
+    $out['form'] = array();
+    if (isset($line['form']) && is_array($line['form'])) {
+        foreach ($line['form'] as $k => $v) {
+            if (is_array($v) || is_object($v)) { continue; }
+            $k = trim((string)$k);
+            if ($k === '' || count($out['form']) >= 30) { continue; }
+            $out['form'][$k] = (string)$v;
+        }
+    }
+
+    $out['change'] = array();
+    if (isset($line['change']) && is_array($line['change'])) {
+        foreach ($line['change'] as $k => $v) {
+            if (is_array($v) || is_object($v)) { continue; }
+            $k = trim((string)$k);
+            if ($k === '' || count($out['change']) >= 20) { continue; }
+            $out['change'][$k] = (string)$v;
+        }
+    }
+
+    return $out;
+}
+
+//规范化整份配置
+function lx_config_normalize($cfg) {
+    if (!is_array($cfg)) { $cfg = array(); }
+    $out = lx_config_defaults();
+    $out['enabled'] = (isset($cfg['enabled']) && (string)$cfg['enabled'] === '1') ? '1' : '0';
+    $lineId = isset($cfg['line_id']) ? (int)$cfg['line_id'] : 0;
+    $out['line_id'] = max(0, min(50, $lineId));
+    $out['lines'] = array();
+    if (isset($cfg['lines']) && is_array($cfg['lines'])) {
+        $i = 0;
+        foreach ($cfg['lines'] as $line) {
+            if ($i >= 30) { break; }
+            $out['lines'][] = lx_config_normalize_line($line, $i);
+            $i++;
+        }
+    }
+    return $out;
+}
+
+//读取配置；不存在时读取默认配置
+function lx_config_load() {
+    $file = lx_config_file();
+    $cfg = array();
+    if (is_file($file)) {
+        $cfg = @include $file;
+    } else {
+        $default = dirname(__FILE__) . '/config.default.php';
+        if (is_file($default)) { $cfg = @include $default; }
+    }
+    return lx_config_normalize($cfg);
+}
+
+//保存配置（原子写入，失败时返回错误信息）
+function lx_config_save($cfg, &$error = null) {
+    $cfg = lx_config_normalize($cfg);
+    $file = lx_config_file();
+    $php  = "<?php\n";
+    $php .= "// 轮训接口配置（后台「扩展功能 → 轮训接口」自动生成，请勿手工修改）\n";
+    $php .= "if (!defined('LX_INC')) { http_response_code(404); exit; }\n";
+    $php .= 'return ' . var_export($cfg, true) . ";\n";
+    $tmp = $file . '.tmp';
+    if (@file_put_contents($tmp, $php) === false || !@rename($tmp, $file)) {
+        @unlink($tmp);
+        $error = '配置写入失败，请检查 LX/ 目录写权限！';
+        return false;
+    }
+    return true;
+}
+
+//发送 HTTP 请求并解析 JSON
+function lx_http_request($url, $method, $form, $referer, $timeout, &$error = null) {
+    $error = '';
+    if (!function_exists('curl_init')) {
+        $error = '服务器未开启 curl 扩展';
+        return false;
+    }
+    $method = strtoupper((string)$method) === 'POST' ? 'POST' : 'GET';
+    $timeout = max(1, min(60, (int)$timeout));
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, min(10, $timeout));
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_ENCODING, '');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36');
+    if ($referer !== '') { curl_setopt($ch, CURLOPT_REFERER, $referer); }
+    if ($method === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(is_array($form) ? $form : array()));
+    } else {
+        curl_setopt($ch, CURLOPT_HTTPGET, true);
+    }
+
+    $response = curl_exec($ch);
+    $errno = curl_errno($ch);
+    $errmsg = curl_error($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($errno) {
+        $error = '请求失败：' . $errmsg;
+        return false;
+    }
+    if ($response === false || trim((string)$response) === '') {
+        $error = '接口无返回内容' . ($httpCode >= 400 ? '（HTTP ' . $httpCode . '）' : '');
+        return false;
+    }
+
+    $response = trim((string)$response);
+    //去除 UTF-8 BOM
+    if (substr($response, 0, 3) === "\xEF\xBB\xBF") { $response = substr($response, 3); }
+    $data = json_decode($response, true);
+    if (!is_array($data)) {
+        $error = '接口返回不是 JSON' . ($httpCode >= 400 ? '（HTTP ' . $httpCode . '）' : '');
+        return false;
+    }
+    return $data;
+}
+
+//请求单条线路，成功返回包含 url 的数组
+function lx_request_line($line, $videoUrl, &$error = null) {
+    $error = '';
+    $line = lx_config_normalize_line($line);
+    $api = $line['api_url'];
+
+    if ($api === '') {
+        $error = '接口地址为空';
+        return false;
+    }
+    if (!preg_match('~^https?://~i', $api)) {
+        $error = '接口地址需以 http:// 或 https:// 开头';
+        return false;
+    }
+
+    if ($line['type'] === 'json') {
+        //简单模式：把视频地址直接拼接到接口地址后面，使用 GET
+        $data = lx_http_request($api . $videoUrl, 'GET', array(), $line['referer'], $line['timeout'], $error);
+    } else {
+        //表单模式：POST 提交，自动填充 url 参数
+        $form = $line['form'];
+        $form['url'] = $videoUrl;
+        $data = lx_http_request($api, 'POST', $form, $line['referer'], $line['timeout'], $error);
+    }
+
+    if (!is_array($data)) { return false; }
+    if (!isset($data['url']) || trim((string)$data['url']) === '') {
+        $error = '返回数据中没有 url';
+        return false;
+    }
+
+    //返回附加字段（覆盖同名值）
+    foreach ($line['change'] as $k => $v) {
+        $data[$k] = $v;
+    }
+    return $data;
+}
+
+/**
+ * 按线路轮询解析
+ * @param array    $cfg      配置
+ * @param string   $videoUrl 视频地址
+ * @param int|null $lineId   null / 0 = 自动轮询；大于 0 = 指定线路序号
+ * @return array ok/data/line/logs/msg
+ */
+function lx_rotate($cfg, $videoUrl, $lineId = null) {
+    $lines = (isset($cfg['lines']) && is_array($cfg['lines'])) ? $cfg['lines'] : array();
+    $logs  = array();
+
+    if (empty($lines)) {
+        return array('ok' => false, 'data' => null, 'line' => 0, 'logs' => $logs, 'msg' => '尚未配置轮训线路');
+    }
+
+    if ($lineId === null) {
+        $lineId = isset($cfg['line_id']) ? (int)$cfg['line_id'] : 0;
+    }
+    $lineId = (int)$lineId;
+
+    if ($lineId > 0) {
+        $idx = $lineId - 1;
+        if (!isset($lines[$idx])) {
+            return array('ok' => false, 'data' => null, 'line' => 0, 'logs' => $logs, 'msg' => '没有找到此线路配置');
+        }
+        $targets = array($idx);
+    } else {
+        $targets = array_keys($lines);
+    }
+
+    foreach ($targets as $idx) {
+        $err = '';
+        $data = lx_request_line($lines[$idx], $videoUrl, $err);
+        $logs[] = array(
+            'line' => $idx + 1,
+            'ok'   => is_array($data) ? 1 : 0,
+            'msg'  => is_array($data) ? '成功' : $err,
+        );
+        if (is_array($data)) {
+            return array('ok' => true, 'data' => $data, 'line' => $idx + 1, 'logs' => $logs, 'msg' => '');
+        }
+    }
+
+    $last = end($logs);
+    return array(
+        'ok'   => false,
+        'data' => null,
+        'line' => 0,
+        'logs' => $logs,
+        'msg'  => ($last && $last['msg'] !== '') ? $last['msg'] : '线路无法解析到',
+    );
+}

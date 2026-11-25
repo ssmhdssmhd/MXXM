@@ -62,6 +62,13 @@ mx2/config/.env.ini
 /save/update_progress_*.json
 /save/update_progress_*.json.tmp
 
+# ===== 轮训接口配置（后台生成，不入库）=====
+/LX/config.php
+/LX/config.php.tmp
+
+# ===== 上传的临时文件（不入库）=====
+/.uploads/
+
 # ===== 后台同步生成的 JB 接口（运行时文件，不入库）=====
 /kanju/jb/
 /[0-9]*.php

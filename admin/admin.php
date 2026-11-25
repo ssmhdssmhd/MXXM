@@ -1541,6 +1541,45 @@ switch ($type) {
         }
         exit(json_encode(array('success' => 1, 'icon' => 6, 'm' => '临时密钥已更换，旧临时密钥已失效'), JSON_UNESCAPED_UNICODE));
 
+    //扩展功能：轮训接口 保存设置
+    case 'lx_save':
+        require_once dirname(__FILE__) . '/../LX/lib.php';
+        $raw = isset($_POST['config']) ? (string)$_POST['config'] : '';
+        $lxcfg = json_decode($raw, true);
+        if (!is_array($lxcfg)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '配置格式错误，请刷新页面后重试'), JSON_UNESCAPED_UNICODE));
+        }
+        $lx_error = '';
+        if (!lx_config_save($lxcfg, $lx_error)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => $lx_error), JSON_UNESCAPED_UNICODE));
+        }
+        $saved = lx_config_load();
+        exit(json_encode(array(
+            'success' => 1,
+            'icon'    => 6,
+            'm'       => '轮训设置已保存，共 ' . count($saved['lines']) . ' 条线路，当前' . ((string)$saved['enabled'] === '1' ? '已启用' : '未启用'),
+        ), JSON_UNESCAPED_UNICODE));
+
+    //扩展功能：轮训接口 测试指定视频地址
+    case 'lx_test':
+        require_once dirname(__FILE__) . '/../LX/lib.php';
+        @set_time_limit(120);
+        $lx_url = isset($_POST['url']) ? trim((string)$_POST['url']) : '';
+        $lx_line = isset($_POST['line']) ? (int)$_POST['line'] : 0;
+        if ($lx_url === '' || !preg_match('~^https?://~i', $lx_url)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请输入以 http:// 或 https:// 开头的视频地址'), JSON_UNESCAPED_UNICODE));
+        }
+        $lxcfg = lx_config_load();
+        $lxres = lx_rotate($lxcfg, $lx_url, $lx_line > 0 ? $lx_line : null);
+        exit(json_encode(array(
+            'success' => $lxres['ok'] ? 1 : 0,
+            'icon'    => $lxres['ok'] ? 6 : 5,
+            'm'       => $lxres['ok'] ? ('解析成功，使用线路 ' . $lxres['line']) : ($lxres['msg'] !== '' ? $lxres['msg'] : '线路无法解析到'),
+            'line'    => $lxres['line'],
+            'logs'    => $lxres['logs'],
+            'data'    => $lxres['data'],
+        ), JSON_UNESCAPED_UNICODE));
+
     //独立接口 保存配置
     case 'endpoint_save':
         header('Content-Type: application/json; charset=utf-8');
