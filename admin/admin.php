@@ -1549,6 +1549,11 @@ switch ($type) {
         if (!is_array($lxcfg)) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '配置格式错误，请刷新页面后重试'), JSON_UNESCAPED_UNICODE));
         }
+        //Key 同步结果由服务端维护，保存页面设置时保留，避免被前端覆盖
+        $lxold = lx_config_load();
+        foreach (array('key_value', 'key_updated', 'key_expires', 'key_error') as $lxk) {
+            $lxcfg[$lxk] = isset($lxold[$lxk]) ? $lxold[$lxk] : '';
+        }
         $lx_error = '';
         if (!lx_config_save($lxcfg, $lx_error)) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => $lx_error), JSON_UNESCAPED_UNICODE));
@@ -1578,6 +1583,28 @@ switch ($type) {
             'line'    => $lxres['line'],
             'logs'    => $lxres['logs'],
             'data'    => $lxres['data'],
+        ), JSON_UNESCAPED_UNICODE));
+
+    //扩展功能：轮训接口 立即同步 Key
+    case 'lx_key_sync':
+        require_once dirname(__FILE__) . '/../LX/lib.php';
+        @set_time_limit(60);
+        $lxcfg = lx_config_load();
+        if ((string)$lxcfg['key_sync'] !== '1') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请先启用 Key 同步并保存设置'), JSON_UNESCAPED_UNICODE));
+        }
+        $lx_key_err = '';
+        $lxcfg = lx_key_sync($lxcfg, true, $lx_key_err);
+        if ($lx_key_err !== '') {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => 'Key 同步失败：' . $lx_key_err), JSON_UNESCAPED_UNICODE));
+        }
+        exit(json_encode(array(
+            'success' => 1,
+            'icon'    => 6,
+            'm'       => 'Key 同步成功：' . $lxcfg['key_value'] . '，线路中的 key 已替换',
+            'key'     => $lxcfg['key_value'],
+            'expires' => $lxcfg['key_expires'],
+            'updated' => $lxcfg['key_updated'],
         ), JSON_UNESCAPED_UNICODE));
 
     //独立接口 保存配置

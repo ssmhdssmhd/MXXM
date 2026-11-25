@@ -33,9 +33,16 @@ function lx_line_defaults() {
 //空配置
 function lx_config_defaults() {
     return array(
-        'enabled' => '0',
-        'line_id' => 0,
-        'lines'   => array(),
+        'enabled'      => '0',
+        'line_id'      => 0,
+        'lines'        => array(),
+        'key_sync'     => '0',
+        'key_url'      => '',
+        'key_interval' => 5,
+        'key_value'    => '',
+        'key_updated'  => 0,
+        'key_expires'  => 0,
+        'key_error'    => '',
     );
 }
 
@@ -91,6 +98,19 @@ function lx_config_normalize($cfg) {
             $i++;
         }
     }
+
+    //Key 同步：从指定接口获取 key 并自动替换线路中的 key=
+    $out['key_sync'] = (isset($cfg['key_sync']) && (string)$cfg['key_sync'] === '1') ? '1' : '0';
+    $out['key_url'] = isset($cfg['key_url']) ? trim((string)$cfg['key_url']) : '';
+    $interval = isset($cfg['key_interval']) ? (int)$cfg['key_interval'] : 5;
+    $out['key_interval'] = max(1, min(1440, $interval));
+    $out['key_value'] = isset($cfg['key_value']) ? trim((string)$cfg['key_value']) : '';
+    $out['key_value'] = substr($out['key_value'], 0, 64);
+    $out['key_updated'] = isset($cfg['key_updated']) ? (int)$cfg['key_updated'] : 0;
+    $out['key_expires'] = isset($cfg['key_expires']) ? (int)$cfg['key_expires'] : 0;
+    $out['key_error'] = isset($cfg['key_error']) ? trim((string)$cfg['key_error']) : '';
+    $out['key_error'] = function_exists('mb_substr') ? mb_substr($out['key_error'], 0, 200, 'UTF-8') : substr($out['key_error'], 0, 200);
+
     return $out;
 }
 
@@ -178,6 +198,68 @@ function lx_http_request($url, $method, $form, $referer, $timeout, &$error = nul
     return $data;
 }
 
+/**
+ * 从指定接口同步 Key（如 /MXDTKEY.json），并替换线路中已有的 key=
+ * @return array 同步后的配置
+ */
+function lx_key_sync($cfg, $force = false, &$error = null) {
+    $error = '';
+    $cfg = lx_config_normalize($cfg);
+    if ((string)$cfg['key_sync'] !== '1') {
+        return $cfg;
+    }
+
+    $url = $cfg['key_url'];
+    if ($url === '' || !preg_match('~^https?://~i', $url)) {
+        $error = 'Key 同步地址无效';
+        return $cfg;
+    }
+
+    //未到同步间隔且已有 Key 时跳过
+    $interval = (int)$cfg['key_interval'] * 60;
+    if (!$force && $cfg['key_value'] !== '' && (time() - (int)$cfg['key_updated']) < $interval) {
+        return $cfg;
+    }
+
+    $httpErr = '';
+    $httpCode = 0;
+    $data = lx_http_request($url, 'GET', array(), '', 15, $httpErr, $httpCode);
+    if (!is_array($data)) {
+        $error = $httpErr !== '' ? $httpErr : '获取 Key 失败';
+        $cfg['key_error'] = $error;
+        return $cfg;
+    }
+
+    $key = '';
+    if (isset($data['key']) && is_scalar($data['key'])) {
+        $key = trim((string)$data['key']);
+    } elseif (isset($data['data']['key']) && is_scalar($data['data']['key'])) {
+        $key = trim((string)$data['data']['key']);
+    }
+    if ($key === '' || !preg_match('~^[A-Za-z0-9]{6,64}$~', $key)) {
+        $error = '同步地址未返回有效 key';
+        $cfg['key_error'] = $error;
+        return $cfg;
+    }
+
+    $cfg['key_value'] = $key;
+    $cfg['key_updated'] = time();
+    $cfg['key_expires'] = isset($data['expires']) ? (int)$data['expires'] : 0;
+    $cfg['key_error'] = '';
+
+    //自动替换线路接口地址中已有的 key=旧值
+    foreach ($cfg['lines'] as $i => $line) {
+        $api = $line['api_url'];
+        if ($api !== '' && stripos($api, 'key=') !== false && strpos($api, '{key}') === false) {
+            $cfg['lines'][$i]['api_url'] = preg_replace('~([?&]key=)[^&#]*~i', '${1}' . $key, $api);
+        }
+    }
+
+    $saveErr = '';
+    lx_config_save($cfg, $saveErr);
+    return $cfg;
+}
+
 //提取上游返回的错误提示，便于定位线路问题
 function lx_upstream_hint($data) {
     if (!is_array($data)) { return ''; }
@@ -248,6 +330,16 @@ function lx_request_line($line, $videoUrl, &$error = null) {
 function lx_rotate($cfg, $videoUrl, $lineId = null) {
     $lines = (isset($cfg['lines']) && is_array($cfg['lines'])) ? $cfg['lines'] : array();
     $logs  = array();
+
+    //解析 {key} 占位符（Key 同步得到的当前 Key）
+    $keyVal = isset($cfg['key_value']) ? (string)$cfg['key_value'] : '';
+    if ($keyVal !== '') {
+        foreach ($lines as $i => $line) {
+            if (isset($line['api_url']) && strpos($line['api_url'], '{key}') !== false) {
+                $lines[$i]['api_url'] = str_replace('{key}', rawurlencode($keyVal), $line['api_url']);
+            }
+        }
+    }
 
     if (empty($lines)) {
         return array('ok' => false, 'data' => null, 'line' => 0, 'logs' => $logs, 'msg' => '尚未配置轮训线路');

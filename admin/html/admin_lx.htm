@@ -7,6 +7,7 @@ $__lx_https = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']
 $__lx_base = preg_replace('~/admin/[^/]+$~', '', isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '');
 $__lx_origin = ($__lx_https ? 'https' : 'http') . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost') . $__lx_base;
 $LX_URL = $__lx_origin . '/LX/?url=官方视频地址';
+$LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY.json');
 ?>
 <?php include "block_header.htm"; ?>
 
@@ -17,6 +18,7 @@ $LX_URL = $__lx_origin . '/LX/?url=官方视频地址';
 .ext-tag{font-size:12px;line-height:24px;padding:0 10px;border-radius:12px}
 .ext-tag.on{color:#16b777;background:#e8f9f2}
 .ext-tag.off{color:#8a94a6;background:#f2f4f7}
+.ext-key{font-family:Consolas,Monaco,"Courier New",monospace;letter-spacing:1px;font-weight:700}
 .ext-key-box{padding:12px;border-radius:6px;background:#f7f9fc;margin-bottom:12px}
 .ext-key-label{font-size:13px;font-weight:700;color:#39445a;margin-bottom:6px}
 .ext-call{word-break:break-all;line-height:1.8;color:#526079;font-size:12px}
@@ -84,7 +86,44 @@ $LX_URL = $__lx_origin . '/LX/?url=官方视频地址';
                         <div class="ext-muted" style="margin-top:6px">0 = 自动按顺序轮询；大于 0 = 只使用对应序号的线路。</div>
                     </div>
                 </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">Key 同步</label>
+                    <div class="layui-input-block">
+                        <input type="checkbox" id="lx-key-sync" lay-skin="switch" lay-text="启用|停用" <?php echo (string)$LX['key_sync'] === '1' ? 'checked' : ''; ?>>
+                        <div class="ext-muted" style="margin-top:6px">启用后按间隔从同步地址获取 key，自动替换线路接口地址中的 <code>key=</code>；线路地址也可使用 <code>{key}</code> 占位符。</div>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">同步地址</label>
+                    <div class="layui-input-block">
+                        <input type="text" id="lx-key-url" class="layui-input" style="max-width:560px" value="<?php echo htmlspecialchars($LX_KEY_URL); ?>" placeholder="https://你的域名/MXDTKEY.json">
+                        <div class="ext-muted" style="margin-top:6px">支持 <code>/MXDTKEY.json</code> 或 <code>/MXDTKEY.php</code>，读取返回 JSON 顶层的 <code>key</code>。</div>
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">同步间隔</label>
+                    <div class="layui-input-block">
+                        <input type="number" id="lx-key-interval" min="1" max="1440" step="1" value="<?php echo (int)$LX['key_interval']; ?>" class="layui-input" style="max-width:180px">
+                        <span class="ext-muted">分钟，建议 5-30 分钟（动态密钥通常每小时更换）</span>
+                    </div>
+                </div>
             </form>
+
+            <div class="ext-key-box">
+                <div class="ext-key-label">当前同步 Key</div>
+                <?php if ((string)$LX['key_value'] !== ''): ?>
+                <input type="text" class="layui-input ext-key" readonly onclick="this.select()" value="<?php echo htmlspecialchars($LX['key_value']); ?>">
+                <div class="ext-muted" style="margin-top:6px">上次同步：<?php echo (int)$LX['key_updated'] > 0 ? date('Y-m-d H:i:s', (int)$LX['key_updated']) : '—'; ?><?php if ((int)$LX['key_expires'] > 0): ?>；到期时间：<?php echo date('Y-m-d H:i:s', (int)$LX['key_expires']); ?><?php endif; ?></div>
+                <?php else: ?>
+                <div class="ext-warning">尚未同步。启用 Key 同步并保存后，点击「立即同步 Key」。</div>
+                <?php endif; ?>
+                <?php if ((string)$LX['key_error'] !== ''): ?>
+                <div class="ext-warning">上次错误：<?php echo htmlspecialchars($LX['key_error']); ?></div>
+                <?php endif; ?>
+                <div class="ext-json-bar">
+                    <button type="button" class="layui-btn layui-btn-sm" id="btn-lx-key-sync">立即同步 Key</button>
+                </div>
+            </div>
 
             <div class="ext-key-box" style="background:#fff;border:1px dashed #dfe4ee">
                 <div class="ext-key-label">线路列表 <span class="ext-muted" style="font-weight:400">（GET 拼接：把视频地址接在接口地址后；POST 表单：自动填充 url）</span></div>
@@ -205,6 +244,9 @@ $LX_URL = $__lx_origin . '/LX/?url=官方视频地址';
             var cfg = {
                 enabled: $('#lx-enabled').prop('checked') ? '1' : '0',
                 line_id: parseInt($('#lx-line-id').val(), 10) || 0,
+                key_sync: $('#lx-key-sync').prop('checked') ? '1' : '0',
+                key_url: $.trim($('#lx-key-url').val()),
+                key_interval: parseInt($('#lx-key-interval').val(), 10) || 5,
                 lines: lines
             };
             var $btn = $(this);
@@ -212,6 +254,15 @@ $LX_URL = $__lx_origin . '/LX/?url=官方视频地址';
             $.post('admin.php', {type: 'lx_save', config: JSON.stringify(cfg)}, function (d) {
                 tip(d.success == 1, d.m);
                 if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
+            }, 'json').fail(function () { tip(false, '请求失败'); }).always(function () { $btn.prop('disabled', false); });
+        });
+
+        $('#btn-lx-key-sync').on('click', function () {
+            var $btn = $(this);
+            $btn.prop('disabled', true);
+            $.post('admin.php', {type: 'lx_key_sync'}, function (d) {
+                tip(d.success == 1, d.m);
+                if (d.success == 1) { setTimeout(function () { location.reload(); }, 1000); }
             }, 'json').fail(function () { tip(false, '请求失败'); }).always(function () { $btn.prop('disabled', false); });
         });
 

@@ -459,6 +459,7 @@ function mxxm_admin_action_label($type) {
         'endpoint_key_save'     => '独立接口-保存密钥',
         'endpoint_key_rotate'   => '独立接口-更换临时密钥',
         'lx_save'               => '轮训接口-保存设置',
+        'lx_key_sync'           => '轮训接口-同步Key',
         'endpoint_save'         => '独立接口-保存设置',
         'endpoint_sync'         => '独立接口-同步代码',
         'endpoint_install'      => '独立接口-粘贴安装',

@@ -47,6 +47,11 @@ if (!preg_match('~^https?://~i', $videoUrl)) {
 }
 
 $lineId = isset($_GET['line']) ? (int)$_GET['line'] : null;
+
+//Key 自动同步：到期后从指定地址获取 key，并替换线路中的 key=
+$lxKeyErr = '';
+$cfg = lx_key_sync($cfg, false, $lxKeyErr);
+
 $result = lx_rotate($cfg, $videoUrl, $lineId);
 
 if (!$result['ok']) {
