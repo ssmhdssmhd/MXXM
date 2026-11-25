@@ -55,6 +55,14 @@ function lx_config_normalize_line($line, $i = 0) {
     $out['name'] = function_exists('mb_substr') ? mb_substr($name, 0, 40, 'UTF-8') : substr($name, 0, 40);
     $out['type'] = (isset($line['type']) && (string)$line['type'] === 'post') ? 'post' : 'json';
     $out['api_url'] = isset($line['api_url']) ? trim((string)$line['api_url']) : '';
+    //修正常见错误写法：1.php?&key=xxx&?url= → 1.php?key=xxx&url=
+    if ($out['api_url'] !== '') {
+        $out['api_url'] = str_replace(array('?&', '&?'), array('?', '&'), $out['api_url']);
+    }
+    //GET 拼接模式且地址以 url= 结尾时，自动改用 {url} 占位符，避免视频地址中的 & 被截断
+    if (strpos($out['api_url'], '{url}') === false && preg_match('~([?&]url=)$~i', $out['api_url'])) {
+        $out['api_url'] = preg_replace('~([?&]url=)$~i', '${1}{url}', $out['api_url']);
+    }
     $timeout = isset($line['timeout']) ? (int)$line['timeout'] : 5;
     $out['timeout'] = max(1, min(60, $timeout));
     $out['referer'] = isset($line['referer']) ? trim((string)$line['referer']) : '';

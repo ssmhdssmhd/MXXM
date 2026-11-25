@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.70-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.71-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -366,6 +366,7 @@ https://你的域名/1.php?key={key}&url={url}
 - **视频地址带 `&` 时解析失败**：说明线路还在用直接拼接，`&` 后面的参数被截断。请把接口地址改成 `...&url={url}`，`{url}` 会自动编码。
 - **提示「上游返回：接口未授权」**：线路调用的 `1.php` 缺少 `key` 参数，请在接口地址中补上 `key=你的密钥`，例如 `https://你的域名/1.php?key=你的密钥&url={url}`。使用动态密钥时建议启用「Key 同步」，并写成 `key={key}`。
 - **直接调用 `/1.php`**：视频地址必须 URL 编码，并且参数格式为 `?url=编码后的地址&key=密钥`；不要写成 `?&key=123&?url=...`，否则 `url` 会丢失。
+- **线路地址写成 `?&key=...&?url=`**：保存时会自动修正为 `?key=...&url={url}`；以 `url=` 结尾的接口地址也会自动改为 `{url}` 占位符。
 - **全部线路失败**：返回的 `logs` 会列出每条线路的具体原因，可据此关闭失效线路或调整参数。
 
 ### 错误码
@@ -452,6 +453,12 @@ https://你的域名/1.php?key={key}&url={url}
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.71 · 2026-11-26 01:19（202611260119）
+
+- 轮训线路地址自动修正 `?&` / `&?` 错误写法，并将以 `url=` 结尾的地址自动改为 `{url}` 占位符
+- 修复在线更新进度条长时间不动的问题：无进度超过 4 秒时显示等待提示、进度条纹动画，并缓慢前进
+- README 补充线路地址错误写法说明
 
 ### v.0.0.70 · 2026-11-26 00:54（202611260054）
 

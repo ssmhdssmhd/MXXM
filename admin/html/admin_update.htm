@@ -3,8 +3,11 @@
     .upd-progress{padding:18px 20px 8px}
     .upd-bar{height:14px;background:#eef1f6;border-radius:7px;overflow:hidden}
     .upd-bar-inner{height:100%;width:0;border-radius:7px;background:linear-gradient(90deg,#1e9fff,#5fb878);transition:width .35s ease}
+    .upd-bar-inner.slow{background:repeating-linear-gradient(45deg,#1e9fff 0,#1e9fff 10px,#5fb878 10px,#5fb878 20px);background-size:28px 28px;animation:upd-stripe .8s linear infinite}
+    @keyframes upd-stripe{from{background-position:0 0}to{background-position:28px 0}}
     .upd-meta{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#7a8699}
     .upd-stage{margin-top:6px;font-size:13px;color:#39445a;min-height:20px;word-break:break-all}
+    .upd-hint{margin-top:2px;font-size:12px;color:#ff9800;min-height:16px}
     .upd-tip{margin-top:10px;padding-bottom:6px;font-size:12px;color:#ff9800}
     </style>
     <body>
@@ -130,43 +133,73 @@
                         + '<div class="upd-bar"><div class="upd-bar-inner" id="upd-bar-inner"></div></div>'
                         + '<div class="upd-meta"><span id="upd-percent">0%</span><span id="upd-elapsed">已用 0 秒</span></div>'
                         + '<div class="upd-stage" id="upd-stage">正在准备…</div>'
-                        + '<div class="upd-tip">更新期间请勿关闭页面，服务器正在下载并覆盖文件。</div>'
+                        + '<div class="upd-hint" id="upd-hint"></div>'
+                        + '<div class="upd-tip">更新期间请勿关闭页面；首次连接远程仓库可能较慢，请耐心等待。</div>'
                         + '</div>';
                     var idx = layer.open({type: 1, title: title, area: ['480px', 'auto'], content: html, closeBtn: 0, shadeClose: false, shade: 0.3});
-                    var t0 = Date.now(), timed = null, polling = null, current = -1;
+                    var t0 = Date.now(), timed = null, polling = null;
+                    var current = -1, shown = 0, base = 0, lastChange = Date.now(), stageText = '', finished = false;
 
                     function setPct(p) {
-                        current = p;
+                        shown = p;
                         $('#upd-bar-inner').css('width', p + '%');
-                        $('#upd-percent').text(p + '%');
+                        $('#upd-percent').text(Math.round(p) + '%');
                     }
                     function tickTime() {
                         $('#upd-elapsed').text('已用 ' + Math.max(0, Math.round((Date.now() - t0) / 1000)) + ' 秒');
                     }
+                    //进度长时间未变化时，显示等待提示并让进度条轻微前进，避免看起来卡死
+                    function tickWait() {
+                        tickTime();
+                        if (finished) { return; }
+                        if (Date.now() - lastChange > 4000) {
+                            $('#upd-bar-inner').addClass('slow');
+                            $('#upd-hint').text('服务端仍在处理（连接或下载较慢），请继续等待…');
+                            var next = Math.min(95, base + 12, shown + 0.4);
+                            if (next > shown) { setPct(next); }
+                        }
+                    }
                     function poll() {
+                        if (finished) { return; }
                         $.post('admin.php', {type: 'update_progress', task: task, run: run}, function (d) {
-                            if (!d || typeof d.percent === 'undefined') { return; }
+                            if (finished || !d || typeof d.percent === 'undefined') { return; }
                             if (d.task && d.task !== task) { return; }
                             var p = Math.max(0, Math.min(100, parseInt(d.percent, 10) || 0));
                             if (p < current) { return; }
-                            setPct(p);
-                            if (d.stage) { $('#upd-stage').text(d.stage); }
+                            var changed = false;
+                            if (p > current) { current = p; base = p; changed = true; }
+                            if (p > shown) { shown = p; }
+                            if (d.stage && d.stage !== stageText) {
+                                stageText = d.stage;
+                                $('#upd-stage').text(stageText);
+                                changed = true;
+                            }
+                            if (changed) {
+                                lastChange = Date.now();
+                                $('#upd-bar-inner').removeClass('slow');
+                                $('#upd-hint').text('');
+                                setPct(shown);
+                            }
                         }, 'json');
                     }
 
-                    timed = setInterval(tickTime, 1000);
+                    timed = setInterval(tickWait, 1000);
                     polling = setInterval(poll, 900);
                     poll();
 
                     return {
                         finish: function () {
+                            finished = true;
                             clearInterval(timed); clearInterval(polling);
+                            $('#upd-bar-inner').removeClass('slow');
+                            $('#upd-hint').text('');
                             setPct(100);
                             $('#upd-stage').text('更新完成');
                             tickTime();
                             setTimeout(function () { layer.close(idx); }, 600);
                         },
                         close: function () {
+                            finished = true;
                             clearInterval(timed); clearInterval(polling);
                             layer.close(idx);
                         }
