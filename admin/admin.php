@@ -1559,10 +1559,17 @@ switch ($type) {
             exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => $lx_error), JSON_UNESCAPED_UNICODE));
         }
         $saved = lx_config_load();
+        //Key 同步为全自动：保存后立即同步一次，无需手动操作
+        $lx_sync_msg = '';
+        if ((string)$saved['key_sync'] === '1') {
+            $lx_sync_err = '';
+            $saved = lx_key_sync($saved, true, $lx_sync_err);
+            $lx_sync_msg = $lx_sync_err !== '' ? ('；Key 自动同步失败：' . $lx_sync_err) : '；Key 已自动同步';
+        }
         exit(json_encode(array(
             'success' => 1,
             'icon'    => 6,
-            'm'       => '轮训设置已保存，共 ' . count($saved['lines']) . ' 条线路，当前' . ((string)$saved['enabled'] === '1' ? '已启用' : '未启用'),
+            'm'       => '轮训设置已保存，共 ' . count($saved['lines']) . ' 条线路，当前' . ((string)$saved['enabled'] === '1' ? '已启用' : '未启用') . $lx_sync_msg,
         ), JSON_UNESCAPED_UNICODE));
 
     //扩展功能：轮训接口 测试指定视频地址
@@ -1583,28 +1590,6 @@ switch ($type) {
             'line'    => $lxres['line'],
             'logs'    => $lxres['logs'],
             'data'    => $lxres['data'],
-        ), JSON_UNESCAPED_UNICODE));
-
-    //扩展功能：轮训接口 立即同步 Key
-    case 'lx_key_sync':
-        require_once dirname(__FILE__) . '/../LX/lib.php';
-        @set_time_limit(60);
-        $lxcfg = lx_config_load();
-        if ((string)$lxcfg['key_sync'] !== '1') {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请先启用 Key 同步并保存设置'), JSON_UNESCAPED_UNICODE));
-        }
-        $lx_key_err = '';
-        $lxcfg = lx_key_sync($lxcfg, true, $lx_key_err);
-        if ($lx_key_err !== '') {
-            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => 'Key 同步失败：' . $lx_key_err), JSON_UNESCAPED_UNICODE));
-        }
-        exit(json_encode(array(
-            'success' => 1,
-            'icon'    => 6,
-            'm'       => 'Key 同步成功：' . $lxcfg['key_value'] . '，线路中的 key 已替换',
-            'key'     => $lxcfg['key_value'],
-            'expires' => $lxcfg['key_expires'],
-            'updated' => $lxcfg['key_updated'],
         ), JSON_UNESCAPED_UNICODE));
 
     //独立接口 保存配置

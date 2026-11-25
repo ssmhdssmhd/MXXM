@@ -28,7 +28,14 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
 .ext-json-out{margin:10px 0 0;padding:12px;background:#0f172a;color:#a5f3fc;font-size:12px;line-height:1.7;border-radius:6px;overflow:auto;max-height:280px;white-space:pre-wrap;word-break:break-all}
 .ext-json-bar{margin-top:10px}
 .lx-line{border:1px solid #e6e9ef;border-radius:8px;padding:12px;margin-bottom:12px;background:#fbfcfe}
-.lx-line-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;color:#39445a}
+.lx-line-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;color:#39445a;gap:8px;flex-wrap:wrap}
+.lx-line-hd .lx-hd-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lx-sync{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#39445a;margin-right:4px}
+.lx-sync input{vertical-align:middle;margin:0}
+.lx-line-sub{color:#8a94a6;font-size:12px}
+.lx-actions a{margin-left:12px}
+.lx-body{display:none;margin-top:10px}
+.lx-line.open .lx-body{display:block}
 .lx-line-hd a{color:#ff5722;font-size:12px}
 .lx-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .lx-grid label{display:block;font-size:12px;color:#7a8699}
@@ -90,7 +97,7 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                     <label class="layui-form-label">Key 同步</label>
                     <div class="layui-input-block">
                         <input type="checkbox" id="lx-key-sync" lay-skin="switch" lay-text="启用|停用" <?php echo (string)$LX['key_sync'] === '1' ? 'checked' : ''; ?>>
-                        <div class="ext-muted" style="margin-top:6px">启用后按间隔从同步地址获取 key，自动替换线路接口地址中的 <code>key=</code>；线路地址也可使用 <code>{key}</code> 占位符。</div>
+                        <div class="ext-muted" style="margin-top:6px">启用后按间隔自动获取 key；只有勾选「同步 Key」的线路才会被替换，未勾选的线路保持原样。</div>
                     </div>
                 </div>
                 <div class="layui-form-item">
@@ -115,14 +122,12 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                 <input type="text" class="layui-input ext-key" readonly onclick="this.select()" value="<?php echo htmlspecialchars($LX['key_value']); ?>">
                 <div class="ext-muted" style="margin-top:6px">上次同步：<?php echo (int)$LX['key_updated'] > 0 ? date('Y-m-d H:i:s', (int)$LX['key_updated']) : '—'; ?><?php if ((int)$LX['key_expires'] > 0): ?>；到期时间：<?php echo date('Y-m-d H:i:s', (int)$LX['key_expires']); ?><?php endif; ?></div>
                 <?php else: ?>
-                <div class="ext-warning">尚未同步。启用 Key 同步并保存后，点击「立即同步 Key」。</div>
+                <div class="ext-warning">尚未同步。启用 Key 同步并保存设置后会自动同步，无需手动操作。</div>
                 <?php endif; ?>
                 <?php if ((string)$LX['key_error'] !== ''): ?>
                 <div class="ext-warning">上次错误：<?php echo htmlspecialchars($LX['key_error']); ?></div>
                 <?php endif; ?>
-                <div class="ext-json-bar">
-                    <button type="button" class="layui-btn layui-btn-sm" id="btn-lx-key-sync">立即同步 Key</button>
-                </div>
+                <div class="ext-muted" style="margin-top:6px">Key 同步为全自动：保存设置后立即同步一次，到期后请求时自动刷新。</div>
             </div>
 
             <div class="ext-key-box" style="background:#fff;border:1px dashed #dfe4ee">
@@ -187,9 +192,17 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
         function lxLineHtml(line) {
             line = line || {};
             var type = line.type === 'post' ? 'post' : 'json';
+            var sync = (line.sync_key === '0') ? '' : ' checked';
             return '<div class="lx-line">'
-                + '<div class="lx-line-hd"><b class="lx-line-title">线路</b><a href="javascript:;" class="lx-del">删除</a></div>'
-                + '<div class="lx-grid">'
+                + '<div class="lx-line-hd">'
+                + '<div class="lx-hd-left">'
+                + '<label class="lx-sync"><input type="checkbox" class="lx-sync-key"' + sync + '> 同步 Key</label>'
+                + '<b class="lx-line-title">线路</b>'
+                + '<span class="lx-line-sub lx-line-name">' + lxEsc(line.name || '') + '</span>'
+                + '</div>'
+                + '<div class="lx-actions"><a href="javascript:;" class="lx-edit">修改</a><a href="javascript:;" class="lx-del">删除</a></div>'
+                + '</div>'
+                + '<div class="lx-body"><div class="lx-grid">'
                 + '<label>名称<input type="text" class="layui-input lx-name" maxlength="40" value="' + lxEsc(line.name || '') + '"></label>'
                 + '<label>请求类型<select class="layui-input lx-type" style="height:38px"><option value="json"' + (type === 'json' ? ' selected' : '') + '>GET 拼接</option><option value="post"' + (type === 'post' ? ' selected' : '') + '>POST 表单</option></select></label>'
                 + '<label>超时（秒）<input type="number" class="layui-input lx-timeout" min="1" max="60" step="1" value="' + (parseInt(line.timeout, 10) || 5) + '"></label>'
@@ -197,28 +210,39 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                 + '<label style="grid-column:1/-1">Referer（可选）<input type="text" class="layui-input lx-referer" placeholder="https://example.com/" value="' + lxEsc(line.referer || '') + '"></label>'
                 + '<label class="lx-post-only" style="grid-column:1/-1">POST 表单参数（每行 key=value，url 会自动填充）<textarea class="layui-input lx-form">' + lxEsc(lxKvText(line.form)) + '</textarea></label>'
                 + '<label style="grid-column:1/-1">返回附加字段（可选，每行 key=value，覆盖返回同名值）<textarea class="layui-input lx-change">' + lxEsc(lxKvText(line.change)) + '</textarea></label>'
-                + '</div></div>';
+                + '</div></div></div>';
         }
         function lxRenumber() {
             $('#lx-lines .lx-line').each(function (i) {
                 $(this).find('.lx-line-title').text('线路 ' + (i + 1));
             });
         }
-        function lxAddLine(line) {
+        function lxAddLine(line, expand) {
             var $row = $(lxLineHtml(line));
             $('#lx-lines').append($row);
             if ($row.find('.lx-type').val() !== 'post') { $row.find('.lx-post-only').hide(); }
+            if (expand) { $row.addClass('open'); $row.find('.lx-edit').text('收起'); }
             lxRenumber();
         }
 
-        for (var lxi = 0; lxi < LX_LINES.length; lxi++) { lxAddLine(LX_LINES[lxi]); }
-        if (LX_LINES.length === 0) { lxAddLine({}); }
+        for (var lxi = 0; lxi < LX_LINES.length; lxi++) { lxAddLine(LX_LINES[lxi], false); }
+        if (LX_LINES.length === 0) { lxAddLine({}, true); }
 
-        $('#btn-lx-add').on('click', function () { lxAddLine({}); });
+        $('#btn-lx-add').on('click', function () { lxAddLine({}, true); });
 
         $('#lx-lines').on('click', '.lx-del', function () {
             $(this).closest('.lx-line').remove();
-            if ($('#lx-lines .lx-line').length === 0) { lxAddLine({}); } else { lxRenumber(); }
+            if ($('#lx-lines .lx-line').length === 0) { lxAddLine({}, true); } else { lxRenumber(); }
+        });
+
+        $('#lx-lines').on('click', '.lx-edit', function () {
+            var $row = $(this).closest('.lx-line');
+            $row.toggleClass('open');
+            $(this).text($row.hasClass('open') ? '收起' : '修改');
+        });
+
+        $('#lx-lines').on('input', '.lx-name', function () {
+            $(this).closest('.lx-line').find('.lx-line-name').text($(this).val());
         });
 
         $('#lx-lines').on('change', '.lx-type', function () {
@@ -234,6 +258,7 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                 lines.push({
                     name: $.trim($l.find('.lx-name').val()) || ('线路' + (lines.length + 1)),
                     type: $l.find('.lx-type').val() === 'post' ? 'post' : 'json',
+                    sync_key: $l.find('.lx-sync-key').prop('checked') ? '1' : '0',
                     api_url: api,
                     timeout: parseInt($l.find('.lx-timeout').val(), 10) || 5,
                     referer: $.trim($l.find('.lx-referer').val()),
@@ -254,15 +279,6 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
             $.post('admin.php', {type: 'lx_save', config: JSON.stringify(cfg)}, function (d) {
                 tip(d.success == 1, d.m);
                 if (d.success == 1) { setTimeout(function () { location.reload(); }, 800); }
-            }, 'json').fail(function () { tip(false, '请求失败'); }).always(function () { $btn.prop('disabled', false); });
-        });
-
-        $('#btn-lx-key-sync').on('click', function () {
-            var $btn = $(this);
-            $btn.prop('disabled', true);
-            $.post('admin.php', {type: 'lx_key_sync'}, function (d) {
-                tip(d.success == 1, d.m);
-                if (d.success == 1) { setTimeout(function () { location.reload(); }, 1000); }
             }, 'json').fail(function () { tip(false, '请求失败'); }).always(function () { $btn.prop('disabled', false); });
         });
 

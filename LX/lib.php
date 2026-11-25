@@ -55,6 +55,8 @@ function lx_config_normalize_line($line, $i = 0) {
     $out['name'] = function_exists('mb_substr') ? mb_substr($name, 0, 40, 'UTF-8') : substr($name, 0, 40);
     $out['type'] = (isset($line['type']) && (string)$line['type'] === 'post') ? 'post' : 'json';
     $out['api_url'] = isset($line['api_url']) ? trim((string)$line['api_url']) : '';
+    //是否参与 Key 自动同步（默认参与，兼容旧配置）
+    $out['sync_key'] = (!isset($line['sync_key']) || (string)$line['sync_key'] === '1') ? '1' : '0';
     //修正常见错误写法：1.php?&key=xxx&?url= → 1.php?key=xxx&url=
     if ($out['api_url'] !== '') {
         $out['api_url'] = str_replace(array('?&', '&?'), array('?', '&'), $out['api_url']);
@@ -255,8 +257,9 @@ function lx_key_sync($cfg, $force = false, &$error = null) {
     $cfg['key_expires'] = isset($data['expires']) ? (int)$data['expires'] : 0;
     $cfg['key_error'] = '';
 
-    //自动替换线路接口地址中已有的 key=旧值
+    //自动替换线路接口地址中已有的 key=旧值（仅勾选「同步 Key」的线路）
     foreach ($cfg['lines'] as $i => $line) {
+        if ((string)$line['sync_key'] === '0') { continue; }
         $api = $line['api_url'];
         if ($api !== '' && stripos($api, 'key=') !== false && strpos($api, '{key}') === false) {
             $cfg['lines'][$i]['api_url'] = preg_replace('~([?&]key=)[^&#]*~i', '${1}' . $key, $api);
@@ -339,10 +342,11 @@ function lx_rotate($cfg, $videoUrl, $lineId = null) {
     $lines = (isset($cfg['lines']) && is_array($cfg['lines'])) ? $cfg['lines'] : array();
     $logs  = array();
 
-    //解析 {key} 占位符（Key 同步得到的当前 Key）
+    //解析 {key} 占位符（Key 同步得到的当前 Key，仅勾选「同步 Key」的线路）
     $keyVal = isset($cfg['key_value']) ? (string)$cfg['key_value'] : '';
     if ($keyVal !== '') {
         foreach ($lines as $i => $line) {
+            if (isset($line['sync_key']) && (string)$line['sync_key'] === '0') { continue; }
             if (isset($line['api_url']) && strpos($line['api_url'], '{key}') !== false) {
                 $lines[$i]['api_url'] = str_replace('{key}', rawurlencode($keyVal), $line['api_url']);
             }
