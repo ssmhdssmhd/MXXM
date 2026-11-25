@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.73-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.74-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -340,6 +340,7 @@ curl -s https://你的域名/MXDTKEY.json
 - 拖动线路左侧 ☰ 可调整顺序，靠前的线路优先轮询
 - 每条线路可单独「启用 / 禁用」，未启用的线路不参与轮询；也可单独设置是否参与 Key 同步
 - 支持 `https://你的域名/1.php?key={key}&url={url}`、`https://你的域名/1118.php?key={key}&url={url}` 等接口写法，`?&key=...&?url=` 会自动修正
+- 点击「从根目录获取 JB 接口」可自动扫描根目录的数字接口（`1.php`、`1118.php` 等），补齐尚未添加的线路；新增线路默认启用并参与 Key 同步，已存在的自动跳过
 - 测试结果会标识「直链视频」或「网页播放」；若返回的 url 中嵌套了内层地址，会单独显示内层地址并提供打开链接
 - 每条线路支持：
   - 请求类型：`GET 拼接`（把视频地址接在接口地址后）或 `POST 表单`
@@ -459,6 +460,12 @@ https://你的域名/1.php?key={key}&url={url}
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.74 · 2026-11-26 01:41（202611260141）
+
+- 轮训接口新增「从根目录获取 JB 接口」，自动扫描根目录 `1.php`、`1118.php` 等数字 PHP 接口
+- 新增线路默认启用、参与 Key 同步，地址自动填为 `?key={key}&url={url}`
+- 已添加过的接口自动跳过，可重复点击补齐剩余接口
 
 ### v.0.0.73 · 2026-11-26 01:39（202611260139）
 

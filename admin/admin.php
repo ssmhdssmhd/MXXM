@@ -1596,6 +1596,26 @@ switch ($type) {
             'data'    => $lxres['data'],
         ), JSON_UNESCAPED_UNICODE));
 
+    //扩展功能：轮训接口 扫描根目录数字 PHP 接口（脚本解析同步生成的 JB 接口）
+    case 'lx_scripts_list':
+        $lx_root = dirname(dirname(__FILE__));
+        $lx_files = glob($lx_root . '/*.php');
+        $lx_items = array();
+        if ($lx_files) {
+            foreach ($lx_files as $lx_f) {
+                $lx_base = basename($lx_f);
+                if (!preg_match('~^(\d+)\.php$~', $lx_base, $lx_m)) { continue; }
+                $lx_items[] = array(
+                    'id'    => (int)$lx_m[1],
+                    'file'  => $lx_base,
+                    'size'  => (int)@filesize($lx_f),
+                    'mtime' => (int)@filemtime($lx_f),
+                );
+            }
+        }
+        usort($lx_items, function ($a, $b) { return $a['id'] - $b['id']; });
+        exit(json_encode(array('success' => 1, 'files' => $lx_items), JSON_UNESCAPED_UNICODE));
+
     //独立接口 保存配置
     case 'endpoint_save':
         header('Content-Type: application/json; charset=utf-8');

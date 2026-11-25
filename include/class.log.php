@@ -481,6 +481,6 @@ function mxxm_admin_action_label($type) {
 function mxxm_admin_action_ignored($type) {
     return in_array($type, array(
         'check', 'recache', 'update_check', 'algo_check',
-        'script_line_list', 'log_call_list', 'log_op_list', 'lx_test',
+        'script_line_list', 'log_call_list', 'log_op_list', 'lx_test', 'lx_scripts_list',
     ), true);
 }

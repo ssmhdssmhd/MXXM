@@ -141,6 +141,7 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                 <div class="ext-muted" style="margin-bottom:10px">视频地址包含 <code>&amp;</code> 时建议使用 <code>{url}</code> 占位符（自动 URL 编码）。调用本站可填写：<code>https://你的域名/1.php?key={key}&amp;url={url}</code> 或 <code>https://你的域名/1118.php?key={key}&amp;url={url}</code></div>
                 <div id="lx-lines"></div>
                 <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="btn-lx-add">+ 添加线路</button>
+                <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="btn-lx-scan" style="margin-left:6px">从根目录获取 JB 接口</button>
             </div>
 
             <div class="layui-form-item">
@@ -171,6 +172,7 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
 
         var LX_LINES = <?php echo json_encode(array_values($LX['lines']), JSON_UNESCAPED_UNICODE); ?>;
         var LX_URL = <?php echo json_encode($LX_URL); ?>;
+        var LX_ORIGIN = <?php echo json_encode($__lx_origin); ?>;
 
         function lxEsc(s) {
             return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -240,6 +242,44 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
         if (LX_LINES.length === 0) { lxAddLine({}, true); }
 
         $('#btn-lx-add').on('click', function () { lxAddLine({}, true); });
+
+        //从根目录扫描 JB 数字接口，补充尚未添加的线路
+        function lxExistingFiles() {
+            var map = {};
+            $('#lx-lines .lx-api').each(function () {
+                var m = String($(this).val()).match(/\/([0-9]+)\.php/i);
+                if (m) { map[m[1]] = 1; }
+            });
+            return map;
+        }
+
+        $('#btn-lx-scan').on('click', function () {
+            var $btn = $(this);
+            $btn.prop('disabled', true);
+            $.post('admin.php', {type: 'lx_scripts_list'}, function (d) {
+                if (!d || d.success != 1) { tip(false, (d && d.m) ? d.m : '获取失败'); return; }
+                var exist = lxExistingFiles(), added = 0, files = d.files || [];
+                for (var i = 0; i < files.length; i++) {
+                    var id = String(files[i].id);
+                    if (exist[id]) { continue; }
+                    lxAddLine({
+                        name: 'JB-' + id,
+                        type: 'json',
+                        enabled: '1',
+                        sync_key: '1',
+                        api_url: LX_ORIGIN + '/' + files[i].file + '?key={key}&url={url}',
+                        timeout: 30
+                    }, false);
+                    exist[id] = 1;
+                    added++;
+                }
+                if (added > 0) {
+                    tip(true, '已添加 ' + added + ' 条根目录接口，请保存轮训设置');
+                } else {
+                    tip(true, '根目录接口均已添加，无新增');
+                }
+            }, 'json').fail(function () { tip(false, '请求失败'); }).always(function () { $btn.prop('disabled', false); });
+        });
 
         $('#lx-lines').on('click', '.lx-del', function () {
             $(this).closest('.lx-line').remove();
