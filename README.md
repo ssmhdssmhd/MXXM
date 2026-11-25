@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.67-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.68-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -338,10 +338,18 @@ curl -s https://你的域名/MXDTKEY.json
 - 可设置启用开关、指定线路与线路列表，并输入视频地址直接测试
 - 每条线路支持：
   - 请求类型：`GET 拼接`（把视频地址接在接口地址后）或 `POST 表单`
-  - 接口地址、超时（1-60 秒）、Referer
+  - 接口地址：支持 `{url}` 占位符，会自动对视频地址做 URL 编码。调用本站 `1.php` 时填写 `https://你的域名/1.php?key=你的密钥&url={url}`
+  - 超时（1-60 秒）、Referer
   - POST 表单参数（每行 `key=value`，`url` 自动填充）
   - 返回附加字段（每行 `key=value`，覆盖返回同名值）
 - 保存后立即生效，配置写入 `LX/config.php`，已加入 `.gitignore`，在线更新不会覆盖
+
+### 常见问题
+
+- **视频地址带 `&` 时解析失败**：说明线路还在用直接拼接，`&` 后面的参数被截断。请把接口地址改成 `...&url={url}`，`{url}` 会自动编码。
+- **提示「上游返回：接口未授权」**：线路调用的 `1.php` 缺少 `key` 参数，请在接口地址中补上 `key=你的密钥`，例如 `https://你的域名/1.php?key=你的密钥&url={url}`。
+- **直接调用 `/1.php`**：视频地址必须 URL 编码，并且参数格式为 `?url=编码后的地址&key=密钥`；不要写成 `?&key=123&?url=...`，否则 `url` 会丢失。
+- **全部线路失败**：返回的 `logs` 会列出每条线路的具体原因，可据此关闭失效线路或调整参数。
 
 ### 错误码
 
@@ -427,6 +435,13 @@ curl -s https://你的域名/MXDTKEY.json
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.68 · 2026-11-26 00:44（202611260044）
+
+- 轮训线路接口地址支持 `{url}` 占位符（自动 URL 编码），解决视频地址含 `&` 被截断的问题
+- 轮训失败时显示上游返回信息与 HTTP 状态，例如「上游返回：接口未授权」，便于定位线路配置
+- 后台轮训页面新增 `{url}` 用法与本站 `1.php` 调用示例
+- README 补充 `{url}` 说明、参数编码与密钥排查
 
 ### v.0.0.67 · 2026-11-26 00:24（202611260024）
 

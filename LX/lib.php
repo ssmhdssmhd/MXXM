@@ -125,8 +125,9 @@ function lx_config_save($cfg, &$error = null) {
 }
 
 //发送 HTTP 请求并解析 JSON
-function lx_http_request($url, $method, $form, $referer, $timeout, &$error = null) {
+function lx_http_request($url, $method, $form, $referer, $timeout, &$error = null, &$httpCode = null) {
     $error = '';
+    $httpCode = 0;
     if (!function_exists('curl_init')) {
         $error = '服务器未开启 curl 扩展';
         return false;
@@ -157,7 +158,6 @@ function lx_http_request($url, $method, $form, $referer, $timeout, &$error = nul
     $errmsg = curl_error($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-
     if ($errno) {
         $error = '请求失败：' . $errmsg;
         return false;
@@ -178,6 +178,20 @@ function lx_http_request($url, $method, $form, $referer, $timeout, &$error = nul
     return $data;
 }
 
+//提取上游返回的错误提示，便于定位线路问题
+function lx_upstream_hint($data) {
+    if (!is_array($data)) { return ''; }
+    foreach (array('msg', 'errormsg', 'message', 'error') as $k) {
+        if (!empty($data[$k]) && is_scalar($data[$k])) {
+            return trim((string)$data[$k]);
+        }
+    }
+    if (isset($data['code']) && is_scalar($data['code'])) {
+        return 'code=' . (string)$data['code'];
+    }
+    return '';
+}
+
 //请求单条线路，成功返回包含 url 的数组
 function lx_request_line($line, $videoUrl, &$error = null) {
     $error = '';
@@ -193,19 +207,27 @@ function lx_request_line($line, $videoUrl, &$error = null) {
         return false;
     }
 
+    $httpCode = 0;
     if ($line['type'] === 'json') {
-        //简单模式：把视频地址直接拼接到接口地址后面，使用 GET
-        $data = lx_http_request($api . $videoUrl, 'GET', array(), $line['referer'], $line['timeout'], $error);
+        //简单模式：支持 {url} 占位符（自动 URL 编码），否则把视频地址直接拼接到接口地址后面
+        if (strpos($api, '{url}') !== false) {
+            $reqUrl = str_replace('{url}', rawurlencode($videoUrl), $api);
+        } else {
+            $reqUrl = $api . $videoUrl;
+        }
+        $data = lx_http_request($reqUrl, 'GET', array(), $line['referer'], $line['timeout'], $error, $httpCode);
     } else {
         //表单模式：POST 提交，自动填充 url 参数
         $form = $line['form'];
         $form['url'] = $videoUrl;
-        $data = lx_http_request($api, 'POST', $form, $line['referer'], $line['timeout'], $error);
+        $data = lx_http_request($api, 'POST', $form, $line['referer'], $line['timeout'], $error, $httpCode);
     }
 
     if (!is_array($data)) { return false; }
     if (!isset($data['url']) || trim((string)$data['url']) === '') {
-        $error = '返回数据中没有 url';
+        $hint = lx_upstream_hint($data);
+        $suffix = $httpCode > 0 ? '（HTTP ' . $httpCode . '）' : '';
+        $error = $hint !== '' ? ('上游返回：' . $hint . $suffix) : ('返回数据中没有 url' . $suffix);
         return false;
     }
 

@@ -88,6 +88,7 @@ $LX_URL = $__lx_origin . '/LX/?url=官方视频地址';
 
             <div class="ext-key-box" style="background:#fff;border:1px dashed #dfe4ee">
                 <div class="ext-key-label">线路列表 <span class="ext-muted" style="font-weight:400">（GET 拼接：把视频地址接在接口地址后；POST 表单：自动填充 url）</span></div>
+                <div class="ext-muted" style="margin-bottom:10px">视频地址包含 <code>&amp;</code> 时建议在接口地址中使用 <code>{url}</code> 占位符（自动 URL 编码）。调用本站 1.php 可填写：<code>https://你的域名/1.php?key=你的密钥&amp;url={url}</code></div>
                 <div id="lx-lines"></div>
                 <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="btn-lx-add">+ 添加线路</button>
             </div>
@@ -153,7 +154,7 @@ $LX_URL = $__lx_origin . '/LX/?url=官方视频地址';
                 + '<label>名称<input type="text" class="layui-input lx-name" maxlength="40" value="' + lxEsc(line.name || '') + '"></label>'
                 + '<label>请求类型<select class="layui-input lx-type" style="height:38px"><option value="json"' + (type === 'json' ? ' selected' : '') + '>GET 拼接</option><option value="post"' + (type === 'post' ? ' selected' : '') + '>POST 表单</option></select></label>'
                 + '<label>超时（秒）<input type="number" class="layui-input lx-timeout" min="1" max="60" step="1" value="' + (parseInt(line.timeout, 10) || 5) + '"></label>'
-                + '<label style="grid-column:1/-1">接口地址<input type="text" class="layui-input lx-api" placeholder="https://example.com/api/?url=" value="' + lxEsc(line.api_url || '') + '"></label>'
+                + '<label style="grid-column:1/-1">接口地址<input type="text" class="layui-input lx-api" placeholder="https://example.com/api/?url= 或 https://example.com/1.php?key=密钥&amp;url={url}" value="' + lxEsc(line.api_url || '') + '"></label>'
                 + '<label style="grid-column:1/-1">Referer（可选）<input type="text" class="layui-input lx-referer" placeholder="https://example.com/" value="' + lxEsc(line.referer || '') + '"></label>'
                 + '<label class="lx-post-only" style="grid-column:1/-1">POST 表单参数（每行 key=value，url 会自动填充）<textarea class="layui-input lx-form">' + lxEsc(lxKvText(line.form)) + '</textarea></label>'
                 + '<label style="grid-column:1/-1">返回附加字段（可选，每行 key=value，覆盖返回同名值）<textarea class="layui-input lx-change">' + lxEsc(lxKvText(line.change)) + '</textarea></label>'
