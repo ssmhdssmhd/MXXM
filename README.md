@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.66-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.67-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -334,7 +334,7 @@ curl -s https://你的域名/MXDTKEY.json
 
 ### 后台设置
 
-- 入口：扩展功能 → 扩展 2：轮训接口
+- 入口：扩展功能 → 轮训接口
 - 可设置启用开关、指定线路与线路列表，并输入视频地址直接测试
 - 每条线路支持：
   - 请求类型：`GET 拼接`（把视频地址接在接口地址后）或 `POST 表单`
@@ -427,6 +427,12 @@ curl -s https://你的域名/MXDTKEY.json
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.67 · 2026-11-26 00:24（202611260024）
+
+- 扩展功能改为多个子菜单：「动态密钥」与「轮训接口」并列，轮训接口独立成页
+- 轮训接口页面拆分为 `admin/html/admin_lx.htm`，动态密钥页仅保留密钥相关设置
+- 功能与配置不变，原有 `LX/config.php` 线路设置继续生效
 
 ### v.0.0.66 · 2026-11-26 00:15（202611260015）
 
