@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.74-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.75-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -342,6 +342,7 @@ curl -s https://你的域名/MXDTKEY.json
 - 支持 `https://你的域名/1.php?key={key}&url={url}`、`https://你的域名/1118.php?key={key}&url={url}` 等接口写法，`?&key=...&?url=` 会自动修正
 - 点击「从根目录获取 JB 接口」可自动扫描根目录的数字接口（`1.php`、`1118.php` 等），补齐尚未添加的线路；新增线路默认启用并参与 Key 同步，已存在的自动跳过
 - 测试结果会标识「直链视频」或「网页播放」；若返回的 url 中嵌套了内层地址，会单独显示内层地址并提供打开链接
+- 支持「同时测试全部启用线路」，一次逐条测试并汇总每条线路的类型、耗时与失败原因，已禁用线路自动跳过
 - 每条线路支持：
   - 请求类型：`GET 拼接`（把视频地址接在接口地址后）或 `POST 表单`
   - 接口地址：支持 `{url}` 占位符，会自动对视频地址做 URL 编码。调用本站 `1.php` 时填写 `https://你的域名/1.php?key=你的密钥&url={url}`
@@ -460,6 +461,12 @@ https://你的域名/1.php?key={key}&url={url}
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.75 · 2026-11-26 01:46（202611260146）
+
+- 轮训测试新增「同时测试全部启用线路」，一次请求逐条测试并汇总结果
+- 每条线路显示类型（直链视频 / 网页播放 / 失败）、耗时、标题与失败原因
+- 已禁用线路自动跳过，结果显示成功数量汇总
 
 ### v.0.0.74 · 2026-11-26 01:41（202611260141）
 

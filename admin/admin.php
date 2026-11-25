@@ -1616,6 +1616,44 @@ switch ($type) {
         usort($lx_items, function ($a, $b) { return $a['id'] - $b['id']; });
         exit(json_encode(array('success' => 1, 'files' => $lx_items), JSON_UNESCAPED_UNICODE));
 
+    //扩展功能：轮训接口 测试全部启用线路
+    case 'lx_test_all':
+        require_once dirname(__FILE__) . '/../LX/lib.php';
+        @set_time_limit(0);
+        $lx_url = isset($_POST['url']) ? trim((string)$_POST['url']) : '';
+        if ($lx_url === '' || !preg_match('~^https?://~i', $lx_url)) {
+            exit(json_encode(array('success' => 0, 'icon' => 5, 'm' => '请输入以 http:// 或 https:// 开头的视频地址'), JSON_UNESCAPED_UNICODE));
+        }
+        $lxcfg = lx_config_load();
+        $lx_items = array();
+        foreach ($lxcfg['lines'] as $lx_i => $lx_line) {
+            if ((string)$lx_line['enabled'] === '0') { continue; }
+            $lx_t0 = microtime(true);
+            $lx_r = lx_rotate($lxcfg, $lx_url, $lx_i + 1);
+            $lx_meta = $lx_r['ok'] ? lx_result_meta($lx_r['data']) : array('type' => '', 'ext' => '', 'nested' => '');
+            $lx_items[] = array(
+                'line'   => $lx_i + 1,
+                'name'   => $lx_line['name'],
+                'ok'     => $lx_r['ok'] ? 1 : 0,
+                'ms'     => (int)round((microtime(true) - $lx_t0) * 1000),
+                'type'   => $lx_meta['type'],
+                'ext'    => $lx_meta['ext'],
+                'nested' => $lx_meta['nested'],
+                'msg'    => $lx_r['ok'] ? '成功' : $lx_r['msg'],
+                'data'   => $lx_r['data'],
+            );
+        }
+        $lx_ok = 0;
+        foreach ($lx_items as $lx_it) { if ($lx_it['ok']) { $lx_ok++; } }
+        exit(json_encode(array(
+            'success' => 1,
+            'icon'    => 6,
+            'm'       => '已测试 ' . count($lx_items) . ' 条启用线路，成功 ' . $lx_ok . ' 条',
+            'total'   => count($lx_items),
+            'ok'      => $lx_ok,
+            'items'   => $lx_items,
+        ), JSON_UNESCAPED_UNICODE));
+
     //独立接口 保存配置
     case 'endpoint_save':
         header('Content-Type: application/json; charset=utf-8');

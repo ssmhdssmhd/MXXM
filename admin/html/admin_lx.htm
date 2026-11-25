@@ -38,6 +38,11 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
 .lx-badge{display:inline-block;padding:0 8px;line-height:20px;border-radius:10px;font-size:12px;margin-right:6px}
 .lx-badge.video{color:#16b777;background:#e8f9f2}
 .lx-badge.page{color:#1e9fff;background:#e8f3ff}
+.lx-badge.fail{color:#ff5722;background:#fff0eb}
+.lx-all-out{margin-top:10px}
+.lx-all-row{border:1px solid #e6e9ef;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:#39445a;line-height:1.8}
+.lx-all-row .lx-ms{float:right;color:#8a94a6}
+.lx-all-detail{color:#526079;word-break:break-all}
 .lx-line-sub{color:#8a94a6;font-size:12px}
 .lx-actions a{margin-left:12px}
 .lx-body{display:none;margin-top:10px}
@@ -155,9 +160,13 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                     <input type="number" id="lx-test-line" class="layui-input" style="width:140px" min="0" max="50" step="1" value="0" placeholder="线路 0=自动">
                     <button type="button" class="layui-btn" id="btn-lx-test">开始测试</button>
                 </div>
+                <div class="ext-json-bar">
+                    <button type="button" class="layui-btn layui-btn-normal layui-btn-sm" id="btn-lx-test-all">同时测试全部启用线路</button>
+                </div>
                 <div class="ext-muted" style="margin-top:6px">测试使用当前已保存的线路配置；修改线路后请先保存再测试。</div>
                 <div class="lx-test-meta" id="lx-test-meta"></div>
                 <pre id="lx-test-out" class="ext-json-out" style="display:none"></pre>
+                <div class="lx-all-out" id="lx-all-out"></div>
             </div>
         </div>
     </div>
@@ -398,6 +407,43 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
             }, 'json').fail(function () {
                 $out.text('请求失败，请检查网络或稍后重试');
                 $meta.html('');
+                tip(false, '请求失败');
+            }).always(function () { $btn.prop('disabled', false); });
+        });
+
+        $('#btn-lx-test-all').on('click', function () {
+            var url = $.trim($('#lx-test-url').val());
+            if (!/^https?:\/\//i.test(url)) { tip(false, '请输入以 http:// 或 https:// 开头的视频地址'); return; }
+            var $btn = $(this), $out = $('#lx-all-out').html('<div class="ext-muted">正在依次测试全部启用线路，请稍候…</div>');
+            $btn.prop('disabled', true);
+            $.post('admin.php', {type: 'lx_test_all', url: url}, function (d) {
+                if (!d || d.success != 1) { $out.html(''); tip(false, (d && d.m) ? d.m : '测试失败'); return; }
+                var items = d.items || [], html = '';
+                if (!items.length) { html = '<div class="ext-warning">没有已启用的线路</div>'; }
+                for (var i = 0; i < items.length; i++) {
+                    var it = items[i];
+                    var label = it.ok ? (it.type === 'page' ? '网页播放' : '直链视频') : '失败';
+                    var cls = it.ok ? (it.type === 'page' ? 'page' : 'video') : 'fail';
+                    var detail;
+                    if (it.ok) {
+                        detail = '标题：' + lxEsc((it.data && it.data.title) ? it.data.title : '—');
+                        if (it.nested) { detail += '<br>内层地址：' + lxEsc(it.nested); }
+                        if (it.data && it.data.url) { detail += '<br><a href="' + lxEsc(it.data.url) + '" target="_blank" rel="noopener">打开地址</a>'; }
+                    } else {
+                        detail = lxEsc(it.msg);
+                    }
+                    html += '<div class="lx-all-row">'
+                        + '<span class="lx-badge ' + cls + '">' + label + '</span>'
+                        + '<b>线路 ' + it.line + '</b> <span class="lx-line-sub">' + lxEsc(it.name) + '</span>'
+                        + '<span class="lx-ms">' + it.ms + ' ms</span>'
+                        + '<div class="lx-all-detail">' + detail + '</div>'
+                        + '</div>';
+                }
+                html += '<div class="ext-muted">' + lxEsc(d.m) + '</div>';
+                $out.html(html);
+                tip(true, d.m);
+            }, 'json').fail(function () {
+                $out.html('');
                 tip(false, '请求失败');
             }).always(function () { $btn.prop('disabled', false); });
         });
