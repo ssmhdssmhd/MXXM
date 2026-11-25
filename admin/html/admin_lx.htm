@@ -7,7 +7,7 @@ $__lx_https = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']
 $__lx_base = preg_replace('~/admin/[^/]+$~', '', isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '');
 $__lx_origin = ($__lx_https ? 'https' : 'http') . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost') . $__lx_base;
 $LX_URL = $__lx_origin . '/LX/?url=官方视频地址';
-$LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY.json');
+$LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY.php');
 ?>
 <?php include "block_header.htm"; ?>
 
@@ -96,8 +96,8 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                 <div class="layui-form-item">
                     <label class="layui-form-label">同步地址</label>
                     <div class="layui-input-block">
-                        <input type="text" id="lx-key-url" class="layui-input" style="max-width:560px" value="<?php echo htmlspecialchars($LX_KEY_URL); ?>" placeholder="https://你的域名/MXDTKEY.json">
-                        <div class="ext-muted" style="margin-top:6px">支持 <code>/MXDTKEY.json</code> 或 <code>/MXDTKEY.php</code>，读取返回 JSON 顶层的 <code>key</code>。</div>
+                        <input type="text" id="lx-key-url" class="layui-input" style="max-width:560px" value="<?php echo htmlspecialchars($LX_KEY_URL); ?>" placeholder="https://你的域名/MXDTKEY.php">
+                        <div class="ext-muted" style="margin-top:6px">推荐 <code>/MXDTKEY.php</code>（所有环境可用）；<code>/MXDTKEY.json</code> 需要服务器伪静态生效。读取返回 JSON 顶层的 <code>key</code>。</div>
                     </div>
                 </div>
                 <div class="layui-form-item">

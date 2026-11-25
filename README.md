@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.69-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.70-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -349,7 +349,7 @@ curl -s https://你的域名/MXDTKEY.json
 当线路调用本站 `/1.php` 时，可以把访问密钥改成自动同步，避免动态密钥轮换后线路失效：
 
 - 在后台「扩展功能 → 轮训接口」启用「Key 同步」
-- 同步地址填写 `https://你的域名/MXDTKEY.json`（或 `/MXDTKEY.php`）
+- 同步地址填写 `https://你的域名/MXDTKEY.php`（推荐，所有环境可用）；`/MXDTKEY.json` 需要服务器伪静态生效，否则会返回 404
 - 设置同步间隔（分钟，建议 5-30 分钟）
 - 保存后点击「立即同步 Key」，系统会读取 JSON 顶层的 `key`，并自动替换线路接口地址中的 `key=旧值`
 - 线路接口地址也可以直接写 `key={key}` 占位符，调用时自动替换为当前 Key
@@ -452,6 +452,12 @@ https://你的域名/1.php?key={key}&url={url}
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.70 · 2026-11-26 00:54（202611260054）
+
+- 轮训「Key 同步」默认地址改为 `/MXDTKEY.php`，避免伪静态未生效时 `/MXDTKEY.json` 返回 404 导致同步失败
+- 后台同步地址说明区分 `.php`（所有环境可用）与 `.json`（需伪静态）
+- 实测线上环境：获取动态 Key、自动替换线路 key、到期自动刷新、手动同步均正常
 
 ### v.0.0.69 · 2026-11-26 00:52（202611260052）
 
