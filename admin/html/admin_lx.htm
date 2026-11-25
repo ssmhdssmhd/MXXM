@@ -30,8 +30,14 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
 .lx-line{border:1px solid #e6e9ef;border-radius:8px;padding:12px;margin-bottom:12px;background:#fbfcfe}
 .lx-line-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;color:#39445a;gap:8px;flex-wrap:wrap}
 .lx-line-hd .lx-hd-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.lx-sync{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#39445a;margin-right:4px}
-.lx-sync input{vertical-align:middle;margin:0}
+.lx-sync,.lx-on{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#39445a;margin-right:4px}
+.lx-sync input,.lx-on input{vertical-align:middle;margin:0}
+.lx-drag{cursor:move;color:#8a94a6;font-size:15px;user-select:none;padding:0 2px}
+.lx-line.disabled{opacity:.55}
+.lx-test-meta{margin-top:8px;font-size:12px;color:#39445a;line-height:1.8}
+.lx-badge{display:inline-block;padding:0 8px;line-height:20px;border-radius:10px;font-size:12px;margin-right:6px}
+.lx-badge.video{color:#16b777;background:#e8f9f2}
+.lx-badge.page{color:#1e9fff;background:#e8f3ff}
 .lx-line-sub{color:#8a94a6;font-size:12px}
 .lx-actions a{margin-left:12px}
 .lx-body{display:none;margin-top:10px}
@@ -131,8 +137,8 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
             </div>
 
             <div class="ext-key-box" style="background:#fff;border:1px dashed #dfe4ee">
-                <div class="ext-key-label">线路列表 <span class="ext-muted" style="font-weight:400">（GET 拼接：把视频地址接在接口地址后；POST 表单：自动填充 url）</span></div>
-                <div class="ext-muted" style="margin-bottom:10px">视频地址包含 <code>&amp;</code> 时建议在接口地址中使用 <code>{url}</code> 占位符（自动 URL 编码）。调用本站 1.php 可填写：<code>https://你的域名/1.php?key=你的密钥&amp;url={url}</code></div>
+                <div class="ext-key-label">线路列表 <span class="ext-muted" style="font-weight:400">（拖动 ☰ 可调整顺序；未启用的线路不参与轮询）</span></div>
+                <div class="ext-muted" style="margin-bottom:10px">视频地址包含 <code>&amp;</code> 时建议使用 <code>{url}</code> 占位符（自动 URL 编码）。调用本站可填写：<code>https://你的域名/1.php?key={key}&amp;url={url}</code> 或 <code>https://你的域名/1118.php?key={key}&amp;url={url}</code></div>
                 <div id="lx-lines"></div>
                 <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" id="btn-lx-add">+ 添加线路</button>
             </div>
@@ -149,6 +155,7 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                     <button type="button" class="layui-btn" id="btn-lx-test">开始测试</button>
                 </div>
                 <div class="ext-muted" style="margin-top:6px">测试使用当前已保存的线路配置；修改线路后请先保存再测试。</div>
+                <div class="lx-test-meta" id="lx-test-meta"></div>
                 <pre id="lx-test-out" class="ext-json-out" style="display:none"></pre>
             </div>
         </div>
@@ -193,9 +200,12 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
             line = line || {};
             var type = line.type === 'post' ? 'post' : 'json';
             var sync = (line.sync_key === '0') ? '' : ' checked';
+            var on = (line.enabled === '0') ? '' : ' checked';
             return '<div class="lx-line">'
                 + '<div class="lx-line-hd">'
                 + '<div class="lx-hd-left">'
+                + '<span class="lx-drag" draggable="true" title="拖动排序">☰</span>'
+                + '<label class="lx-on"><input type="checkbox" class="lx-enabled-line"' + on + '> 启用</label>'
                 + '<label class="lx-sync"><input type="checkbox" class="lx-sync-key"' + sync + '> 同步 Key</label>'
                 + '<b class="lx-line-title">线路</b>'
                 + '<span class="lx-line-sub lx-line-name">' + lxEsc(line.name || '') + '</span>'
@@ -221,6 +231,7 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
             var $row = $(lxLineHtml(line));
             $('#lx-lines').append($row);
             if ($row.find('.lx-type').val() !== 'post') { $row.find('.lx-post-only').hide(); }
+            if (!$row.find('.lx-enabled-line').prop('checked')) { $row.addClass('disabled'); }
             if (expand) { $row.addClass('open'); $row.find('.lx-edit').text('收起'); }
             lxRenumber();
         }
@@ -249,6 +260,30 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
             $(this).closest('.lx-line').find('.lx-post-only').toggle($(this).val() === 'post');
         });
 
+        $('#lx-lines').on('change', '.lx-enabled-line', function () {
+            $(this).closest('.lx-line').toggleClass('disabled', !$(this).prop('checked'));
+        });
+
+        //拖动 ☰ 调整线路顺序
+        var lxDragRow = null;
+        $('#lx-lines').on('dragstart', '.lx-drag', function (e) {
+            lxDragRow = $(this).closest('.lx-line');
+            var dt = e.originalEvent.dataTransfer;
+            if (dt) { dt.effectAllowed = 'move'; try { dt.setData('text/plain', 'lx'); } catch (err) {} }
+        });
+        $('#lx-lines').on('dragover', '.lx-line', function (e) {
+            if (!lxDragRow) { return; }
+            e.preventDefault();
+            var $target = $(this);
+            if ($target[0] === lxDragRow[0]) { return; }
+            var rect = this.getBoundingClientRect();
+            var y = e.originalEvent.clientY;
+            if (y > rect.top + rect.height / 2) { $target.after(lxDragRow); } else { $target.before(lxDragRow); }
+            lxRenumber();
+        });
+        $('#lx-lines').on('drop', '.lx-line', function (e) { e.preventDefault(); });
+        $('#lx-lines').on('dragend', '.lx-drag', function () { lxDragRow = null; });
+
         $('#btn-lx-save').on('click', function () {
             var lines = [];
             $('#lx-lines .lx-line').each(function () {
@@ -258,6 +293,7 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                 lines.push({
                     name: $.trim($l.find('.lx-name').val()) || ('线路' + (lines.length + 1)),
                     type: $l.find('.lx-type').val() === 'post' ? 'post' : 'json',
+                    enabled: $l.find('.lx-enabled-line').prop('checked') ? '1' : '0',
                     sync_key: $l.find('.lx-sync-key').prop('checked') ? '1' : '0',
                     api_url: api,
                     timeout: parseInt($l.find('.lx-timeout').val(), 10) || 5,
@@ -298,7 +334,7 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
         $('#btn-lx-test').on('click', function () {
             var url = $.trim($('#lx-test-url').val());
             if (!/^https?:\/\//i.test(url)) { tip(false, '请输入以 http:// 或 https:// 开头的视频地址'); return; }
-            var $btn = $(this), $out = $('#lx-test-out').show().text('测试中，请稍候…');
+            var $btn = $(this), $out = $('#lx-test-out').show().text('测试中，请稍候…'), $meta = $('#lx-test-meta').html('');
             $btn.prop('disabled', true);
             $.post('admin.php', {
                 type: 'lx_test',
@@ -306,9 +342,22 @@ $LX_KEY_URL = $LX['key_url'] !== '' ? $LX['key_url'] : ($__lx_origin . '/MXDTKEY
                 line: parseInt($('#lx-test-line').val(), 10) || 0
             }, function (d) {
                 $out.text(JSON.stringify(d, null, 2));
+                if (d.success == 1) {
+                    var isPage = d.type === 'page';
+                    var html = '<span class="lx-badge ' + (isPage ? 'page' : 'video') + '">' + (isPage ? '网页播放' : '直链视频') + '</span>'
+                        + '使用线路 ' + d.line;
+                    if (d.nested) {
+                        html += '<div>内层地址：' + lxEsc(d.nested) + '</div>';
+                    }
+                    if (d.data && d.data.url) {
+                        html += '<div><a href="' + lxEsc(d.data.url) + '" target="_blank" rel="noopener">打开' + (isPage ? '网页' : '地址') + '</a></div>';
+                    }
+                    $meta.html(html);
+                }
                 tip(d.success == 1, d.m);
             }, 'json').fail(function () {
                 $out.text('请求失败，请检查网络或稍后重试');
+                $meta.html('');
                 tip(false, '请求失败');
             }).always(function () { $btn.prop('disabled', false); });
         });

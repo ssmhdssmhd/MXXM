@@ -22,6 +22,7 @@ function lx_line_defaults() {
     return array(
         'name'    => '',
         'type'    => 'json',
+        'enabled' => '1',
         'api_url' => '',
         'timeout' => 5,
         'referer' => '',
@@ -54,6 +55,8 @@ function lx_config_normalize_line($line, $i = 0) {
     if ($name === '') { $name = '线路' . ($i + 1); }
     $out['name'] = function_exists('mb_substr') ? mb_substr($name, 0, 40, 'UTF-8') : substr($name, 0, 40);
     $out['type'] = (isset($line['type']) && (string)$line['type'] === 'post') ? 'post' : 'json';
+    //是否启用（默认启用，兼容旧配置）
+    $out['enabled'] = (!isset($line['enabled']) || (string)$line['enabled'] === '1') ? '1' : '0';
     $out['api_url'] = isset($line['api_url']) ? trim((string)$line['api_url']) : '';
     //是否参与 Key 自动同步（默认参与，兼容旧配置）
     $out['sync_key'] = (!isset($line['sync_key']) || (string)$line['sync_key'] === '1') ? '1' : '0';
@@ -257,9 +260,9 @@ function lx_key_sync($cfg, $force = false, &$error = null) {
     $cfg['key_expires'] = isset($data['expires']) ? (int)$data['expires'] : 0;
     $cfg['key_error'] = '';
 
-    //自动替换线路接口地址中已有的 key=旧值（仅勾选「同步 Key」的线路）
+    //自动替换线路接口地址中已有的 key=旧值（仅启用且勾选「同步 Key」的线路）
     foreach ($cfg['lines'] as $i => $line) {
-        if ((string)$line['sync_key'] === '0') { continue; }
+        if ((string)$line['enabled'] === '0' || (string)$line['sync_key'] === '0') { continue; }
         $api = $line['api_url'];
         if ($api !== '' && stripos($api, 'key=') !== false && strpos($api, '{key}') === false) {
             $cfg['lines'][$i]['api_url'] = preg_replace('~([?&]key=)[^&#]*~i', '${1}' . $key, $api);
@@ -342,10 +345,11 @@ function lx_rotate($cfg, $videoUrl, $lineId = null) {
     $lines = (isset($cfg['lines']) && is_array($cfg['lines'])) ? $cfg['lines'] : array();
     $logs  = array();
 
-    //解析 {key} 占位符（Key 同步得到的当前 Key，仅勾选「同步 Key」的线路）
+    //解析 {key} 占位符（Key 同步得到的当前 Key，仅启用且勾选「同步 Key」的线路）
     $keyVal = isset($cfg['key_value']) ? (string)$cfg['key_value'] : '';
     if ($keyVal !== '') {
         foreach ($lines as $i => $line) {
+            if (isset($line['enabled']) && (string)$line['enabled'] === '0') { continue; }
             if (isset($line['sync_key']) && (string)$line['sync_key'] === '0') { continue; }
             if (isset($line['api_url']) && strpos($line['api_url'], '{key}') !== false) {
                 $lines[$i]['api_url'] = str_replace('{key}', rawurlencode($keyVal), $line['api_url']);
@@ -355,6 +359,15 @@ function lx_rotate($cfg, $videoUrl, $lineId = null) {
 
     if (empty($lines)) {
         return array('ok' => false, 'data' => null, 'line' => 0, 'logs' => $logs, 'msg' => '尚未配置轮训线路');
+    }
+
+    //只轮询已启用的线路
+    $enabledIdx = array();
+    foreach ($lines as $i => $line) {
+        if (!isset($line['enabled']) || (string)$line['enabled'] === '1') { $enabledIdx[] = $i; }
+    }
+    if (empty($enabledIdx)) {
+        return array('ok' => false, 'data' => null, 'line' => 0, 'logs' => $logs, 'msg' => '所有线路均已禁用');
     }
 
     if ($lineId === null) {
@@ -367,9 +380,12 @@ function lx_rotate($cfg, $videoUrl, $lineId = null) {
         if (!isset($lines[$idx])) {
             return array('ok' => false, 'data' => null, 'line' => 0, 'logs' => $logs, 'msg' => '没有找到此线路配置');
         }
+        if (!in_array($idx, $enabledIdx, true)) {
+            return array('ok' => false, 'data' => null, 'line' => 0, 'logs' => $logs, 'msg' => '线路 ' . $lineId . ' 已禁用');
+        }
         $targets = array($idx);
     } else {
-        $targets = array_keys($lines);
+        $targets = $enabledIdx;
     }
 
     foreach ($targets as $idx) {
@@ -393,4 +409,34 @@ function lx_rotate($cfg, $videoUrl, $lineId = null) {
         'logs' => $logs,
         'msg'  => ($last && $last['msg'] !== '') ? $last['msg'] : '线路无法解析到',
     );
+}
+
+/**
+ * 判断解析结果类型：直链视频 / 网页播放
+ * 返回 type(video|page)、ext、nested（url 中嵌套的内层地址）
+ */
+function lx_result_meta($data) {
+    $url = isset($data['url']) ? trim((string)$data['url']) : '';
+    $ext = (isset($data['ext']) && is_scalar($data['ext'])) ? strtolower(trim((string)$data['ext'])) : '';
+
+    $type = 'video';
+    if (in_array($ext, array('player', 'web', 'html', 'page'), true)) {
+        $type = 'page';
+    } elseif ($ext === '' && $url !== '' && !preg_match('~\.(m3u8|mp4|flv|mpd)(\?|#|$)~i', $url)) {
+        $type = 'page';
+    }
+
+    $nested = '';
+    $query = parse_url($url, PHP_URL_QUERY);
+    if ($query) {
+        parse_str($query, $params);
+        foreach (array('url', 'content', 'src', 'video') as $k) {
+            if (!empty($params[$k]) && is_string($params[$k]) && preg_match('~^https?://~i', $params[$k])) {
+                $nested = $params[$k];
+                break;
+            }
+        }
+    }
+
+    return array('type' => $type, 'ext' => $ext, 'nested' => $nested);
 }

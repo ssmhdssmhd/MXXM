@@ -1583,11 +1583,15 @@ switch ($type) {
         }
         $lxcfg = lx_config_load();
         $lxres = lx_rotate($lxcfg, $lx_url, $lx_line > 0 ? $lx_line : null);
+        $lxmeta = $lxres['ok'] ? lx_result_meta($lxres['data']) : array('type' => '', 'ext' => '', 'nested' => '');
         exit(json_encode(array(
             'success' => $lxres['ok'] ? 1 : 0,
             'icon'    => $lxres['ok'] ? 6 : 5,
             'm'       => $lxres['ok'] ? ('解析成功，使用线路 ' . $lxres['line']) : ($lxres['msg'] !== '' ? $lxres['msg'] : '线路无法解析到'),
             'line'    => $lxres['line'],
+            'type'    => $lxmeta['type'],
+            'ext'     => $lxmeta['ext'],
+            'nested'  => $lxmeta['nested'],
             'logs'    => $lxres['logs'],
             'data'    => $lxres['data'],
         ), JSON_UNESCAPED_UNICODE));

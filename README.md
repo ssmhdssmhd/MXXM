@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.72-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v.0.0.73-blue">
   <img alt="PHP" src="https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
@@ -336,7 +336,11 @@ curl -s https://你的域名/MXDTKEY.json
 
 - 入口：扩展功能 → 轮训接口
 - 可设置启用开关、指定线路与线路列表，并输入视频地址直接测试
-- 线路列表默认收起，不显示接口地址，点击「修改」展开编辑，点击「删除」移除；每条线路可勾选是否参与 Key 同步
+- 线路列表默认收起，不显示接口地址，点击「修改」展开编辑，点击「删除」移除
+- 拖动线路左侧 ☰ 可调整顺序，靠前的线路优先轮询
+- 每条线路可单独「启用 / 禁用」，未启用的线路不参与轮询；也可单独设置是否参与 Key 同步
+- 支持 `https://你的域名/1.php?key={key}&url={url}`、`https://你的域名/1118.php?key={key}&url={url}` 等接口写法，`?&key=...&?url=` 会自动修正
+- 测试结果会标识「直链视频」或「网页播放」；若返回的 url 中嵌套了内层地址，会单独显示内层地址并提供打开链接
 - 每条线路支持：
   - 请求类型：`GET 拼接`（把视频地址接在接口地址后）或 `POST 表单`
   - 接口地址：支持 `{url}` 占位符，会自动对视频地址做 URL 编码。调用本站 `1.php` 时填写 `https://你的域名/1.php?key=你的密钥&url={url}`
@@ -455,6 +459,14 @@ https://你的域名/1.php?key={key}&url={url}
 - 独立接口的访问密钥与 GitHub Token 仅保存在服务器本地
 
 ## 版本记录
+
+### v.0.0.73 · 2026-11-26 01:39（202611260139）
+
+- 轮训线路支持单独启用 / 禁用，未启用线路不参与轮询，也不参与 Key 同步
+- 线路列表支持拖动 ☰ 调整顺序，靠前线路优先轮询
+- 兼容 `1.php`、`1118.php` 等接口写法，`?&key=...&?url=` 自动修正为 `?key=...&url={url}`
+- 新增结果类型识别：直链视频 / 网页播放；url 中嵌套内层地址时在后台单独标识并提供打开链接
+- 线路测试结果新增类型、ext 与内层地址信息
 
 ### v.0.0.72 · 2026-11-26 01:24（202611260124）
 
