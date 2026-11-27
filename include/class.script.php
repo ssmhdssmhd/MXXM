@@ -89,6 +89,15 @@ function script_load() {
     if (!isset($cfg['manual_lines']) || !is_array($cfg['manual_lines'])) { $cfg['manual_lines'] = array(); }
     // 旧版单脚本配置自动迁移为「多脚本」结构
     $cfg = script_migrate_single($cfg);
+    // 逐脚本更新模式：auto_update=1 自动更新（默认），0 仅检测并等待手动更新
+    foreach ($cfg['scripts'] as $si => $sc) {
+        if (!is_array($sc)) { $sc = array(); }
+        $sc += array('auto_update' => '1', 'pending_version' => '', 'pending_time' => '');
+        $sc['auto_update'] = (string)$sc['auto_update'] === '0' ? '0' : '1';
+        $sc['pending_version'] = trim((string)$sc['pending_version']);
+        $sc['pending_time'] = trim((string)$sc['pending_time']);
+        $cfg['scripts'][$si] = $sc;
+    }
     // 合并全部脚本线路与手动线路，作为前台实际使用的线路列表
     script_rebuild_lines($cfg);
     // JSON 接口返回字段：缺失或为空时使用默认值
@@ -620,7 +629,7 @@ function script_export(&$cfg, &$logs) {
     $ok = 0;
     foreach ((array)$cfg['scripts'] as $i => $sc) {
         if (!is_array($sc)) { continue; }
-        $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'off' => '1', 'lines' => array());
+        $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'off' => '1', 'lines' => array(), 'auto_update' => '1');
         $id = trim((string)$sc['id']);
         if ($id === '') {
             $seed = trim((string)$sc['url']) !== '' ? trim((string)$sc['url']) : (trim((string)$sc['name']) . '#' . $i);
@@ -652,6 +661,7 @@ function script_export(&$cfg, &$logs) {
             'url'     => $sc['url'],
             'version' => $sc['version'],
             'off'     => (string)$sc['off'] === '1' ? '1' : '0',
+            'auto_update' => (string)$sc['auto_update'] === '0' ? '0' : '1',
             'file'    => $file,
             'lines'   => (array)$sc['lines'],
             'time'    => script_now(),
@@ -745,6 +755,9 @@ function script_import(&$cfg, &$logs) {
             'lines'      => $lines,
             'lines_hash' => md5(json_encode($lines)),
             'off'        => (isset($it['off']) && (string)$it['off'] === '0') ? '0' : '1',
+            'auto_update' => (isset($it['auto_update']) && (string)$it['auto_update'] === '0') ? '0' : '1',
+            'pending_version' => '',
+            'pending_time' => '',
             'time'       => script_now(),
             'last_check' => script_now(),
         );
@@ -774,22 +787,24 @@ function script_auto_update($cfg = null, $force = false) {
     if ($cfg === null) { $cfg = script_load(); }
 
     if (!$force && (string)$cfg['auto_update'] !== '1') {
-        return array('ok' => true, 'changed' => false, 'msg' => '自动更新已关闭');
+        return array('ok' => true, 'changed' => false, 'pending' => 0, 'msg' => '自动更新已关闭');
     }
 
     $interval = max(1, (int)$cfg['interval']) * 3600;
     $changed = false;
     $checked = 0;
     $failed = 0;
+    $pending = 0;
 
     foreach ($cfg['scripts'] as $i => $sc) {
         if (!is_array($sc)) { continue; }
-        $sc += array('url' => '', 'lines' => array(), 'last_check' => '', 'lines_hash' => '');
+        $sc += array('url' => '', 'lines' => array(), 'last_check' => '', 'lines_hash' => '', 'version' => '', 'auto_update' => '1', 'pending_version' => '');
         $url = trim((string)$sc['url']);
         if ($url === '') { continue; }
+        $isManual = (string)$sc['auto_update'] === '0';
         $last = script_time_ts($sc['last_check']);
-        // 已有线路时才按间隔跳过；线路为空则立即检测一次
-        if (!$force && !empty($sc['lines']) && $last > 0 && time() - $last < $interval) { continue; }
+        // 已有线路时才按间隔跳过；线路为空则立即检测一次（手动模式始终按间隔检测，避免反复请求）
+        if (!$force && $last > 0 && time() - $last < $interval && ($isManual || !empty($sc['lines']))) { continue; }
         $checked++;
 
         // 检查时附加时间参数，尽量绕过 CDN 缓存
@@ -811,14 +826,32 @@ function script_auto_update($cfg = null, $force = false) {
 
         list($name, $ver) = script_meta($js);
         $hash = md5(json_encode($lines));
-        if ($hash !== (string)$sc['lines_hash'] || $sc['lines'] !== $lines) {
+        $hashChanged = ($hash !== (string)$sc['lines_hash'] || $sc['lines'] !== $lines);
+        $verChanged = ($ver !== '' && $ver !== (string)$sc['version']);
+        $cfg['scripts'][$i]['last_check'] = script_now();
+
+        // 手动模式只检测版本变化，保留待更新提示，不改动现有线路
+        if ($isManual) {
+            if ($hashChanged || $verChanged) {
+                $cfg['scripts'][$i]['pending_version'] = $ver !== '' ? $ver : '新版本';
+                $cfg['scripts'][$i]['pending_time'] = script_now();
+                $pending++;
+            } else {
+                $cfg['scripts'][$i]['pending_version'] = '';
+                $cfg['scripts'][$i]['pending_time'] = '';
+            }
+            continue;
+        }
+
+        if ($hashChanged) {
             $cfg['scripts'][$i]['lines'] = $lines;
             $cfg['scripts'][$i]['lines_hash'] = $hash;
             $changed = true;
         }
         if ($name !== '') { $cfg['scripts'][$i]['name'] = $name; }
         if ($ver !== '') { $cfg['scripts'][$i]['version'] = $ver; }
-        $cfg['scripts'][$i]['last_check'] = script_now();
+        $cfg['scripts'][$i]['pending_version'] = '';
+        $cfg['scripts'][$i]['pending_time'] = '';
         $cfg['scripts'][$i]['time'] = $cfg['scripts'][$i]['last_check'];
     }
 
@@ -826,7 +859,7 @@ function script_auto_update($cfg = null, $force = false) {
     $cfg['last_check'] = script_now();
     $cfg['lines_hash'] = md5(json_encode($cfg['lines']));
     if (!script_save($cfg)) {
-        return array('ok' => false, 'changed' => false, 'msg' => '保存失败，请检查 save/ 目录写权限');
+        return array('ok' => false, 'changed' => false, 'pending' => 0, 'msg' => '保存失败，请检查 save/ 目录写权限');
     }
 
     $syncMsg = '';
@@ -836,16 +869,21 @@ function script_auto_update($cfg = null, $force = false) {
     }
 
     if ($checked === 0) {
-        return array('ok' => true, 'changed' => false, 'msg' => '未到检查间隔' . $syncMsg);
+        return array('ok' => true, 'changed' => false, 'pending' => 0, 'msg' => '未到检查间隔' . $syncMsg);
     }
 
-    $msg = $changed
-        ? '检测到上游更新：' . count($cfg['lines']) . ' 条线路'
-        : '已是最新';
+    if ($changed) {
+        $msg = '检测到上游更新：' . count($cfg['lines']) . ' 条线路';
+    } elseif ($pending > 0) {
+        $msg = '发现 ' . $pending . ' 个脚本有新版本（手动更新模式）';
+    } else {
+        $msg = '已是最新';
+    }
     if ($failed > 0) { $msg .= "，{$failed} 个脚本拉取失败"; }
     return array(
         'ok'      => $failed < $checked,
         'changed' => $changed,
+        'pending' => $pending,
         'msg'     => $msg . $syncMsg,
     );
 }

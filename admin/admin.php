@@ -1249,6 +1249,7 @@ switch ($type) {
         exit(json_encode(array(
             'success' => $r['ok'] ? 1 : 0,
             'changed' => $r['changed'] ? 1 : 0,
+            'pending' => !empty($r['pending']) ? 1 : 0,
             'icon'    => $r['ok'] ? 6 : 5,
             'm'       => $r['msg'],
         ), JSON_UNESCAPED_UNICODE));
@@ -1319,7 +1320,7 @@ switch ($type) {
         $isNew = ($idx < 0);
         if ($isNew) {
             $idx = count($cfg['scripts']);
-            $cfg['scripts'][] = array('id' => md5($url), 'off' => '1');
+            $cfg['scripts'][] = array('id' => md5($url), 'off' => '1', 'auto_update' => '1');
         }
         $cfg['scripts'][$idx]['id'] = isset($cfg['scripts'][$idx]['id']) && $cfg['scripts'][$idx]['id'] !== '' ? $cfg['scripts'][$idx]['id'] : md5($url);
         $cfg['scripts'][$idx]['url'] = $url;
@@ -1330,6 +1331,9 @@ switch ($type) {
         $cfg['scripts'][$idx]['lines_hash'] = md5(json_encode($lines));
         $cfg['scripts'][$idx]['time'] = script_now();
         $cfg['scripts'][$idx]['last_check'] = $cfg['scripts'][$idx]['time'];
+        // 手动更新完成，清除待更新提示
+        $cfg['scripts'][$idx]['pending_version'] = '';
+        $cfg['scripts'][$idx]['pending_time'] = '';
         // 保存脚本源码到源码目录 /MXJB/
         $srcFile = script_save_source(array(
             'id'      => $cfg['scripts'][$idx]['id'],
@@ -1409,6 +1413,8 @@ switch ($type) {
             $cfg['scripts'][$i]['lines_hash'] = md5(json_encode($lines));
             $cfg['scripts'][$i]['time'] = script_now();
             $cfg['scripts'][$i]['last_check'] = $cfg['scripts'][$i]['time'];
+            $cfg['scripts'][$i]['pending_version'] = '';
+            $cfg['scripts'][$i]['pending_time'] = '';
             $srcFile = script_save_source($cfg['scripts'][$i], $js, $lines);
             if ($srcFile !== '') { $cfg['scripts'][$i]['file'] = $srcFile; }
             $logs[] = array('t' => script_log_time(), 'ok' => 1, 'msg' => $label . '：更新成功，' . count($lines) . ' 条线路，版本 ' . ($ver !== '' ? $ver : '—'));
@@ -1743,10 +1749,16 @@ switch ($type) {
         // 脚本启用状态（逐条保存）
         $sids = (isset($_POST['sc_sid']) && is_array($_POST['sc_sid'])) ? $_POST['sc_sid'] : array();
         $soffs = (isset($_POST['sc_soff']) && is_array($_POST['sc_soff'])) ? $_POST['sc_soff'] : array();
+        $sautos = (isset($_POST['sc_sauto']) && is_array($_POST['sc_sauto'])) ? $_POST['sc_sauto'] : array();
         foreach ($sids as $i => $sid) {
             $idx = script_find_index($cfg, trim((string)$sid));
             if ($idx < 0) { continue; }
             $cfg['scripts'][$idx]['off'] = (isset($soffs[$i]) && (string)$soffs[$i] === '1') ? '1' : '0';
+            $cfg['scripts'][$idx]['auto_update'] = (isset($sautos[$i]) && (string)$sautos[$i] === '1') ? '1' : '0';
+            if ((string)$cfg['scripts'][$idx]['auto_update'] !== '0') {
+                $cfg['scripts'][$idx]['pending_version'] = '';
+                $cfg['scripts'][$idx]['pending_time'] = '';
+            }
         }
         $cfg['auto_sync'] = (string)(isset($_POST['sc_auto']) ? $_POST['sc_auto'] : '0') === '1' ? '1' : '0';
         $cfg['auto_update'] = (string)(isset($_POST['sc_auto_update']) ? $_POST['sc_auto_update'] : '0') === '1' ? '1' : '0';

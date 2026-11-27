@@ -28,6 +28,9 @@ $EP_STATUS = script_endpoint_status();
 .sc-chip.miss{color:#ff5722;background:#fff0ec}
 .sc-card-ft{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px dashed #eceff5}
 .sc-card-ft .layui-form-switch{margin:0;height:24px;line-height:24px}
+.sc-card-ft-left{display:flex;flex-direction:column;gap:6px}
+.sc-sw-line{display:flex;align-items:center;gap:6px}
+.sc-sw-label{font-size:12px;color:#8a94a6;white-space:nowrap}
 .sc-card-btns{display:flex;gap:6px;flex:0 0 auto}
 .sc-card-btns .layui-btn{margin:0}
 .sc-empty{padding:34px 16px;text-align:center;color:#98a3b3;border:1px dashed #dfe4ec;border-radius:8px;background:#fbfcfe;margin-bottom:12px}
@@ -120,14 +123,17 @@ $EP_STATUS = script_endpoint_status();
                                     <button type="button" class="layui-btn layui-btn-primary" id="btn-sc-export">导出</button>
                                 </div>
                                 <div class="sc-hint">支持单条或批量添加，每行一个地址；自动忽略空行与重复脚本，逐条拉取并显示进度，失败项不会中断后续添加，处理期间请勿关闭页面。</div>
+                                <div class="sc-hint">每个脚本卡片可单独选择更新方式：<b>自动</b>（默认，按检查间隔检测到更新后自动更新线路）、<b>手动</b>（只检测并在卡片上标记待更新，点击「更新」后生效）。</div>
 
                                 <?php if (empty($SC['scripts'])): ?>
                                 <div class="sc-empty">暂无脚本，请在上方填写脚本地址并点击「添加脚本」，或把 <code>.user.js</code> 放入 <code>/MXJB/</code> 后点击「导入」</div>
                                 <?php else: ?>
                                 <div class="sc-grid">
-                                    <?php foreach ($SC['scripts'] as $si => $sc): $sc = is_array($sc) ? $sc : array(); $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'lines' => array(), 'off' => '1', 'time' => '', 'file' => '');
+                                    <?php foreach ($SC['scripts'] as $si => $sc): $sc = is_array($sc) ? $sc : array(); $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'lines' => array(), 'off' => '1', 'time' => '', 'file' => '', 'auto_update' => '1', 'pending_version' => '', 'pending_time' => '');
                                         $scName = $sc['name'] !== '' ? $sc['name'] : '（未命名脚本）';
                                         $scOn = (string)$sc['off'] === '1';
+                                        $scAuto = (string)$sc['auto_update'] !== '0';
+                                        $scPending = trim((string)$sc['pending_version']);
                                         $scFile = isset($sc['file']) ? basename(trim((string)$sc['file'])) : '';
                                         $scFileExists = $scFile !== '' && is_file(dirname(__FILE__) . '/../../MXJB/' . $scFile);
                                         $scTime = script_time_fmt($sc['time']);
@@ -141,6 +147,10 @@ $EP_STATUS = script_endpoint_status();
                                         <div class="sc-meta">
                                             <span class="sc-chip">版本 <b><?php echo htmlspecialchars($sc['version'] !== '' ? $sc['version'] : '—'); ?></b></span>
                                             <span class="sc-chip">线路 <b><?php echo count($sc['lines']); ?></b></span>
+                                            <span class="sc-chip">更新 <b><?php echo $scAuto ? '自动' : '手动'; ?></b></span>
+                                            <?php if ($scPending !== ''): ?>
+                                            <span class="sc-chip miss" title="检测到新版本<?php echo $sc['pending_time'] !== '' ? '（' . htmlspecialchars(script_time_fmt($sc['pending_time'])) . '）' : ''; ?>，点击「更新」后生效">待更新 <b><?php echo htmlspecialchars($scPending); ?></b></span>
+                                            <?php endif; ?>
                                             <?php if ($scFileExists): ?>
                                             <span class="sc-chip" title="源码已保存到 /MXJB/<?php echo htmlspecialchars($scFile); ?>">源码 <b><?php echo htmlspecialchars($scFile); ?></b></span>
                                             <?php elseif ($scFile !== ''): ?>
@@ -148,12 +158,19 @@ $EP_STATUS = script_endpoint_status();
                                             <?php else: ?>
                                             <span class="sc-chip">源码未导出</span>
                                             <?php endif; ?>
-                                            <span class="sc-chip">更新 <?php echo $scTime !== '' ? htmlspecialchars($scTime) : '—'; ?></span>
+                                            <span class="sc-chip">更新于 <?php echo $scTime !== '' ? htmlspecialchars($scTime) : '—'; ?></span>
                                         </div>
                                         <div class="sc-card-ft">
-                                            <div>
+                                            <div class="sc-card-ft-left">
                                                 <input type="hidden" name="sc_sid[<?php echo (int)$si; ?>]" value="<?php echo htmlspecialchars($sc['id']); ?>">
-                                                <input type="checkbox" name="sc_soff[<?php echo (int)$si; ?>]" value="1" lay-skin="switch" lay-text="启用|停用" <?php echo $scOn ? 'checked' : ''; ?>>
+                                                <div class="sc-sw-line">
+                                                    <span class="sc-sw-label">启用</span>
+                                                    <input type="checkbox" name="sc_soff[<?php echo (int)$si; ?>]" value="1" lay-skin="switch" lay-text="启用|停用" <?php echo $scOn ? 'checked' : ''; ?>>
+                                                </div>
+                                                <div class="sc-sw-line">
+                                                    <span class="sc-sw-label">更新</span>
+                                                    <input type="checkbox" name="sc_sauto[<?php echo (int)$si; ?>]" value="1" lay-skin="switch" lay-text="自动|手动" <?php echo $scAuto ? 'checked' : ''; ?>>
+                                                </div>
                                             </div>
                                             <div class="sc-card-btns">
                                                 <button type="button" class="layui-btn layui-btn-xs layui-btn-primary sc-script-lines" data-sid="<?php echo htmlspecialchars($sc['id']); ?>">线路</button>
@@ -196,7 +213,7 @@ $EP_STATUS = script_endpoint_status();
                             <div class="layui-input-inline" style="width:120px">
                                 <input type="number" name="sc_interval" min="1" step="1" value="<?php echo (int)$SC['interval']; ?>" class="layui-input" placeholder="间隔小时">
                             </div>
-                            <div class="layui-form-mid layui-word-aux">每隔 N 小时自动检测全部脚本地址是否有更新并同步线路</div>
+                            <div class="layui-form-mid layui-word-aux">每隔 N 小时自动检测「自动更新」模式的脚本是否有更新并同步线路；手动模式的脚本只检测并标记待更新</div>
                         </div>
 
                         <fieldset class="layui-elem-field">
@@ -543,10 +560,10 @@ $EP_STATUS = script_endpoint_status();
                 });
             });
 
-            //页面加载时静默检测上游仓库更新（受「检查间隔」限制，未到期不会发起请求）
+            //页面加载时静默检测上游脚本更新（受「检查间隔」限制，未到期不会发起请求）
             $.post("admin.php", { type: "script_auto" }, function (d) {
                 if (!d) { return; }
-                if (d.changed == 1) {
+                if (d.changed == 1 || d.pending == 1) {
                     setTimeout(function () { location.reload(); }, 600);
                 } else if (d.success == 0) {
                     tip(false, d.m);
