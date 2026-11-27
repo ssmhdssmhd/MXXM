@@ -1327,6 +1327,7 @@ switch ($type) {
         if ($name !== '') { $cfg['scripts'][$idx]['name'] = $name; }
         else { $cfg['scripts'][$idx]['name'] = isset($cfg['scripts'][$idx]['name']) ? $cfg['scripts'][$idx]['name'] : $url; }
         if ($ver !== '') { $cfg['scripts'][$idx]['version'] = $ver; }
+        $cfg['scripts'][$idx]['latest_version'] = $ver;
         $cfg['scripts'][$idx]['lines'] = $lines;
         $cfg['scripts'][$idx]['lines_hash'] = md5(json_encode($lines));
         $cfg['scripts'][$idx]['time'] = script_now();
@@ -1409,6 +1410,7 @@ switch ($type) {
             list($name, $ver) = script_meta($js);
             if ($name !== '') { $cfg['scripts'][$i]['name'] = $name; }
             if ($ver !== '') { $cfg['scripts'][$i]['version'] = $ver; }
+            $cfg['scripts'][$i]['latest_version'] = $ver;
             $cfg['scripts'][$i]['lines'] = $lines;
             $cfg['scripts'][$i]['lines_hash'] = md5(json_encode($lines));
             $cfg['scripts'][$i]['time'] = script_now();

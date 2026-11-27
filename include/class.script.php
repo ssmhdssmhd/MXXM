@@ -92,10 +92,11 @@ function script_load() {
     // 逐脚本更新模式：auto_update=1 自动更新（默认），0 仅检测并等待手动更新
     foreach ($cfg['scripts'] as $si => $sc) {
         if (!is_array($sc)) { $sc = array(); }
-        $sc += array('auto_update' => '1', 'pending_version' => '', 'pending_time' => '');
+        $sc += array('auto_update' => '1', 'pending_version' => '', 'pending_time' => '', 'latest_version' => '');
         $sc['auto_update'] = (string)$sc['auto_update'] === '0' ? '0' : '1';
         $sc['pending_version'] = trim((string)$sc['pending_version']);
         $sc['pending_time'] = trim((string)$sc['pending_time']);
+        $sc['latest_version'] = trim((string)$sc['latest_version']);
         $cfg['scripts'][$si] = $sc;
     }
     // 合并全部脚本线路与手动线路，作为前台实际使用的线路列表
@@ -629,7 +630,7 @@ function script_export(&$cfg, &$logs) {
     $ok = 0;
     foreach ((array)$cfg['scripts'] as $i => $sc) {
         if (!is_array($sc)) { continue; }
-        $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'off' => '1', 'lines' => array(), 'auto_update' => '1');
+        $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'off' => '1', 'lines' => array(), 'auto_update' => '1', 'latest_version' => '');
         $id = trim((string)$sc['id']);
         if ($id === '') {
             $seed = trim((string)$sc['url']) !== '' ? trim((string)$sc['url']) : (trim((string)$sc['name']) . '#' . $i);
@@ -660,6 +661,7 @@ function script_export(&$cfg, &$logs) {
             'name'    => $sc['name'],
             'url'     => $sc['url'],
             'version' => $sc['version'],
+            'latest_version' => $sc['latest_version'],
             'off'     => (string)$sc['off'] === '1' ? '1' : '0',
             'auto_update' => (string)$sc['auto_update'] === '0' ? '0' : '1',
             'file'    => $file,
@@ -752,6 +754,7 @@ function script_import(&$cfg, &$logs) {
             'name'       => $label,
             'url'        => $url,
             'version'    => isset($it['version']) ? trim((string)$it['version']) : '',
+            'latest_version' => isset($it['latest_version']) ? trim((string)$it['latest_version']) : '',
             'lines'      => $lines,
             'lines_hash' => md5(json_encode($lines)),
             'off'        => (isset($it['off']) && (string)$it['off'] === '0') ? '0' : '1',
@@ -828,6 +831,7 @@ function script_auto_update($cfg = null, $force = false) {
         $hash = md5(json_encode($lines));
         $hashChanged = ($hash !== (string)$sc['lines_hash'] || $sc['lines'] !== $lines);
         $verChanged = ($ver !== '' && $ver !== (string)$sc['version']);
+        $cfg['scripts'][$i]['latest_version'] = $ver;
         $cfg['scripts'][$i]['last_check'] = script_now();
 
         // 手动模式只检测版本变化，保留待更新提示，不改动现有线路

@@ -129,11 +129,14 @@ $EP_STATUS = script_endpoint_status();
                                 <div class="sc-empty">暂无脚本，请在上方填写脚本地址并点击「添加脚本」，或把 <code>.user.js</code> 放入 <code>/MXJB/</code> 后点击「导入」</div>
                                 <?php else: ?>
                                 <div class="sc-grid">
-                                    <?php foreach ($SC['scripts'] as $si => $sc): $sc = is_array($sc) ? $sc : array(); $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'lines' => array(), 'off' => '1', 'time' => '', 'file' => '', 'auto_update' => '1', 'pending_version' => '', 'pending_time' => '');
+                                    <?php foreach ($SC['scripts'] as $si => $sc): $sc = is_array($sc) ? $sc : array(); $sc += array('id' => '', 'name' => '', 'url' => '', 'version' => '', 'lines' => array(), 'off' => '1', 'time' => '', 'file' => '', 'auto_update' => '1', 'pending_version' => '', 'pending_time' => '', 'latest_version' => '');
                                         $scName = $sc['name'] !== '' ? $sc['name'] : '（未命名脚本）';
                                         $scOn = (string)$sc['off'] === '1';
                                         $scAuto = (string)$sc['auto_update'] !== '0';
                                         $scPending = trim((string)$sc['pending_version']);
+                                        $scLatest = trim((string)$sc['latest_version']);
+                                        if ($scLatest === '') { $scLatest = trim((string)$sc['version']); }
+                                        $scHasNew = $scLatest !== '' && $scLatest !== trim((string)$sc['version']);
                                         $scFile = isset($sc['file']) ? basename(trim((string)$sc['file'])) : '';
                                         $scFileExists = $scFile !== '' && is_file(dirname(__FILE__) . '/../../MXJB/' . $scFile);
                                         $scTime = script_time_fmt($sc['time']);
@@ -145,10 +148,11 @@ $EP_STATUS = script_endpoint_status();
                                         </div>
                                         <div class="sc-card-url<?php echo $sc['url'] === '' ? ' blank' : ''; ?>" title="<?php echo htmlspecialchars($sc['url']); ?>"><?php echo $sc['url'] !== '' ? htmlspecialchars($sc['url']) : '本地脚本（未填写远程地址）'; ?></div>
                                         <div class="sc-meta">
-                                            <span class="sc-chip">版本 <b><?php echo htmlspecialchars($sc['version'] !== '' ? $sc['version'] : '—'); ?></b></span>
+                                            <span class="sc-chip">当前版本 <b><?php echo htmlspecialchars($sc['version'] !== '' ? $sc['version'] : '—'); ?></b></span>
+                                            <span class="sc-chip<?php echo $scHasNew ? ' miss' : ''; ?>" title="<?php echo $scLatest === '' ? '尚未检测到上游版本' : ($scHasNew ? ('检测到新版本' . ($scAuto ? '，将自动更新' : '，点击「更新」后生效')) : '已是最新版本'); ?>">最新版本 <b><?php echo htmlspecialchars($scLatest !== '' ? $scLatest : '—'); ?></b></span>
                                             <span class="sc-chip">线路 <b><?php echo count($sc['lines']); ?></b></span>
                                             <span class="sc-chip">更新 <b><?php echo $scAuto ? '自动' : '手动'; ?></b></span>
-                                            <?php if ($scPending !== ''): ?>
+                                            <?php if ($scPending !== '' && $scPending !== $scLatest): ?>
                                             <span class="sc-chip miss" title="检测到新版本<?php echo $sc['pending_time'] !== '' ? '（' . htmlspecialchars(script_time_fmt($sc['pending_time'])) . '）' : ''; ?>，点击「更新」后生效">待更新 <b><?php echo htmlspecialchars($scPending); ?></b></span>
                                             <?php endif; ?>
                                             <?php if ($scFileExists): ?>
